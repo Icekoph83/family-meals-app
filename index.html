@@ -1,0 +1,1090 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#b4491f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Meals">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Family Meals</title>
+<style>
+:root{--bg:#faf6ef;--card:#fffdf8;--ink:#2b2620;--mute:#6f665a;--line:#e6dccb;--accent:#b4491f;--accent-ink:#fff;--ok:#2f6b3f;--okbg:#e3f0e2;--warn:#8a5a00;--warnbg:#fbeccb;--chip:#f1e8d8;--bad:#8c2a12;--badbg:#f6d4cc}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1c1914;--card:#26221b;--ink:#f2ebdd;--mute:#a79d8c;--line:#3a3429;--accent:#e57a4a;--accent-ink:#1c1914;--ok:#8fd19e;--okbg:#22382a;--warn:#f0c15f;--warnbg:#3b2f14;--chip:#332d23;--bad:#f2a38c;--badbg:#4a2118}}
+:root[data-theme="dark"]{--bg:#1c1914;--card:#26221b;--ink:#f2ebdd;--mute:#a79d8c;--line:#3a3429;--accent:#e57a4a;--accent-ink:#1c1914;--ok:#8fd19e;--okbg:#22382a;--warn:#f0c15f;--warnbg:#3b2f14;--chip:#332d23;--bad:#f2a38c;--badbg:#4a2118}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0}
+.wrap{max-width:640px;margin:0 auto;padding:20px 16px 80px}
+h1{font:700 26px/1.15 Georgia,"Times New Roman",serif;margin:4px 0 2px}
+.sub{color:var(--mute);font-size:14px;margin:0 0 14px}
+.tabs{display:flex;gap:6px;margin:0 0 14px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:1 0 auto;min-width:0;padding:10px 12px;white-space:nowrap;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;font:inherit;font-size:13px;cursor:pointer}
+.tab[aria-selected=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 12px}
+.day{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);display:flex;justify-content:space-between;align-items:center}
+.title{font:600 18px/1.25 Georgia,serif;margin:4px 0 6px}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.chip{background:var(--chip);border-radius:99px;padding:2px 10px;font-size:12.5px}
+.chip.ok{background:var(--okbg);color:var(--ok)}
+.chip.warn{background:var(--warnbg);color:var(--warn)}
+.chip.bad{background:var(--badbg);color:var(--bad)}
+.prow{padding:10px 0;border-bottom:1px solid var(--line)}
+.prow:last-child{border-bottom:0}
+.prow .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.prow input[type=date]{width:auto;flex:none;padding:8px}
+.prow .ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.note{font-size:14px;color:var(--mute);margin:4px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+button.b{font:inherit;font-size:14px;padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;min-height:40px}
+button.b.p{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.b:disabled{opacity:.5;cursor:default}
+.status{font-size:13px;margin-top:8px}
+.alts{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+.alt{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.alt:last-child{border-bottom:0}
+textarea,input{width:100%;box-sizing:border-box;font:inherit;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.msg{padding:10px 12px;border-radius:12px;margin:8px 0;font-size:15px;white-space:pre-wrap}
+.msg.q{background:var(--chip)}
+.msg.a{background:var(--card);border:1px solid var(--line)}
+.who{font-size:12px;color:var(--mute);margin-bottom:2px}
+.empty{text-align:center;color:var(--mute);padding:26px 10px}
+.empty b{display:block;color:var(--ink);font:600 18px Georgia,serif;margin-bottom:6px}
+.banner{background:var(--warnbg);color:var(--warn);border-radius:10px;padding:8px 12px;font-size:13.5px;margin:0 0 12px}
+.grp{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:18px 0 4px}
+.srow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.srow:last-child{border-bottom:0}
+.srow label{flex:1;display:flex;gap:10px;align-items:center;cursor:pointer;min-width:0}
+.srow .nm{overflow-wrap:anywhere}
+.srow input[type=checkbox]{width:22px;height:22px;flex:none;padding:0}
+select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);min-height:40px}
+.srow select{max-width:116px;flex:none}
+.sum{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
+.addrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.addrow input{flex:1 1 150px;width:auto}
+#sb{margin:0 0 12px;display:none;gap:8px;align-items:center}
+#sb input{flex:1;min-width:0;-webkit-appearance:none;appearance:none}
+#sb input::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+#sx{flex:none;min-height:40px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;cursor:pointer}
+.alts .who{margin-top:2px}
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.seg button{font:inherit;font-size:13.5px;padding:7px 12px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;min-height:36px}
+.seg button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.seg button.no.on{background:var(--bad);color:var(--accent-ink);border-color:var(--bad)}
+#ck{--ckaccbg:color-mix(in srgb,var(--accent) 14%,var(--card));font-size:17px;line-height:1.45}
+#ck .ck-mut{font-size:14px}
+#ck h1{font-size:24px;margin:4px 0 12px}
+#ck h2{font-size:20px;margin:0 0 4px}
+#ck .ck-mut{color:var(--mute);font-size:14px}
+#ck .ck-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}
+#ck button{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;cursor:pointer}
+#ck button.ck-pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+#ck button.ck-rc{display:block;width:100%;text-align:left}
+#ck .ck-tabs{display:flex;gap:6px;margin:10px 0}
+#ck .ck-tabs button{flex:1}
+#ck .ck-tabs button.ck-on{background:var(--ckaccbg);border-color:var(--accent);font-weight:600}
+#ck .ck-chip{display:inline-block;background:var(--ckaccbg);border:1px solid var(--accent);border-radius:999px;padding:4px 10px;margin:3px 4px 3px 0;font-size:16px}
+#ck .ck-ing{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line);cursor:pointer}
+#ck .ck-ing:last-child{border:0}
+#ck .ck-ing input{width:22px;height:22px;margin-top:2px;flex:none}
+#ck .ck-ing.ck-done span{text-decoration:line-through;color:var(--mute)}
+#ck .ck-ing.ck-hl{background:var(--ckaccbg);margin:0 -8px;padding:9px 8px;border-radius:8px}
+#ck .ck-amt{font-weight:600}
+#ck .ck-step{padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer}
+#ck .ck-step.ck-cur{background:var(--ckaccbg);margin:0 -8px;padding:10px 8px;border-radius:10px}
+#ck .ck-step.ck-past{color:var(--mute)}
+#ck .ck-big{font-size:21px;line-height:1.5}
+#ck .ck-bar{height:6px;background:var(--line);border-radius:6px;overflow:hidden;margin:8px 0}
+#ck .ck-bar i{display:block;height:100%;background:var(--accent)}
+#ck .ck-nav{z-index:5;position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
+#ck .ck-nav div{max-width:680px;margin:0 auto;display:flex;gap:8px}
+#ck .ck-nav button{flex:1;padding:14px}
+#ck .ck-tm{font-size:28px;font-variant-numeric:tabular-nums;font-weight:700}
+#ck .ck-baby{background:var(--okbg);border-radius:10px;padding:10px;margin-top:10px;font-size:15px}
+#ck .ck-warnbox{background:var(--ckaccbg);border:1px solid var(--accent);border-radius:10px;padding:10px;margin:8px 0;font-size:15px}
+#ck .ck-eq{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+#ck .ck-eq:last-child{border:0}
+#ck .ck-tag{font-size:13px;border-radius:99px;padding:2px 10px;white-space:nowrap;background:var(--line)}
+#ck .ck-tag.ck-ok{background:var(--okbg);color:var(--ok)}
+#ck .ck-tag.ck-no{background:var(--ckaccbg);color:var(--accent);border:1px solid var(--accent)}
+#ck .ck-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+</style>
+</head><body>
+<script src="fm-db.js"></script>
+<div class="wrap">
+<h1>This week's dinners</h1>
+<p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
+<div id="banner"></div>
+<div class="tabs" role="tablist">
+<button class="tab" role="tab" data-t="week" aria-selected="true">Week</button>
+<button class="tab" role="tab" data-t="cook" aria-selected="false">Cook</button>
+<button class="tab" role="tab" data-t="ask" aria-selected="false">Ask</button>
+<button class="tab" role="tab" data-t="staples" aria-selected="false">Staples</button>
+<button class="tab" role="tab" data-t="pantry" aria-selected="false">Pantry</button>
+<button class="tab" role="tab" data-t="kitchen" aria-selected="false">Kitchen</button>
+<button class="tab" role="tab" data-t="house" aria-selected="false">Household</button>
+<button class="tab" role="tab" data-t="shop" aria-selected="false">Groceries</button>
+</div>
+<div id="sb"><input id="sq" type="search" placeholder="Search" autocomplete="off"><button id="sx" type="button" aria-label="Clear search" style="display:none">Clear</button></div>
+<div id="view"></div>
+</div>
+<script>
+(function(){
+var S={kit:null,ext:null,recipes:[],cur:null,mode:"cook",step:0,done:{},pdone:{},loaded:false,timer:null,wake:null};
+var app=null;
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c.split(" ").map(function(k){return k?"ck-"+k:""}).join(" ");if(x!=null)e.textContent=x;return e}
+function ls(k,v){try{if(v===undefined){return JSON.parse(localStorage.getItem(k)||"null")}localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
+function save(){if(S.cur)ls("cook:"+S.cur.id,{step:S.step,done:S.done,prep:S.pdone})}
+function open(r){S.cur=r;var p=ls("cook:"+r.id)||{};S.step=p.step||0;S.done=p.done||{};S.pdone=p.prep||{};S.mode=(hasPrep(r)&&!(p.step>0))?"prep":"cook";S.timer=null;render();window.scrollTo(0,0)}
+function hasPrep(r){return (r.prep||[]).length||(r.equip||[]).length||(r.flow||[]).length}
+function norm(t){return String(t||"").toLowerCase().replace(/\s+/g," ").trim()}
+function eqState(n){var L=(window.CookExt&&window.CookExt.equip&&window.CookExt.equip())||[];var f=null;L.forEach(function(x){if(norm(x.name)===norm(n))f=x});if(!f)return "unset";return f.have==="yes"?"yes":f.have==="no"?"no":"unset"}
+function ingMap(r){var m={};(r.ingredients||[]).forEach(function(i){m[i.id]=i});return m}
+function wakeOn(){try{if(navigator.wakeLock&&!S.wake){navigator.wakeLock.request("screen").then(function(w){S.wake=w;w.addEventListener("release",function(){S.wake=null})}).catch(function(){})}}catch(e){}}
+document.addEventListener("visibilitychange",function(){if(!document.hidden&&S.cur)wakeOn()});
+function fmt(s){var m=Math.floor(s/60),x=s%60;return m+":"+(x<10?"0":"")+x}
+setInterval(function(){var t=S.timer;if(!t||t.fired)return;var left=Math.round((t.end-Date.now())/1000);if(left<=0){t.fired=true;try{navigator.vibrate&&navigator.vibrate([400,200,400,200,400])}catch(e){}}var n=document.getElementById("tmv");if(n)n.textContent=t.fired?"Time's up!":fmt(left)},500);
+
+function ingRow(i,hl,r){
+  var row=el("label","ing"+(S.done[i.id]?" done":"")+(hl?" hl":""));
+  var cb=el("input");cb.type="checkbox";cb.checked=!!S.done[i.id];
+  cb.onchange=function(){S.done[i.id]=cb.checked;save();render()};
+  var sp=el("span");var a=el("span","amt",i.amt?i.amt+" ":"");sp.appendChild(a);sp.appendChild(document.createTextNode(i.name));
+  row.appendChild(cb);row.appendChild(sp);return row}
+
+function renderList(){
+  app.textContent="";app.appendChild(el("h1",null,"Cook"));
+  if(!S.loaded){app.appendChild(el("p","mut","Loading recipes…"));return}
+  if(!S.recipes.length){var c=el("div","card");c.appendChild(el("p",null,"No recipes loaded yet."));c.appendChild(el("p","mut","Ask Claude to add this week's recipes."));app.appendChild(c);return}
+  S.recipes.forEach(function(r){var b=el("button","card rc");b.appendChild(el("h2",null,r.title));
+    b.appendChild(el("div","mut",[r.day,r.time,r.servings,r.cost].filter(Boolean).join(" · ")));
+    if((r.equip||[]).some(function(e){return eqState(e.n)==="no"}))b.appendChild(el("div","mut","Missing equipment, tap for the swap"));
+    var p=ls("cook:"+r.id);if(p&&p.step>0)b.appendChild(el("div","mut","In progress: step "+(p.step+1)+" of "+(r.steps||[]).length));
+    b.onclick=function(){open(r)};app.appendChild(b)})}
+
+function prepCard(r,im,interactive){
+  var list=r.prep||[];var c=el("div","card");c.appendChild(el("h2",null,"Prep"));
+  var n=list.filter(function(t,i){return S.pdone[i]}).length;
+  if(interactive){c.appendChild(el("div","mut",n+" of "+list.length+" ready. Do these first, or while the oven or water heats."));
+    var bar=el("div","bar"),fill=el("i");fill.style.width=(list.length?n/list.length*100:0)+"%";bar.appendChild(fill);c.appendChild(bar)}
+  list.forEach(function(t,i){
+    var row=el("label","ing"+(interactive&&S.pdone[i]?" done":""));
+    if(interactive){var cb=el("input");cb.type="checkbox";cb.checked=!!S.pdone[i];cb.onchange=function(){S.pdone[i]=cb.checked;save();render()};row.appendChild(cb)}
+    var sp=el("span");sp.appendChild(el("b",null,(interactive?"":(i+1)+". ")+(t.title||"")));
+    if(t.text)sp.appendChild(el("div",null,t.text));
+    if((t.uses||[]).length){var w=el("div");(t.uses).forEach(function(id){var ig=im[id];if(ig)w.appendChild(el("span","chip",(ig.amt?ig.amt+" ":"")+ig.name))});sp.appendChild(w)}
+    row.appendChild(sp);c.appendChild(row)});
+  return c}
+
+function equipCard(r){
+  var list=r.equip||[];var out=el("div");
+  var miss=list.filter(function(e){return eqState(e.n)==="no"});
+  if(miss.length){var w=el("div","warnbox");w.appendChild(el("b",null,"You don't have everything for this one"));miss.forEach(function(e){w.appendChild(el("div",null,e.n+(e.alt?": "+e.alt:": no swap listed, ask Claude for one")))});out.appendChild(w)}
+  (r.watch||[]).forEach(function(t){out.appendChild(el("div","warnbox",t))});
+  if(list.length){var c=el("div","card");c.appendChild(el("h2",null,"Equipment"));
+    list.forEach(function(e){var st=eqState(e.n);var row=el("div","eq");var l=el("div");l.appendChild(el("b",null,e.n));if(e.use)l.appendChild(el("div","mut",e.use));if(st==="no"&&e.alt)l.appendChild(el("div","mut","Instead: "+e.alt));row.appendChild(l);
+      row.appendChild(el("span","tag "+(st==="yes"?"ok":st==="no"?"no":""),st==="yes"?"Have it":st==="no"?"Missing":"Not confirmed"));c.appendChild(row)});
+    
+    out.appendChild(c)}
+  if((r.flow||[]).length){var f=el("div","card");f.appendChild(el("h2",null,"Order of work"));
+    r.flow.forEach(function(t,i){var d=el("div",null,(i+1)+". "+t);d.style.padding="4px 0";f.appendChild(d)});out.appendChild(f)}
+  return out}
+function renderRecipe(){
+  var r=S.cur,steps=r.steps||[],im=ingMap(r);app.textContent="";
+  var back=el("button",null,"← All recipes");back.onclick=function(){S.cur=null;render()};app.appendChild(back);
+  app.appendChild(el("h1",null,r.title));
+  app.appendChild(el("div","mut",[r.day,r.time,r.servings,r.cost].filter(Boolean).join(" · ")));
+  if(r.intro)app.appendChild(el("p","mut",r.intro));
+  var tabs=el("div","tabs");((hasPrep(r)?[["prep","Prep"]]:[]).concat([["cook","Step by step"],["whole","Whole recipe"]])).forEach(function(t){var b=el("button",S.mode===t[0]?"on":"",t[1]);b.onclick=function(){S.mode=t[0];render()};tabs.appendChild(b)});app.appendChild(tabs);
+  if(S.mode==="prep"&&hasPrep(r)){
+    app.appendChild(equipCard(r));
+    if((r.prep||[]).length)app.appendChild(prepCard(r,im,true));
+    var go=el("button","pri","Start cooking →");go.style.cssText="width:100%;padding:14px;margin:6px 0";go.onclick=function(){S.mode="cook";save();render();window.scrollTo(0,0)};app.appendChild(go);
+    var ic0=el("div","card");ic0.appendChild(el("h2",null,"All ingredients"));(r.ingredients||[]).forEach(function(i){ic0.appendChild(ingRow(i,false,r))});app.appendChild(ic0);
+    if(r.baby){app.appendChild(el("div","baby","Baby: "+r.baby))}
+    return}
+  if(S.mode==="whole"){
+    var c=el("div","card");c.appendChild(el("h2",null,"Ingredients"));(r.ingredients||[]).forEach(function(i){c.appendChild(ingRow(i,false,r))});app.appendChild(c);
+    app.appendChild(equipCard(r));
+    if((r.prep||[]).length)app.appendChild(prepCard(r,im,false));
+    var d=el("div","card");d.appendChild(el("h2",null,"Steps"));
+    steps.forEach(function(s,n){var st=el("div","step"+(n===S.step?" cur":""));st.appendChild(el("b",null,(n+1)+". "+(s.title||"")));st.appendChild(el("div",null,s.text||""));
+      st.onclick=function(){S.step=n;S.mode="cook";save();render()};d.appendChild(st)});app.appendChild(d);
+    if(r.baby){var bb=el("div","baby","Baby: "+r.baby);app.appendChild(bb)}
+    var rs=el("button",null,"Reset progress");rs.onclick=function(){S.step=0;S.done={};S.pdone={};save();render()};app.appendChild(rs);
+    return}
+  var s=steps[S.step];if(!s){app.appendChild(el("p",null,"No steps."));return}
+  var bar=el("div","bar"),fill=el("i");fill.style.width=((S.step+1)/steps.length*100)+"%";bar.appendChild(fill);app.appendChild(bar);
+  app.appendChild(el("div","mut","Step "+(S.step+1)+" of "+steps.length));
+  var c=el("div","card");c.appendChild(el("h2",null,s.title||""));c.appendChild(el("div","big",s.text||""));
+  if((s.uses||[]).length){c.appendChild(el("div","mut","Using now"));var w=el("div");s.uses.forEach(function(id){var i=im[id];if(i)w.appendChild(el("span","chip",(i.amt?i.amt+" ":"")+i.name))});c.appendChild(w)}
+  if(s.timer){var tr=el("div","row");var t=S.timer&&S.timer.step===S.step?S.timer:null;
+    var tv=el("span","tm",t?(t.fired?"Time's up!":fmt(Math.max(0,Math.round((t.end-Date.now())/1000)))):fmt(s.timer));tv.id="tmv";tr.appendChild(tv);
+    var tb=el("button",null,t?"Restart timer":"Start timer");tb.onclick=function(){S.timer={step:S.step,end:Date.now()+s.timer*1000,fired:false};render()};tr.appendChild(tb);c.appendChild(tr)}
+  if(r.baby&&S.step===steps.length-1){c.appendChild(el("div","baby","Baby: "+r.baby))}
+  app.appendChild(c);
+  var ic=el("div","card");ic.appendChild(el("h2",null,"All ingredients"));var uses=s.uses||[];
+  (r.ingredients||[]).forEach(function(i){ic.appendChild(ingRow(i,uses.indexOf(i.id)>=0,r))});app.appendChild(ic);
+  var nav=el("div","nav"),in2=el("div");
+  var p=el("button",null,"← Back");p.disabled=S.step===0;p.onclick=function(){S.step--;save();render();window.scrollTo(0,0)};
+  var last=S.step>=steps.length-1;var n=el("button","pri",last?"Done":"Next →");
+  n.onclick=function(){if(last){S.step=0;S.done={};S.pdone={};save();S.cur=null;render()}else{S.step++;save();render();window.scrollTo(0,0)}};
+  in2.appendChild(p);in2.appendChild(n);nav.appendChild(in2);app.appendChild(nav)}
+
+function render(){if(!app)return;var y=window.scrollY;if(S.cur){wakeOn();renderRecipe()}else renderList();if(y)window.scrollTo(0,y)}
+
+function todayIso(){var n=new Date();return n.getFullYear()+"-"+("0"+(n.getMonth()+1)).slice(-2)+"-"+("0"+n.getDate()).slice(-2)}
+function byId(id){return S.recipes.filter(function(r){return r.id===id})[0]||null}
+function pickDefault(){var iso=todayIso(),pick=null;S.recipes.forEach(function(r){if(r.date===iso)pick=r});
+  if(!pick){var best=null;S.recipes.forEach(function(r){if(r.date&&r.date>=iso&&(!best||r.date<best.date))best=r});pick=best}return pick}
+window.CookTab={
+  mount:function(c){var w=document.createElement("div");w.id="ck";c.appendChild(w);app=w;
+    if(!S.auto&&S.recipes.length){S.auto=true;var q="";try{q=location.hash+location.search}catch(e){}var pick=null;S.recipes.forEach(function(r){if(q&&q.indexOf(r.id)>=0)pick=r});if(!pick&&!S.cur)pick=pickDefault();if(pick){open(pick);return}}
+    render()},
+  unmount:function(){app=null},
+  setRecipes:function(list){var t=todayIso();S.recipes=list.slice().sort(function(a,b){var ua=(a.date||"")>=t,ub=(b.date||"")>=t;if(ua!==ub)return ua?-1:1;if(ua)return (a.date||"").localeCompare(b.date||"");return (b.date||"").localeCompare(a.date||"")});S.loaded=true;if(S.cur){var f=byId(S.cur.id);if(f)S.cur=f}},
+  open:function(id){var r=byId(id);if(r){S.auto=true;open(r);return true}return false},
+  forDate:function(d){var f=null;S.recipes.forEach(function(r){if(r.date===d)f=r});return f},
+  has:function(id){return !!byId(id)},
+  idInHash:function(){var q="";try{q=location.hash+location.search}catch(e){}var f=null;S.recipes.forEach(function(r){if(q&&q.indexOf(r.id)>=0)f=r});return f?f.id:null},
+  refresh:function(){render()},
+  active:function(){return !!app}
+};
+})();
+</script>
+<script>
+(function(){
+var DAYS={mon:"Monday",tue:"Tuesday",wed:"Wednesday",thu:"Thursday",fri:"Friday",sat:"Saturday",sun:"Sunday"};
+var S={tab:"week",wk:null,shop:null,mode:"store",meals:null,staples:null,pantry:null,pf:{name:"",qty:"",n:1,loc:"Pantry",exp:""},pp:{text:"",imgs:[],busy:false,err:"",proposal:null,ideas:"",ichk:"",ibusy:false,ierr:""},cv:{text:"",busy:false,out:"",err:"",chk:"",only:false},canImg:null,dl:{},equip:null,kp:{text:"",imgs:[],busy:false,err:"",proposal:null},eqf:{name:"",group:"Cookware"},rm:null,people:null,hh:{notes:""},hd:{text:"",busy:false,err:"",proposal:null},rf:{},np:{name:"",role:"adult"},ck:{text:"",busy:false,res:null,fixed:"",fixing:false,err:""},st:{busy:false,res:[],err:"",cur:""},bal:{busy:false,out:"",chk:"",err:""},q:{week:"",staples:"",pantry:"",kitchen:"",shop:""},edit:null,hold:false,stale:false,newName:"",newSec:"Pantry",chat:[],db:null,user:null,sample:null,canWrite:true,me:null,names:{},open:null,busy:false,draft:"",err:""};
+function $(id){return document.getElementById(id)}
+function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
+function who(id){return id?(S.names[id]||"Someone"):""}
+function mine(id){return S.me&&id===S.me}
+
+function setTab(t){S.tab=t;S.ckFresh=true;S.rm=null;S.edit=null;S.dl={};S.hold=false;document.querySelectorAll(".tab").forEach(function(b){b.setAttribute("aria-selected",String(b.dataset.t===t))});render()}
+document.querySelectorAll(".tab").forEach(function(b){b.onclick=function(){setTab(b.dataset.t)}});
+
+function qm(t){var q=(S.q[S.tab]||"").trim().toLowerCase();if(!q)return true;return String(t).toLowerCase().indexOf(q)>=0}
+function openEdit(key){S.edit=key;S.hold=false;render();holdAny()}
+function closeEdit(){S.edit=null;holdAny();render()}
+function editForm(fields,save){
+  var f=el("div","alts");var ins={};
+  fields.forEach(function(d){var w=el("div");w.style.marginTop="8px";w.appendChild(el("div","who",d.label));var i;
+    if(d.opts){i=el("select");i.style.width="100%";d.opts.concat(d.val&&d.opts.indexOf(d.val)<0?[d.val]:[]).forEach(function(o){var op=el("option",null,o);op.value=o;if(o===d.val)op.selected=true;i.appendChild(op)})}
+    else{i=el("input");if(d.type){i.type=d.type;if(d.type==="number")i.step="0.01"}i.value=d.val==null?"":d.val}
+    ins[d.k]=i;w.appendChild(i);f.appendChild(w)});
+  var r=el("div","row");var sv=el("button","b p","Save");
+  sv.onclick=function(){var o={};fields.forEach(function(d){o[d.k]=ins[d.k].value});S.edit=null;holdAny();save(o)};
+  var cn=el("button","b","Cancel");cn.onclick=closeEdit;r.appendChild(sv);r.appendChild(cn);f.appendChild(r);return f}
+function syncSearch(){var sb=$("sb"),sq=$("sq");var on=S.tab!=="ask"&&S.tab!=="house"&&S.tab!=="cook";sb.style.display=on?"flex":"none";$("sx").style.display=(on&&(S.q[S.tab]||"").trim())?"":"none";if(on){var ph={week:"Search dinners",staples:"Search staples",pantry:"Search the pantry",kitchen:"Search equipment",shop:"Search the grocery list"}[S.tab];if(sq.placeholder!==ph)sq.placeholder=ph;if(document.activeElement!==sq&&sq.value!==(S.q[S.tab]||""))sq.value=S.q[S.tab]||""}}
+$("sq").setAttribute("enterkeyhint","search");
+$("sq").onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();$("sq").blur()}};
+document.addEventListener("pointerdown",function(e){var a=document.activeElement;if(a&&a.id==="sq"&&e.target!==a)a.blur()},true);
+var sy=0;window.addEventListener("touchstart",function(e){sy=window.scrollY},{passive:true});
+window.addEventListener("scroll",function(){var a=document.activeElement;if(a&&a.id==="sq"&&Math.abs(window.scrollY-sy)>40)a.blur()},{passive:true});
+var sqT=null;
+$("sq").oninput=function(){S.q[S.tab]=$("sq").value;S.edit=null;holdAny();clearTimeout(sqT);sqT=setTimeout(rerenderHeld,120)};
+$("sx").onclick=function(){S.q[S.tab]="";$("sq").value="";$("sq").blur();S.edit=null;holdAny();clearTimeout(sqT);rerenderHeld()};
+function render(){
+  if(S.hold&&(S.edit||Object.keys(S.dl).length)){S.stale=true;return}
+  S.hold=false;
+  syncSearch();
+  var v=$("view");
+  if(S.tab==="cook"&&window.CookTab){var bn0=$("banner");bn0.textContent="";if(S.ckFresh||!v.firstChild){v.textContent="";S.ckFresh=false;window.CookTab.mount(v)}else{window.CookTab.refresh()}return}
+  if(window.CookTab)window.CookTab.unmount();
+  v.textContent="";
+  var bn=$("banner");bn.textContent="";
+  if(!S.db){bn.appendChild(el("div","banner","Shared planning is not available in this view, so nothing will be saved."))}
+  else if(!S.canWrite){bn.appendChild(el("div","banner","You can read this plan but not change it. Ask Jake for edit access."))}
+  if(S.err){bn.appendChild(el("div","banner",S.err))}
+  if(S.tab==="week")renderWeek(v);else if(S.tab==="ask")renderAsk(v);else if(S.tab==="staples")renderStaples(v);else if(S.tab==="pantry")renderPantry(v);else if(S.tab==="kitchen")renderKitchen(v);else if(S.tab==="house")renderHouse(v);else renderShop(v);
+}
+
+function isoD(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function satOf(iso){var p=String(iso||"").split("-");if(p.length<3)return "";var d=new Date(+p[0],+p[1]-1,+p[2]);d.setDate(d.getDate()-((d.getDay()+1)%7));return isoD(d)}
+function wkOf(m){return m.week||satOf(m.date)||""}
+function weekKeys(){var o={};(S.meals||[]).forEach(function(m){var k=wkOf(m);if(k)o[k]=1});return Object.keys(o).sort()}
+function curWk(){var ks=weekKeys();if(!ks.length)return "";var t=satOf(isoD(new Date()));if(ks.indexOf(t)>=0)return t;var past=ks.filter(function(k){return k<=t});return past.length?past[past.length-1]:ks[0]}
+function mealsIn(k){return (S.meals||[]).filter(function(m){return wkOf(m)===k||(!wkOf(m)&&k===curWk())})}
+function planMeals(){return mealsIn(curWk())}
+function addDays(iso,n){var p=iso.split("-");var d=new Date(+p[0],+p[1]-1,+p[2]);d.setDate(d.getDate()+n);return isoD(d)}
+var MN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function shortD(iso){var p=iso.split("-");return MN[+p[1]-1]+" "+(+p[2])}
+function renderWeek(v){
+  if(S.meals===null){v.appendChild(el("div","empty","Loading the plan…"));return}
+  if(!S.meals.length){var e=el("div","empty");e.appendChild(el("b",null,"No plan yet"));e.appendChild(document.createTextNode("Jake will load this week's draft. You'll see each night here and can approve it or ask for a swap."));v.appendChild(e);return}
+  var searching=!!(S.q.week||"").trim();
+  var ks=weekKeys(),cur=curWk();
+  if(!S.wk||(ks.indexOf(S.wk)<0&&S.wk!==cur))S.wk=cur;
+  var list=searching?S.meals.slice():mealsIn(S.wk);
+  if(!searching&&ks.length){
+    var nav=el("div","row");nav.style.cssText="align-items:center;justify-content:space-between;flex-wrap:nowrap;margin:0 0 10px";
+    var i=ks.indexOf(S.wk);
+    var pv=el("button","b","‹ Earlier");pv.disabled=i<=0;pv.onclick=function(){S.wk=ks[i-1];render()};
+    var nx=el("button","b","Later ›");nx.disabled=i<0||i>=ks.length-1;nx.onclick=function(){S.wk=ks[i+1];render()};
+    var mid=el("div");mid.style.cssText="text-align:center;flex:1;min-width:0";
+    mid.appendChild(el("div","title",shortD(S.wk)+" to "+shortD(addDays(S.wk,6))));
+    mid.appendChild(el("div","note",S.wk===cur?"This week":(S.wk<cur?"Past week":"Coming up")));
+    nav.appendChild(pv);nav.appendChild(mid);nav.appendChild(nx);v.appendChild(nav);
+    if(S.wk!==cur){var bk=el("button","b p","Back to this week");bk.style.marginBottom="10px";bk.onclick=function(){S.wk=cur;render()};v.appendChild(bk)}
+  }
+  if(searching)v.appendChild(el("div","note","Searching every week."));
+  var ok=list.filter(function(m){return m.status==="approved"}).length;
+  v.appendChild(el("p","sub",ok+" of "+list.length+" nights approved"));
+  if(!searching)weekEquip(v,list);
+  var shown=list.filter(function(m){return qm([m.title,m.note,m.cuisine,m.day].join(" "))});
+  if(!shown.length)v.appendChild(el("div","empty","Nothing matches your search."));
+  shown.forEach(function(m){v.appendChild(mealCard(m))});
+}
+
+function mealCard(m){
+  var c=el("div","card");
+  var d=el("div","day");d.appendChild(el("span",null,DAYS[m.day]||m.day));
+  if(m.status==="approved")d.appendChild(el("span","chip ok","Approved"));
+  else if(m.status==="swap")d.appendChild(el("span","chip warn","Wants a swap"));
+  else d.appendChild(el("span","chip","Draft"));
+  c.appendChild(d);
+  c.appendChild(el("div","title",m.title));
+  var mt=el("div","meta");
+  if(m.kind==="takeout")mt.appendChild(el("span","chip","Takeout night"));
+  if(m.time)mt.appendChild(el("span","chip",m.time));
+  if(m.cost)mt.appendChild(el("span","chip",m.cost));
+  if(m.cuisine)mt.appendChild(el("span","chip",m.cuisine));
+  if(m.veg)mt.appendChild(el("span","chip ok","Meatless"));
+  c.appendChild(mt);
+  if((m.equip||[]).length){var em=el("div","meta");em.appendChild(el("span","who","Equipment"));m.equip.forEach(function(nm){var st=eqStatus(nm);em.appendChild(el("span","chip"+(st==="yes"?" ok":st==="no"?" bad":""),nm+(st==="no"?" (missing)":st==="unset"?" (unconfirmed)":"")))});c.appendChild(em)}
+  if(m.note)c.appendChild(el("div","note",m.note));
+  if(m.baby)c.appendChild(el("div","note","Lenora: "+m.baby));
+  if(m.decidedBy&&m.status!=="draft")c.appendChild(el("div","status",(mine(m.decidedBy)?"You":who(m.decidedBy))+(m.status==="approved"?" approved this":" asked for a swap")+(m.comment?": “"+m.comment+"”":"")));
+  if(S.canWrite&&S.db){
+    var r=el("div","row");
+    var ap=el("button","b p",m.status==="approved"?"Approved":"Approve");ap.disabled=S.busy||m.status==="approved";
+    ap.onclick=function(){setStatus(m,"approved")};r.appendChild(ap);
+    var sw=el("button","b","Swap…");sw.onclick=function(){S.open=S.open===m.id?null:m.id;render()};r.appendChild(sw);
+    var eb=el("button","b","Edit");eb.onclick=function(){openEdit("meal:"+m.id)};r.appendChild(eb);
+    var rc=(window.CookTab&&m.date)?window.CookTab.forDate(m.date):null;if(rc){var cb=el("button","b","Cook");cb.onclick=function(){setTab("cook");window.CookTab.open(rc.id)};r.insertBefore(cb,r.firstChild)}
+    c.appendChild(r);
+    if(S.edit==="meal:"+m.id)c.appendChild(editForm([{k:"title",label:"Dinner",val:m.title},{k:"time",label:"Time",val:m.time||""},{k:"cost",label:"Cost",val:m.cost||""},{k:"note",label:"Note",val:m.note||""},{k:"equip",label:"Equipment needed (comma separated)",val:(m.equip||[]).join(", ")}],function(o){write(S.db.doc("meals/"+m.id).update({title:o.title.trim()||m.title,time:o.time.trim(),cost:o.cost.trim(),note:o.note.trim(),equip:o.equip.split(",").map(function(t){return t.trim()}).filter(Boolean)}))}));
+    if(S.open===m.id){
+      var a=el("div","alts");
+      var alts=m.alts||[];
+      if(!alts.length)a.appendChild(el("div","note","No shortlist for this night yet. Ask Claude for ideas on the Ask tab."));
+      alts.forEach(function(x,i){
+        var row=el("div","alt");var l=el("div");l.appendChild(el("div",null,x.title));l.appendChild(el("div","note",[x.time,x.note].filter(Boolean).join(" · ")));row.appendChild(l);
+        var u=el("button","b","Use this");u.disabled=S.busy;u.onclick=function(){useAlt(m,i)};row.appendChild(u);a.appendChild(row)});
+      c.appendChild(a);
+    }
+  }
+  return c;
+}
+
+function sendReq(type,label,payload){return S.db.collection("requests").add({type:type,label:label,payload:payload||{},status:"pending",by:S.me||"",ts:Date.now()})}
+function reqCard(types){
+  var list=(S.reqs||[]).filter(function(r){return !types||types.indexOf(r.type)>=0}).slice().reverse().slice(0,4);
+  if(!list.length)return null;
+  var c=el("div","card");c.appendChild(el("div","day","Requests to Claude"));
+  list.forEach(function(r){var row=el("div","prow");var t=el("div","top");t.appendChild(el("span",null,r.label||r.type));
+    t.appendChild(el("span","chip"+(r.status==="done"?" ok":r.status==="failed"?" bad":" warn"),r.status==="done"?"Done":r.status==="failed"?"Problem":"Waiting for Claude"));row.appendChild(t);
+    if(r.result)row.appendChild(el("div","note",r.result));
+    var d=new Date(r.ts||0);row.appendChild(el("div","note","Asked "+d.toLocaleString([], {weekday:"short",hour:"numeric",minute:"2-digit"})+(r.by?" by "+(r.by==="jake"?"Jake":r.by==="maggie"?"Maggie":r.by):"")));c.appendChild(row)});
+  return c}
+function write(p){S.busy=true;S.err="";rerenderHeld();return Promise.resolve(p).catch(function(e){S.err="Could not save that change"+((e&&(e.code||e.message))?" ("+(e.code||e.message)+")":"")+"."}).then(function(){S.busy=false;rerenderHeld()})}
+function setStatus(m,st){
+  var comment="";
+  if(st==="swap"){try{comment=prompt("What would you change? (optional)")||""}catch(e){comment=""}}
+  write(S.db.doc("meals/"+m.id).update({status:st,decidedBy:S.me||"",comment:comment}));
+}
+function useAlt(m,i){
+  var alts=(m.alts||[]).slice();var x=alts.splice(i,1)[0];
+  alts.push({title:m.title,time:m.time||"",note:m.note||""});
+  S.open=null;
+  write(S.db.doc("meals/"+m.id).update({title:x.title,time:x.time||"",note:x.note||"",cuisine:x.cuisine||"",veg:!!x.veg,alts:alts,status:"swap-picked",decidedBy:S.me||"",comment:"Swapped from “"+m.title+"”"}));
+}
+
+function craveAsk(txt){
+  var c=S.cv;var q=(txt||c.text||"").trim();if(!q||!S.sample||c.busy)return;c.text=q;c.busy=true;c.err="";c.out="";render();
+  var inv=S.pantry?pantryJson():"[]";
+  var prompt="A family member says: \""+q+"\"\n\nGive them a way to satisfy this craving that is more nutritious. "+R()+"\n\nOffer exactly two options, each with a short name, then a few plain sentences:\nOPTION 1, SAME VIBE, MORE NUTRIENTS: a different dish that scratches the same itch (salt, crunch, creamy, cheesy, sweet, etc.) and is nutrient dense.\nOPTION 2, STILL INDULGENT, SMALL TWEAKS: the real thing they asked for with 2 to 4 specific small swaps or add-ins that raise protein, fiber and vegetables without ruining it (for example blended cauliflower or butternut in the cheese sauce, whole-wheat or chickpea pasta, extra spinach, Greek yogurt in place of cream).\n"+(c.only?"STRICT: use ONLY items from the pantry JSON below plus basic staples (salt, pepper, oil, common spices, water). Do not require anything else to buy. If the pantry cannot support a good version, say so plainly and give the closest option that works, then name the single cheapest item that would unlock a better one. For each, say roughly how long it takes and which pantry items it uses,":"For each, say roughly how long it takes, which of these pantry items it uses (JSON below) and what it would still need,")+" and keep any baby portion safe for a 1-year-old (low sodium, no honey, soft textures). Plain text, no markdown symbols, under 220 words total. Do not invent exact nutrition numbers.\n\n"+equipText()+"\n\nPantry:\n"+inv;
+  S.sample(prompt,{cache:false}).then(function(r){var t=(r&&r.text)||"";c.out=t;c.chk="Checking against your household's rules…";render();return guardText(t).then(function(g){c.busy=false;c.out=g.text;c.chk=g.note;render()})}).catch(function(){c.busy=false;c.err="Could not get ideas right now. Try again in a moment.";render()});
+}
+function renderCrave(v){
+  var c=S.cv;var card=el("div","card");card.appendChild(el("div","day","Craving something?"));
+  card.appendChild(el("div","note","Tell Claude what you want, like salty snacks or mac and cheese. You get a nutrient-dense version that scratches the same itch, and a still-indulgent version with a few small tweaks."));
+  if(!S.sample){card.appendChild(el("div","status","Asking Claude is not available in this view."));v.appendChild(card);return}
+  var ta=el("input");ta.placeholder="e.g. I want mac and cheese";ta.value=c.text;ta.oninput=function(){c.text=ta.value};ta.style.marginTop="10px";
+  ta.onkeydown=function(e){if(e.key==="Enter")craveAsk()};card.appendChild(ta);
+  var lb=el("label","note");lb.style.cssText="display:flex;gap:8px;align-items:center;margin-top:10px;cursor:pointer";var cb=el("input");cb.type="checkbox";cb.checked=c.only;cb.style.cssText="width:20px;height:20px;flex:none;padding:0";cb.onchange=function(){c.only=cb.checked};lb.appendChild(cb);lb.appendChild(document.createTextNode("Only use what's in the pantry (no shopping)"));card.appendChild(lb);
+  var chips=el("div","row");["Salty snacks","Mac and cheese","Something sweet","Pizza","Crunchy"].forEach(function(t){var b=el("button","b",t);b.disabled=c.busy;b.onclick=function(){craveAsk(t)};chips.appendChild(b)});card.appendChild(chips);
+  var r=el("div","row");var go=el("button","b p",c.busy?"Thinking…":"Suggest");go.disabled=c.busy;go.onclick=function(){craveAsk()};r.appendChild(go);
+  if(c.out){var x=el("button","b","Clear");x.onclick=function(){c.out="";c.text="";render()};r.appendChild(x)}
+  card.appendChild(r);
+  if(c.err)card.appendChild(el("div","status",c.err));
+  if(c.out){var m=el("div","msg a");m.textContent=c.out;card.appendChild(m);if(c.chk)card.appendChild(el("div","note",c.chk))}
+  v.appendChild(card)}
+function renderAsk(v){
+  renderCrave(v);
+  var c=el("div","card");
+  c.appendChild(el("div","note","Ask about the plan: why a recipe was picked, how to make it milder or faster, what could replace a night. Claude sees this week's plan and the household rules, but not past chats."));
+  var ta=el("textarea");ta.rows=3;ta.placeholder="e.g. Can Wednesday be ready faster?";ta.value=S.draft;ta.oninput=function(){S.draft=ta.value};
+  ta.style.marginTop="10px";c.appendChild(ta);
+  var r=el("div","row");var b=el("button","b p",S.busy?"Thinking…":"Ask");b.disabled=S.busy||!S.db||!S.canWrite;
+  b.onclick=ask;r.appendChild(b);c.appendChild(r);
+  if(!S.sample)c.appendChild(el("div","status","Claude answers questions when it next checks in, so replies are not instant. Ask in chat if it is urgent."));
+  v.appendChild(c);
+  if(!S.chat.length)v.appendChild(el("div","empty","No questions yet. Questions and answers show up here for both of you."));
+  S.chat.slice().reverse().forEach(function(m){
+    var w=el("div");var h=el("div","who",(mine(m.by)?"You":who(m.by))+" asked");w.appendChild(h);
+    w.appendChild(el("div","msg q",m.q));
+    w.appendChild(el("div","msg a",m.a||"Waiting for Claude…"));v.appendChild(w)});
+}
+
+function planText(){return planMeals().map(function(m){return (DAYS[m.day]||m.day)+": "+m.title+(m.time?" ("+m.time+")":"")+(m.status?" ["+m.status+"]":"")+((m.equip&&m.equip.length)?" equipment: "+m.equip.join(", "):"")+(m.comment?" note: "+m.comment:"")}).join("\n")}
+function eqLabel(x){return x.name+(x.note?" ("+x.note+")":"")}
+function eqBy(st){return (S.equip||[]).filter(function(x){return (x.have||"")===st})}
+function equipText(){
+  if(!S.equip||!S.equip.length)return "Kitchen equipment: not recorded. Assume only a standard oven, stovetop and microwave, and name any other equipment a recipe needs.";
+  var y=eqBy("yes").map(eqLabel),n=eqBy("no").map(eqLabel),u=eqBy("").map(function(x){return x.name});
+  return "Kitchen equipment. HAS: "+(y.join(", ")||"nothing confirmed yet")+". DOES NOT HAVE: "+(n.join(", ")||"nothing listed")+". NOT CONFIRMED YET, so do not rely on these: "+(u.join(", ")||"none")+". Assume a working stovetop and basic pots and pans unless listed as missing. Only suggest dishes that can be made with equipment they HAVE. When a dish would normally use something they lack, adapt it to what they do have (for example oven to air fryer, pressure cooker to stovetop or slow cooker) and state the adjusted time and temperature plainly, or say it will not work. Mention the equipment each idea needs.";
+}
+var RULES0="Household: Jake, Maggie, baby Lenora (turning 1). Hard exclusions: seafood and shellfish, mayo, blue cheese and similar. Jake avoids raw, large-cut or fried onion; cooked-down onion is fine. Both adults are watching cholesterol, so lean toward lower saturated fat. About 40-50% of dinners meatless. They like spicy, warm spices, citrus, and sweet against savory. Weeknight dinners under 60 minutes in real time. Maggie cares about waste, cost per serving, and fiber.";
+function ask(){
+  var q=S.draft.trim();if(!q)return;
+  if(!S.sample){S.draft="";write(S.db.collection("chat").add({q:q,a:"",by:S.me||"",ts:Date.now()}));return}
+  S.busy=true;render();
+  var prompt="You are helping a family with their weekly dinner plan. "+R()+"\n\nThis week's plan:\n"+planText()+"\n\nAnswer the question briefly and practically in plain text, no markdown. If you suggest a replacement, say it is a suggestion that needs Jake to run a search to add it to the shortlist. Do not invent ingredient quantities.\n\n"+equipText()+"\n\nQuestion: "+q;
+  S.sample(prompt,{cache:false}).then(function(res){
+    return guardText(res.text||"").then(function(g){
+      S.draft="";
+      var a=g.text+(/^(Adjusted|Could not)/.test(g.note)?"\n\n("+g.note+")":"");
+      return S.db.collection("chat").add({q:q,a:a,by:S.me||"",ts:Date.now()})})
+  }).catch(function(e){if(!e||e.code!=="cancelled")S.err="That didn't go through ("+((e&&e.code)||"error")+")."}).then(function(){S.busy=false;render()});
+}
+
+var EQG=["Appliances","Prep tools","Cookware","Baby & batch","Other"];
+var HEAT=["Oven","Air fryer","Grill","Slow cooker","Instant Pot / pressure cooker","Toaster oven"];
+function eqNorm(t){return String(t||"").toLowerCase().replace(/\s+/g," ").trim()}
+function eqStatus(name){var f=(S.equip||[]).filter(function(x){return eqNorm(x.name)===eqNorm(name)})[0];if(!f)return "unset";return f.have==="yes"?"yes":f.have==="no"?"no":"unset"}
+function putEquip(x,patch){var d={name:x.name,group:x.group||"Other",have:x.have||"",note:x.note||""};for(var k in patch)d[k]=patch[k];return S.db.doc("equipment/"+x.id).set(d)}
+
+function weekEquip(v,list){
+  var ms=(list||planMeals()).filter(function(m){return (m.equip||[]).length});
+  if(!ms.length)return;
+  var c=el("div","card");c.appendChild(el("div","day","Equipment this week"));
+  var cnt={},miss=[],unk={};
+  ms.forEach(function(m){var dn=DAYS[m.day]||m.day;m.equip.forEach(function(nm){var st=eqStatus(nm);if(HEAT.indexOf(nm)>=0)(cnt[nm]=cnt[nm]||[]).push(dn);if(st==="no")miss.push(dn+" needs "+nm+", which you don't have.");else if(st==="unset")unk[nm]=1})});
+  var sm=el("div","sum");Object.keys(cnt).forEach(function(k){sm.appendChild(el("span","chip"+(cnt[k].length>=3?" warn":""),k+": "+cnt[k].length+" night"+(cnt[k].length===1?"":"s")+" ("+cnt[k].map(function(d){return d.slice(0,3)}).join(", ")+")"))});
+  if(sm.childNodes.length)c.appendChild(sm);
+  miss.forEach(function(t){c.appendChild(el("div","status","Heads up: "+t))});
+  var un=Object.keys(unk);if(un.length)c.appendChild(el("div","note","Not confirmed yet: "+un.join(", ")+". Mark what you have on the Kitchen tab."));
+  if(!miss.length&&!un.length)c.appendChild(el("div","note","Everything planned this week fits your kitchen."));
+  if(S.sample){var b=S.bal;var r=el("div","row");var go=el("button","b",b.busy?"Thinking…":"Balance the week");go.disabled=b.busy;go.onclick=balanceWeek;r.appendChild(go);
+    if(b.out){var x=el("button","b","Clear");x.onclick=function(){b.out="";render()};r.appendChild(x)}c.appendChild(r);
+    if(b.err)c.appendChild(el("div","status",b.err));
+    if(b.out){var m=el("div","msg a");m.textContent=b.out;c.appendChild(m);if(b.chk)c.appendChild(el("div","note",b.chk))}}
+  v.appendChild(c)}
+function balanceWeek(){
+  var b=S.bal;if(!S.sample||b.busy)return;b.busy=true;b.err="";b.out="";render();
+  var prompt="You are helping a family balance how they use their kitchen across the week. "+R()+"\n\nThis week's plan:\n"+planText()+"\n\n"+equipText()+"\n\nLook for: the same appliance used on too many nights, nights that need equipment they do not have (suggest the adaptation), and where a slow cooker, air fryer, or one-pot night would ease a busy evening or free up the oven. Suggest at most 3 concrete changes. Do not change the plan yourself. Plain text, no markdown symbols, under 150 words.";
+  S.sample(prompt,{cache:false}).then(function(r){var t=(r&&r.text)||"";return guardText(t).then(function(g){b.busy=false;b.out=g.text;b.chk=/^(Adjusted|Could not)/.test(g.note)?g.note:"";render()})}).catch(function(){b.busy=false;b.err="Could not get suggestions right now. Try again in a moment.";render()});
+}
+
+function askKitchen(){
+  var p=S.kp;var text=p.text.trim();if((!text&&!p.imgs.length)||!S.sample||p.busy)return;
+  p.busy=true;p.err="";p.proposal=null;render();
+  var cur=JSON.stringify((S.equip||[]).map(function(x){return {id:x.id,name:x.name,group:x.group,have:x.have||"",note:x.note||""}}));
+  var prompt="You are updating a family's kitchen equipment list.\n\nCurrent list (JSON; have is \"yes\", \"no\", or empty when not confirmed):\n"+cur+"\n\n"+(p.imgs.length?"The attached image(s) show their kitchen, appliances, or cookware. Only report what you can clearly see.\n\n":"")+"The person said: "+(text||"(nothing, just the photo)")+"\n\nReturn ONLY a JSON object: {\"summary\":\"one short sentence\",\"ops\":[...]}. Each op: {\"action\":\"set\",\"id\":\"existing id or null\",\"name\":\"item name\",\"group\":\"Appliances|Prep tools|Cookware|Baby & batch|Other\",\"have\":\"yes|no\",\"note\":\"size or detail, e.g. 6 qt, or empty\"}. Use the existing id when the item is already listed (match by meaning, for example Instant Pot matches Instant Pot / pressure cooker); otherwise null to add a new item. Only set have to no when the person says they do not have it. Do not guess sizes. If the message is a question or unclear, return ops [] and answer in summary.";
+  var opts={cache:false};if(p.imgs.length)opts.images=p.imgs;
+  S.sample.json(prompt,opts).then(function(r){p.busy=false;p.proposal={summary:(r&&r.summary)||"",ops:(r&&Array.isArray(r.ops))?r.ops:[]};render()}).catch(function(e){
+    p.busy=false;var c=e&&e.code;p.err=c==="image_rejected"?"That photo was too large or not a supported type. Try another.":c==="images_unavailable"?"Photos are not available in this view.":c==="not_granted"?"Claude was not allowed in this view.":c==="rate_limited"?"Too many requests. Wait a moment and try again.":"Something went wrong. Try again.";render()});
+}
+function eqOpLine(o){var f=o.id?(S.equip||[]).filter(function(x){return x.id===o.id})[0]:null;var nm=f?f.name:o.name;return (o.have==="no"?"Mark you don't have ":"Mark you have ")+nm+(o.note?" ("+o.note+")":"")+(f?"":" — new item")}
+function applyEqOps(ops){
+  var jobs=[],seen={};
+  ops.forEach(function(o){
+    if(o.action!=="set")return;var have=o.have==="no"?"no":"yes";var note=String(o.note||"").trim();
+    var f=o.id?(S.equip||[]).filter(function(x){return x.id===o.id})[0]:null;
+    if(f&&!seen[f.id]){seen[f.id]=1;var patch={have:have};if(note)patch.note=note;jobs.push(putEquip(f,patch))}
+    else if(!f&&o.name){var nm=String(o.name).trim();var ex=(S.equip||[]).filter(function(x){return eqNorm(x.name)===eqNorm(nm)})[0];
+      if(ex){if(!seen[ex.id]){seen[ex.id]=1;var pt={have:have};if(note)pt.note=note;jobs.push(putEquip(ex,pt))}}
+      else jobs.push(S.db.collection("equipment").add({name:nm,group:EQG.indexOf(o.group)>=0?o.group:"Other",have:have,note:note}))}});
+  return Promise.all(jobs)}
+function renderTellKitchen(v,dis){
+  var p=S.kp;var c=el("div","card");c.appendChild(el("div","day","Tell Claude"));
+  c.appendChild(el("div","note","Say what you have, like \"we have a 6 qt Instant Pot and a cast iron skillet, no stand mixer\", or send photos of your counters and cabinets. Nothing is saved until you confirm."));
+  if(!S.sample||!S.db||!S.canWrite){c.appendChild(el("div","status","Talking to Claude is not available in this view."));v.appendChild(c);return}
+  var ta=el("textarea");ta.rows=2;ta.placeholder="e.g. We have an air fryer, a slow cooker and a grill";ta.value=p.text;ta.oninput=function(){p.text=ta.value};c.appendChild(ta);
+  var row=el("div","row");
+  if(S.canImg){var fi=el("input");fi.type="file";fi.accept="image/*";fi.multiple=true;fi.style.display="none";
+    fi.onchange=function(){var max=(S.canImg&&S.canImg.maxCount)||4;var all=p.imgs.concat(Array.prototype.slice.call(fi.files));if(all.length>max){p.err="Claude can look at up to "+max+" photos at a time. Kept the first "+max+".";all=all.slice(0,max)}else{p.err=""}p.imgs=all;render()};
+    var mx=(S.canImg&&S.canImg.maxCount)||4;var pb=el("button","b",p.imgs.length?"Add another photo ("+p.imgs.length+" of "+mx+")":"Add photo");pb.disabled=p.imgs.length>=mx;pb.onclick=function(){fi.click()};row.appendChild(pb);row.appendChild(fi);
+    if(p.imgs.length){var cl=el("button","b","Remove photos");cl.onclick=function(){p.imgs=[];render()};row.appendChild(cl)}}
+  var go=el("button","b p",p.busy?"Thinking…":"Send");go.disabled=p.busy||dis;go.onclick=askKitchen;row.appendChild(go);
+  var clr=el("button","b","Clear");clr.onclick=function(){p.text="";p.imgs=[];p.proposal=null;p.err="";render()};row.appendChild(clr);
+  c.appendChild(row);
+  if(p.err)c.appendChild(el("div","status",p.err));
+  if(p.proposal){var pr=el("div","alts");if(p.proposal.summary)pr.appendChild(el("div","note",p.proposal.summary));
+    var ops=p.proposal.ops;if(!ops.length)pr.appendChild(el("div","note","No equipment changes suggested."));
+    ops.forEach(function(o){pr.appendChild(el("div","alt",eqOpLine(o)))});
+    var r2=el("div","row");
+    if(ops.length){var ok=el("button","b p","Apply these changes");ok.disabled=dis;ok.onclick=function(){var o=p.proposal.ops;p.proposal=null;p.text="";p.imgs=[];write(applyEqOps(o))};r2.appendChild(ok)}
+    var no=el("button","b",ops.length?"Discard":"Close");no.onclick=function(){p.proposal=null;render()};r2.appendChild(no);pr.appendChild(r2);c.appendChild(pr)}
+  v.appendChild(c)}
+
+function kitchenEdit(x){
+  var f=editForm([{k:"name",label:"Name",val:x.name},{k:"group",label:"Group",val:x.group||"Other",opts:EQG},{k:"note",label:"Size or detail (optional)",val:x.note||""}],function(o){S.rm=null;write(putEquip(x,{name:o.name.trim()||x.name,group:o.group,note:o.note.trim()}))});
+  var r=el("div","row");var rb=el("button","b",S.rm===x.id?"Tap again to remove":"Remove from list");
+  rb.onclick=function(){if(S.rm===x.id){S.rm=null;S.edit=null;holdAny();write(S.db.doc("equipment/"+x.id).delete())}else{S.rm=x.id;rb.textContent="Tap again to remove"}};
+  r.appendChild(rb);f.appendChild(r);return f}
+function renderKitchen(v){
+  if(S.equip===null){v.appendChild(el("div","empty","Loading your kitchen…"));return}
+  var dis=!S.canWrite||!S.db||S.busy;
+  var searching=!!(S.q.kitchen||"").trim();
+  var list=S.equip;
+  if(searching)list=list.filter(function(x){return qm([x.name,x.note,x.group].join(" "))});
+  if(!searching){
+    renderTellKitchen(v,dis);
+    var intro=el("div","card");
+    intro.appendChild(el("div","note","Mark what you have and what you don't. Suggestions, craving swaps, Ask answers and the weekly plan only use equipment you have, and adapt recipes when something is missing. Items left unset are not relied on."));
+    var sm=el("div","sum");sm.appendChild(el("span","chip ok",eqBy("yes").length+" have"));
+    if(eqBy("no").length)sm.appendChild(el("span","chip bad",eqBy("no").length+" don't have"));
+    if(eqBy("").length)sm.appendChild(el("span","chip warn",eqBy("").length+" not set"));
+    intro.appendChild(sm);v.appendChild(intro)}
+  if(!S.equip.length&&!searching)v.appendChild(el("div","empty","No equipment listed yet. Add the first item below."));
+  if(searching&&!list.length)v.appendChild(el("div","empty","Nothing matches your search."));
+  var groups=EQG.slice();list.forEach(function(x){if(groups.indexOf(x.group)<0)groups.push(x.group)});
+  groups.forEach(function(g){
+    var items=list.filter(function(x){return (x.group||"Other")===g});if(!items.length)return;
+    v.appendChild(el("div","grp",g));var c=el("div","card");
+    items.forEach(function(x){
+      var r=el("div","prow");var top=el("div","top");var t=el("div");t.appendChild(el("div","nm",x.name));if(x.note)t.appendChild(el("div","note",x.note));top.appendChild(t);r.appendChild(top);
+      var sg=el("div","seg");
+      [["yes","Have it"],["no","Don't have"],["","Not set"]].forEach(function(o){var b=el("button",(o[0]==="no"?"no ":"")+((x.have||"")===o[0]?"on":""),o[1]);b.disabled=dis;b.onclick=function(){if((x.have||"")!==o[0])write(putEquip(x,{have:o[0]}))};sg.appendChild(b)});
+      var eb=el("button",null,"Edit");eb.onclick=function(){S.rm=null;openEdit("equip:"+x.id)};sg.appendChild(eb);
+      r.appendChild(sg);if(S.edit==="equip:"+x.id)r.appendChild(kitchenEdit(x));c.appendChild(r)});
+    v.appendChild(c)});
+  if(S.canWrite&&S.db&&!searching){
+    var a=el("div","card");a.appendChild(el("div","day","Add equipment"));
+    var row=el("div","addrow");
+    var n=el("input");n.placeholder="e.g. Waffle maker";n.value=S.eqf.name;n.oninput=function(){S.eqf.name=n.value};row.appendChild(n);
+    var gs=el("select");EQG.forEach(function(g){var o=el("option",null,g);o.value=g;if(S.eqf.group===g)o.selected=true;gs.appendChild(o)});gs.onchange=function(){S.eqf.group=gs.value};row.appendChild(gs);
+    var ab=el("button","b p","Add");ab.disabled=S.busy;
+    ab.onclick=function(){var nm=S.eqf.name.trim();if(!nm)return;var ex=S.equip.filter(function(x){return eqNorm(x.name)===eqNorm(nm)})[0];var job=ex?putEquip(ex,{have:"yes"}):S.db.collection("equipment").add({name:nm,group:S.eqf.group,have:"yes",note:""});S.eqf.name="";write(job)};
+    row.appendChild(ab);a.appendChild(row);v.appendChild(a)}
+}
+
+var LV=[["never","Never (allergy or hard no)"],["wont","Won't eat"],["avoid","Rather avoid"],["ok","Fine if cooked down or hidden"]];
+var LVW={never:"NEVER (absolutely none, including hidden or derived sources)",wont:"WON'T EAT",avoid:"RATHER AVOID (only if there is no good alternative)",ok:"FINE ONLY IF COOKED DOWN OR HIDDEN"};
+var ROLES=["adult","child","baby"],SPICES=["","Mild","Medium","Spicy","Very spicy"],RTYPES=[["ingredient","Ingredient"],["texture","Texture"],["other","Other"]];
+var GUIDE="Rules for using these profiles: NEVER means none at all, including hidden or derived forms (sauces, stocks, spice blends, toppings). WON'T EAT means exclude it. When something is excluded, work out the role it played in the dish (acid, sweetness, umami, body, creaminess, crunch, heat) and replace that role with something that delivers the same effect, so the meal stays satisfying and interesting and does not just feel like something is missing. Across any set of suggestions vary the cuisines, proteins and cooking methods, include some texture contrast in each meal, and keep protein and fiber meaningful so people stay full. Every dish must work for everyone at the table, or offer a simple per-person tweak when one person needs something different.";
+var DER={tomato:["tomato","marinara","ketchup","salsa","pizza sauce","pasta sauce","passata","pomodoro","pico de gallo","bruschetta","gazpacho","shakshuka"],onion:["onion","shallot","scallion","green onion","spring onion"],mushroom:["mushroom","portobello","shiitake","cremini"],mayo:["mayo","mayonnaise","aioli","remoulade","tartar sauce"],mayonnaise:["mayo","mayonnaise","aioli","remoulade","tartar sauce"],shellfish:["shrimp","prawn","crab","lobster","clam","mussel","oyster","scallop","crawfish","crayfish","langoustine"],seafood:["fish","salmon","tuna","cod","tilapia","halibut","anchovy","anchovies","sardine","trout","mahi","snapper","haddock","fish sauce","shrimp","prawn","crab","lobster","clam","mussel","oyster","scallop","seafood"],fish:["fish","salmon","tuna","cod","tilapia","halibut","anchovy","anchovies","sardine","trout","mahi","snapper","haddock","fish sauce"],peanut:["peanut","satay"],nut:["almond","walnut","pecan","cashew","pistachio","hazelnut","macadamia","pine nut","brazil nut","nut butter","peanut","satay"],dairy:["milk","cheese","butter","cream","yogurt","yoghurt","ricotta","parmesan","mozzarella","feta","whey","ghee","paneer","mascarpone","crema","buttermilk","cheddar"],egg:["egg"],gluten:["wheat","flour","bread","pasta","noodle","couscous","farro","barley","tortilla","soy sauce","breadcrumb","panko","bulgur","seitan","orzo","tortellini","ravioli","cracker"],soy:["soy","tofu","tempeh","edamame","miso","tamari"],pork:["pork","bacon","ham","prosciutto","pancetta","sausage","chorizo"],beef:["beef","steak","brisket","veal"],cilantro:["cilantro","coriander"],honey:["honey"],vegetarian:["chicken","turkey","beef","pork","bacon","ham","sausage","lamb","duck","steak","meatball","chorizo","prosciutto","pancetta","salami","pepperoni","fish","salmon","tuna","shrimp","crab","anchovy","anchovies","bone broth","chicken broth"],vegan:["chicken","turkey","beef","pork","bacon","ham","sausage","lamb","duck","steak","meatball","fish","salmon","tuna","shrimp","milk","cheese","butter","cream","yogurt","egg","honey","parmesan"]};
+var STRIP=/coconut (milk|cream)|(almond|oat|soy|cashew|rice) milk|nut butter|peanut butter|cocoa butter|butter bean|butter lettuce|eggplant|ice cream|cream of tartar|egg ?plant|salsa verde|tomatillos?/g;
+function termsFor(r){var rt=eqNorm(r.text),out=[];for(var k in DER){if(new RegExp("\\b"+k+"(s|es)?\\b").test(rt))out=out.concat(DER[k])}if(!out.length&&r.type==="ingredient")out=[rt.replace(/^(no|any|avoid)\s+/,"")];return out}
+function plainRule(r){if(r.level!=="never"&&r.level!=="wont")return false;var q=/\b(raw|fried|large|cooked|finely|unless|if|when|chunk|whole|blended|hidden|small|fine)\b/i;if(q.test(r.text||""))return false;if(r.level==="wont"&&q.test(r.note||""))return false;return true}
+function hitsFor(rules,text){
+  var t=" "+String(text||"").toLowerCase().replace(STRIP," ")+" ",hits=[],seen={};
+  rules.forEach(function(r){if(!plainRule(r))return;termsFor(r).forEach(function(term){if(!term)return;
+    var re=new RegExp("\\b"+term.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(s|es)?\\b","g"),m,hit=false;
+    while((m=re.exec(t))){var before=t.slice(Math.max(0,m.index-28),m.index);if(!/(no|without|skip|omit|omitting|instead of|replac\w*|free of|hold the|leave out|leaving out|not|never)\s+(any\s+|the\s+)?$/.test(before)){hit=true;break}}
+    if(hit){var key=r.person+"|"+term;if(!seen[key]){seen[key]=1;hits.push({what:term,who:r.person,why:"matches "+(r.level==="never"?"a never rule":"a won't-eat rule")+": "+r.text})}}})});
+  return hits}
+function allRules(){var out=[];(S.people||[]).forEach(function(p){(p.rules||[]).forEach(function(r){out.push({person:p.name,text:r.text,type:r.type,level:r.level,note:r.note||""})})});return out}
+function prefsFor(ps){
+  var lines=ps.map(function(p){
+    var head="- "+p.name+" ("+(p.role||"adult")+(p.spice?", spice: "+p.spice:"")+(p.diet?", diet: "+p.diet:"")+")"+(p.likes?"; loves: "+p.likes:"");
+    var g=LV.map(function(l){var rs=(p.rules||[]).filter(function(r){return r.level===l[0]});if(!rs.length)return "";return LVW[l[0]]+": "+rs.map(function(r){return (r.type==="texture"?"texture: ":"")+r.text+(r.note?" ("+r.note+")":"")}).join("; ")}).filter(Boolean).join(". ");
+    return head+(g?". "+g:"")+(p.role==="baby"?". Keep the portion safe for a baby (soft, small pieces, low sodium).":"")});
+  return "Household members:\n"+lines.join("\n")+"\n\n"+GUIDE}
+function R(){var ps=S.people||[];if(!ps.length)return RULES0;return prefsFor(ps)+(S.hh&&S.hh.notes?"\nHousehold notes: "+S.hh.notes:"")}
+function vetText(t){
+  var local=hitsFor(allRules(),t);
+  if(!S.sample)return Promise.resolve(local);
+  var pr="You are a careful food-safety and preference checker. Household profiles:\n"+prefsFor(S.people||[])+"\n\nText to check:\n"+t+"\n\nList every violation: an ingredient or derived ingredient (sauces, stocks, spice blends, toppings) that breaks a NEVER or WON'T EAT rule, or a texture a person will not eat, that appears in the text or is clearly required by it. Ignore items marked fine if cooked down or hidden when they are cooked down or hidden. Ignore anything the text says to leave out or to substitute. Return ONLY JSON: {\"violations\":[{\"what\":\"item\",\"who\":\"person\",\"why\":\"short reason\"}]}. Use an empty list if there are none.";
+  return S.sample.json(pr,{cache:false,modelTier:"quick"}).then(function(r){var v=(r&&Array.isArray(r.violations))?r.violations:[];var seen={};local.forEach(function(x){seen[eqNorm(x.what)]=1});v.forEach(function(x){if(x&&x.what&&!seen[eqNorm(x.what)]){seen[eqNorm(x.what)]=1;local.push({what:String(x.what),who:String(x.who||""),why:String(x.why||"")})}});return local}).catch(function(){return local})}
+function fixText(t,vs){
+  var pr="Household profiles:\n"+prefsFor(S.people||[])+"\n\nRewrite the text below so that none of these problems remain: "+vs.map(function(v){return v.what+(v.who?" ("+v.who+")":"")}).join(", ")+". For each removed ingredient, replace the role it played with something that delivers the same effect, and say in the same sentence what you swapped in, so the dish stays satisfying and interesting. Keep the same format and length, plain text, no markdown symbols.\n\nText:\n"+t;
+  return S.sample(pr,{cache:false}).then(function(r){return (r&&r.text)||t})}
+function vnames(vs){var s={},o=[];vs.forEach(function(v){var k=eqNorm(v.what);if(!s[k]){s[k]=1;o.push(v.what)}});return o.join(", ")}
+function guardText(text){
+  if(!(S.people||[]).length||!S.sample)return Promise.resolve({text:text,note:""});
+  return vetText(text).then(function(v1){
+    if(!v1.length)return {text:text,note:"Checked against your household's rules."};
+    return fixText(text,v1).then(function(t2){return vetText(t2).then(function(v2){
+      if(!v2.length)return {text:t2,note:"Adjusted to fit your rules: "+vnames(v1)+"."};
+      return fixText(t2,v2).then(function(t3){return vetText(t3).then(function(v3){return {text:t3,note:v3.length?"Could not fully fix this one. Double-check: "+vnames(v3)+".":"Adjusted to fit your rules: "+vnames(v1.concat(v2))+"."}})})})})
+  }).catch(function(){return {text:text,note:"Could not run the rules check, so read this one carefully."}})}
+
+function putPerson(p,patch){var d={name:p.name,role:p.role||"adult",spice:p.spice||"",diet:p.diet||"",likes:p.likes||"",rules:(p.rules||[]).slice()};for(var k in patch)d[k]=patch[k];return S.db.doc("people/"+p.id).set(d)}
+function askHouse(){
+  var p=S.hd;var text=p.text.trim();if(!text||!S.sample||p.busy)return;p.busy=true;p.err="";p.proposal=null;render();
+  var cur=JSON.stringify((S.people||[]).map(function(x){return {id:x.id,name:x.name,role:x.role,spice:x.spice,diet:x.diet,likes:x.likes,rules:x.rules}}));
+  var prompt="You are updating a household's food profiles. Current profiles (JSON):\n"+cur+"\n\nThe person said: "+text+"\n\nReturn ONLY JSON: {\"summary\":\"one short sentence\",\"ops\":[...]}. Each op is one of:\n- {\"action\":\"set_person\",\"id\":\"existing id or null\",\"name\":\"person name\",\"role\":\"adult|child|baby\",\"spice\":\"Mild|Medium|Spicy|Very spicy or empty\",\"diet\":\"e.g. vegetarian, flexitarian, or empty\",\"likes\":\"foods or cuisines they love, or empty\"}\n- {\"action\":\"add_rule\",\"person\":\"existing id or name\",\"text\":\"the ingredient, texture or thing\",\"type\":\"ingredient|texture|other\",\"level\":\"never|wont|avoid|ok\",\"note\":\"short qualifier or empty\"}\nLevels: an allergy or a firm no means never; does not eat or dislikes means wont; prefers to avoid means avoid; only fine when cooked down, blended or hidden means ok (put the detail in note). Only include what the person actually said. If the message is a question or unclear, return ops [] and answer in summary.";
+  S.sample.json(prompt,{cache:false}).then(function(r){p.busy=false;p.proposal={summary:(r&&r.summary)||"",ops:(r&&Array.isArray(r.ops))?r.ops:[]};render()}).catch(function(e){p.busy=false;var c=e&&e.code;p.err=c==="not_granted"?"Claude was not allowed in this view.":c==="rate_limited"?"Too many requests. Wait a moment and try again.":"Something went wrong. Try again.";render()})}
+function houseOpLine(o){if(o.action==="set_person")return "Set up "+(o.name||"a person")+(o.role?" ("+o.role+")":"")+(o.spice?", "+o.spice:"")+(o.likes?", loves "+o.likes:"")+(o.diet?", "+o.diet:"");if(o.action==="add_rule"){var lv=LV.filter(function(l){return l[0]===o.level})[0];return (o.person||"Someone")+": "+(lv?lv[1]:o.level)+" — "+o.text+(o.note?" ("+o.note+")":"")}return "Unknown change"}
+function applyHouseOps(ops){
+  var work={},news={};
+  function find(k){return (S.people||[]).filter(function(p){return p.id===k||eqNorm(p.name)===eqNorm(k)})[0]}
+  function slot(k){var f=find(k);if(f){work[f.id]=work[f.id]||{p:f,rules:(f.rules||[]).slice(),patch:{}};return work[f.id]}var key=eqNorm(k);news[key]=news[key]||{name:String(k),role:"adult",spice:"",diet:"",likes:"",rules:[]};return {n:news[key]}}
+  ops.forEach(function(o){
+    if(o.action==="set_person"&&(o.id||o.name)){var s=slot(o.id||o.name);var t=s.n||s.patch;["role","spice","diet","likes"].forEach(function(k){if(o[k])t[k]=o[k]});if(s.n&&o.name)s.n.name=o.name}
+    else if(o.action==="add_rule"&&o.text&&o.person){var s2=slot(o.person);var rule={text:String(o.text).trim(),type:["ingredient","texture","other"].indexOf(o.type)>=0?o.type:"ingredient",level:["never","wont","avoid","ok"].indexOf(o.level)>=0?o.level:"wont",note:String(o.note||"").trim()};var arr=s2.n?s2.n.rules:s2.rules;if(!arr.some(function(x){return eqNorm(x.text)===eqNorm(rule.text)&&x.level===rule.level}))arr.push(rule)}});
+  var jobs=[];Object.keys(work).forEach(function(id){var w=work[id];jobs.push(putPerson(w.p,Object.assign({rules:w.rules},w.patch)))});
+  Object.keys(news).forEach(function(k){jobs.push(S.db.collection("people").add(news[k]))});
+  return Promise.all(jobs)}
+function renderTellHouse(v,dis){
+  var p=S.hd;var c=el("div","card");c.appendChild(el("div","day","Tell Claude"));
+  c.appendChild(el("div","note","Describe anyone in the household: what they can't or won't eat, textures they dislike, how spicy they like things, what they love. Nothing is saved until you confirm."));
+  if(!S.sample||!S.db||!S.canWrite){c.appendChild(el("div","status","Talking to Claude is not available in this view."));v.appendChild(c);return}
+  var ta=el("textarea");ta.rows=2;ta.placeholder="e.g. Sam is allergic to tomatoes and hates mushy textures. He loves spicy food.";ta.value=p.text;ta.oninput=function(){p.text=ta.value};c.appendChild(ta);
+  var row=el("div","row");var go=el("button","b p",p.busy?"Thinking…":"Send");go.disabled=p.busy||dis;go.onclick=askHouse;row.appendChild(go);
+  var clr=el("button","b","Clear");clr.onclick=function(){p.text="";p.proposal=null;p.err="";render()};row.appendChild(clr);c.appendChild(row);
+  if(p.err)c.appendChild(el("div","status",p.err));
+  if(p.proposal){var pr=el("div","alts");if(p.proposal.summary)pr.appendChild(el("div","note",p.proposal.summary));var ops=p.proposal.ops;if(!ops.length)pr.appendChild(el("div","note","No changes suggested."));
+    ops.forEach(function(o){pr.appendChild(el("div","alt",houseOpLine(o)))});var r2=el("div","row");
+    if(ops.length){var ok=el("button","b p","Apply these changes");ok.disabled=dis;ok.onclick=function(){var o=p.proposal.ops;p.proposal=null;p.text="";write(applyHouseOps(o))};r2.appendChild(ok)}
+    var no=el("button","b",ops.length?"Discard":"Close");no.onclick=function(){p.proposal=null;render()};r2.appendChild(no);pr.appendChild(r2);c.appendChild(pr)}
+  v.appendChild(c)}
+
+function personCard(p,dis){
+  var c=el("div","card");var d=el("div","day");d.appendChild(el("span",null,p.name));d.appendChild(el("span","chip",p.role||"adult"));c.appendChild(d);
+  var mt=el("div","meta");if(p.spice)mt.appendChild(el("span","chip",p.spice+" heat"));if(p.diet)mt.appendChild(el("span","chip ok",p.diet));if(mt.childNodes.length)c.appendChild(mt);
+  if(p.likes)c.appendChild(el("div","note","Loves: "+p.likes));
+  var rules=p.rules||[];
+  LV.forEach(function(l){var rs=rules.map(function(r,i){return {r:r,i:i}}).filter(function(x){return x.r.level===l[0]});if(!rs.length)return;
+    c.appendChild(el("div","grp",l[1]));
+    rs.forEach(function(x){var row=el("div","srow");var t=el("div");t.style.flex="1";t.appendChild(el("div","nm",(x.r.type==="texture"?"Texture: ":"")+x.r.text));if(x.r.note)t.appendChild(el("div","note",x.r.note));row.appendChild(t);
+      var rb=el("button","b","Remove");rb.disabled=dis;rb.onclick=function(){var nx=rules.slice();nx.splice(x.i,1);write(putPerson(p,{rules:nx}))};row.appendChild(rb);c.appendChild(row)})});
+  if(!rules.length)c.appendChild(el("div","note","No rules yet. Anything is fine for this person."));
+  var f=S.rf[p.id]=S.rf[p.id]||{text:"",type:"ingredient",level:"never",note:""};
+  var ar=el("div","addrow");var ti=el("input");ti.placeholder="Add a rule, e.g. tomatoes";ti.value=f.text;ti.oninput=function(){f.text=ti.value};ar.appendChild(ti);c.appendChild(ar);
+  var ar2=el("div","addrow");var ts=el("select");RTYPES.forEach(function(o){var op=el("option",null,o[1]);op.value=o[0];if(f.type===o[0])op.selected=true;ts.appendChild(op)});ts.onchange=function(){f.type=ts.value};ar2.appendChild(ts);
+  var ls=el("select");LV.forEach(function(o){var op=el("option",null,o[1]);op.value=o[0];if(f.level===o[0])op.selected=true;ls.appendChild(op)});ls.onchange=function(){f.level=ls.value};ar2.appendChild(ls);c.appendChild(ar2);
+  var ar3=el("div","addrow");var ni=el("input");ni.placeholder="Detail (optional), e.g. fine if cooked down";ni.value=f.note;ni.oninput=function(){f.note=ni.value};ar3.appendChild(ni);
+  var ab=el("button","b p","Add");ab.disabled=dis;ab.onclick=function(){var tx=f.text.trim();if(!tx)return;var nx=rules.concat([{text:tx,type:f.type,level:f.level,note:f.note.trim()}]);S.rf[p.id]={text:"",type:f.type,level:f.level,note:""};write(putPerson(p,{rules:nx}))};ar3.appendChild(ab);c.appendChild(ar3);
+  var cr=el("div","row");var eb=el("button","b","Edit person");eb.onclick=function(){openEdit("person:"+p.id)};cr.appendChild(eb);c.appendChild(cr);
+  if(S.edit==="person:"+p.id){var fm=editForm([{k:"name",label:"Name",val:p.name},{k:"role",label:"Role",val:p.role||"adult",opts:ROLES},{k:"spice",label:"Spice tolerance",val:p.spice||"",opts:SPICES},{k:"diet",label:"Diet (optional), e.g. vegetarian, flexitarian",val:p.diet||""},{k:"likes",label:"Loves (foods or cuisines)",val:p.likes||""}],function(o){S.rm=null;write(putPerson(p,{name:o.name.trim()||p.name,role:o.role,spice:o.spice,diet:o.diet.trim(),likes:o.likes.trim()}))});
+    var rr=el("div","row");var rb2=el("button","b",S.rm===p.id?"Tap again to remove this person":"Remove this person");rb2.onclick=function(){if(S.rm===p.id){S.rm=null;S.edit=null;holdAny();write(S.db.doc("people/"+p.id).delete())}else{S.rm=p.id;rb2.textContent="Tap again to remove this person"}};rr.appendChild(rb2);fm.appendChild(rr);c.appendChild(fm)}
+  return c}
+
+function checkCard(v){
+  var k=S.ck;var c=el("div","card");c.appendChild(el("div","day","Check a recipe"));
+  c.appendChild(el("div","note","Paste a recipe or ingredient list. Claude checks every ingredient, including hidden ones like sauces and stocks, against everyone's rules, and can rewrite it to fit."));
+  if(!S.sample){c.appendChild(el("div","status","Asking Claude is not available in this view."));v.appendChild(c);return}
+  var ta=el("textarea");ta.rows=4;ta.placeholder="Paste a recipe here";ta.value=k.text;ta.oninput=function(){k.text=ta.value};c.appendChild(ta);
+  var r=el("div","row");var go=el("button","b p",k.busy?"Checking…":"Check");go.disabled=k.busy||!(S.people||[]).length;go.onclick=function(){var t=k.text.trim();if(!t)return;k.busy=true;k.res=null;k.fixed="";render();vetText(t).then(function(vs){k.busy=false;k.res=vs;render()}).catch(function(){k.busy=false;k.res=[];k.err="Could not run the check.";render()})};r.appendChild(go);
+  var cl=el("button","b","Clear");cl.onclick=function(){k.text="";k.res=null;k.fixed="";k.err="";render()};r.appendChild(cl);c.appendChild(r);
+  if(!(S.people||[]).length)c.appendChild(el("div","status","Add at least one person above first."));
+  if(k.err)c.appendChild(el("div","status",k.err));
+  if(k.res){if(!k.res.length)c.appendChild(el("div","msg a","Looks fine for everyone in the household."));
+    else{var box=el("div","msg a");box.textContent="Problems found:\n"+k.res.map(function(x){return "- "+x.what+(x.who?" ("+x.who+")":"")+(x.why?": "+x.why:"")}).join("\n");c.appendChild(box);
+      var fr=el("div","row");var fx=el("button","b p",k.fixing?"Rewriting…":"Rewrite to fit");fx.disabled=k.fixing;fx.onclick=function(){k.fixing=true;render();fixText(k.text,k.res).then(function(t){k.fixing=false;k.fixed=t;render()}).catch(function(){k.fixing=false;k.err="Could not rewrite right now.";render()})};fr.appendChild(fx);c.appendChild(fr)}}
+  if(k.fixed){var m=el("div","msg a");m.textContent=k.fixed;c.appendChild(m)}
+  v.appendChild(c)}
+
+var STRESS=[
+ {name:"No tomatoes",rules:[{text:"tomatoes",type:"ingredient",level:"never",note:""}],likes:"Italian and Mexican food"},
+ {name:"Hates mushy textures, no mushrooms",rules:[{text:"mushy or soft-pulpy textures",type:"texture",level:"wont",note:""},{text:"mushrooms",type:"ingredient",level:"wont",note:""}],likes:"crunchy, crispy food"},
+ {name:"Vegetarian, no nuts",rules:[{text:"vegetarian",type:"ingredient",level:"never",note:"no meat, poultry or fish"},{text:"tree nuts and peanuts",type:"ingredient",level:"never",note:"allergy"}],likes:"hearty bowls and soups"}];
+function runStress(){
+  var st=S.st;if(!S.sample||st.busy)return;st.busy=true;st.res=[];st.err="";st.cur="";render();var i=0;
+  function next(){
+    if(i>=STRESS.length){st.busy=false;st.cur="";render();return}
+    var P=STRESS[i++];st.cur=P.name;render();
+    var ps=[{name:"Test household",role:"adult",spice:"Medium",diet:"",likes:P.likes||"",rules:P.rules}];
+    var pr="Act as a dinner planner for this household.\n"+prefsFor(ps)+"\n\nGive 5 varied dinner ideas that fit. Return ONLY JSON: {\"ideas\":[{\"name\":\"\",\"cuisine\":\"\",\"protein\":\"\",\"method\":\"\",\"ingredients\":[\"...\"],\"texture\":\"one phrase\"}]}.";
+    S.sample.json(pr,{cache:false}).then(function(r){
+      var ideas=(r&&Array.isArray(r.ideas))?r.ideas:[];
+      var rules=P.rules.map(function(x){return {person:"Test household",text:x.text,type:x.type,level:x.level,note:x.note||""}});
+      var local=ideas.map(function(d){return hitsFor(rules,[d.name].concat(d.ingredients||[]).join(", "))});
+      var pr2="You are a careful checker. Profile:\n"+prefsFor(ps)+"\n\nIdeas:\n"+ideas.map(function(d,n){return (n+1)+". "+d.name+": "+(d.ingredients||[]).join(", ")+" (texture: "+(d.texture||"")+")"}).join("\n")+"\n\nFor each idea, list violations: ingredients, hidden or derived sources, or textures the person will not eat. Return ONLY JSON {\"flags\":[{\"idea\":number,\"what\":\"item\",\"why\":\"short\"}]}. Empty list if none.";
+      return S.sample.json(pr2,{cache:false,modelTier:"quick"}).then(function(v){return {ideas:ideas,local:local,flags:(v&&Array.isArray(v.flags))?v.flags:[]}}).catch(function(){return {ideas:ideas,local:local,flags:[],vetFailed:true}})
+    }).then(function(o){
+      var bad={};o.local.forEach(function(h,n){if(h.length)bad[n+1]=1});o.flags.forEach(function(f){bad[f.idea]=1});
+      var uniq=function(k){var m={};o.ideas.forEach(function(d){var x=eqNorm(d[k]);if(x)m[x]=1});return Object.keys(m).length};
+      st.res.push({name:P.name,n:o.ideas.length,bad:Object.keys(bad).length,cu:uniq("cuisine"),pr:uniq("protein"),me:uniq("method"),ideas:o.ideas.map(function(d,n){return d.name+(bad[n+1]?" (flagged)":"")}),vf:!!o.vetFailed});next()
+    }).catch(function(){st.err="A test run failed. Try again.";st.busy=false;render()})}
+  next()}
+function stressCard(v){
+  var st=S.st;var c=el("div","card");c.appendChild(el("div","day","Stress test"));
+  c.appendChild(el("div","note","Tries three made-up households (no tomatoes; hates mushy textures and mushrooms; vegetarian with no nuts). For each, Claude suggests 5 dinners, then the checker flags any that break a rule, and variety is counted. This uses about 6 Claude requests and nothing is saved."));
+  if(!S.sample){c.appendChild(el("div","status","Asking Claude is not available in this view."));v.appendChild(c);return}
+  var r=el("div","row");var go=el("button","b p",st.busy?"Testing "+(st.cur||"")+"…":"Run the test");go.disabled=st.busy;go.onclick=runStress;r.appendChild(go);if(st.res.length&&!st.busy){var x=el("button","b","Clear");x.onclick=function(){st.res=[];render()};r.appendChild(x)}c.appendChild(r);
+  if(st.err)c.appendChild(el("div","status",st.err));
+  st.res.forEach(function(o){var b=el("div","alts");b.appendChild(el("div","nm",o.name));
+    b.appendChild(el("div","note",o.n+" ideas. "+(o.bad?o.bad+" broke a rule and "+(o.bad===1?"was":"were")+" flagged, so the checker would fix "+(o.bad===1?"it":"them")+" before showing.":"None broke a rule.")+(o.vf?" (The model check did not run; only the ingredient check did.)":"")));
+    b.appendChild(el("div","note","Variety: "+o.cu+" cuisines, "+o.pr+" proteins, "+o.me+" cooking methods across "+o.n+" ideas."));
+    b.appendChild(el("div","note",o.ideas.join(" · ")));c.appendChild(b)});
+  v.appendChild(c)}
+
+function renderHouse(v){
+  if(S.people===null){v.appendChild(el("div","empty","Loading the household…"));return}
+  var dis=!S.canWrite||!S.db||S.busy;
+  var intro=el("div","card");intro.appendChild(el("div","note","Everyone's food rules live here. Every suggestion, craving swap and answer follows them, and each suggestion is checked against them again before you see it. Rules come in four levels: never (allergy or hard no), won't eat, rather avoid, and fine if cooked down or hidden."));
+  var sm=el("div","sum");sm.appendChild(el("span","chip",(S.people.length)+" people"));var nr=allRules().length;sm.appendChild(el("span","chip",nr+" rules"));intro.appendChild(sm);
+  intro.appendChild(el("div","note","For true allergies, always check labels yourself too. Hidden ingredients and cross-contact can slip past any app."));
+  v.appendChild(intro);
+  renderTellHouse(v,dis);
+  if(!S.people.length)v.appendChild(el("div","empty","No one added yet. Describe your household above, or add a person below."));
+  S.people.forEach(function(p){v.appendChild(personCard(p,dis))});
+  if(S.canWrite&&S.db){var a=el("div","card");a.appendChild(el("div","day","Add a person"));var row=el("div","addrow");
+    var n=el("input");n.placeholder="Name";n.value=S.np.name;n.oninput=function(){S.np.name=n.value};row.appendChild(n);
+    var rs=el("select");ROLES.forEach(function(o){var op=el("option",null,o);op.value=o;if(S.np.role===o)op.selected=true;rs.appendChild(op)});rs.onchange=function(){S.np.role=rs.value};row.appendChild(rs);
+    var ab=el("button","b p","Add");ab.disabled=S.busy;ab.onclick=function(){var nm=S.np.name.trim();if(!nm)return;var role=S.np.role;S.np.name="";write(S.db.collection("people").add({name:nm,role:role,spice:"",diet:"",likes:"",rules:[]}))};row.appendChild(ab);a.appendChild(row);v.appendChild(a)}
+  var hn=el("div","card");hn.appendChild(el("div","day","Household notes"));hn.appendChild(el("div","note",(S.hh&&S.hh.notes)||"Things that apply to everyone, like time limits on weeknights, budget, or how often to go meatless."));
+  var hr=el("div","row");var he=el("button","b","Edit notes");he.disabled=dis;he.onclick=function(){openEdit("house:notes")};hr.appendChild(he);hn.appendChild(hr);
+  if(S.edit==="house:notes")hn.appendChild(editForm([{k:"notes",label:"Notes for everyone",val:(S.hh&&S.hh.notes)||""}],function(o){write(S.db.doc("settings/household").set({notes:o.notes.trim()}))}));
+  v.appendChild(hn);
+  checkCard(v);stressCard(v)}
+
+var SECS=["Produce","Dairy","Meat & Seafood","Pantry","Frozen","Bakery","Snacks","Household","Personal care","Other"];
+var CADS=[["weekly","Every week"],["biweekly","Every 2 weeks"],["monthly","Monthly"],["asneeded","As needed"]];
+var CADF={weekly:4.33,biweekly:2.17,monthly:1,asneeded:0.5};
+function money(n){return "$"+n.toFixed(0)}
+function putStaple(x,patch){var d={name:x.name,section:x.section,cadence:x.cadence||"weekly",on:!!x.on,est:(typeof x.est==="number")?x.est:null,note:x.note||""};for(var k in patch)d[k]=patch[k];return S.db.doc("staples/"+x.id).set(d)}
+function renderStaples(v){
+  if(S.staples===null){v.appendChild(el("div","empty","Loading staples…"));return}
+  var intro=el("div","card");
+  intro.appendChild(el("div","note","Tick the things you buy as a standing habit and set how often. Each week's grocery list will include what is due, next to the groceries for the planned dinners. Add anything else, like household items, with the box at the bottom."));
+  var on=S.staples.filter(function(x){return x.on});
+  var mo=0,noPrice=0;
+  on.forEach(function(x){if(typeof x.est==="number")mo+=x.est*(CADF[x.cadence]||0);else noPrice++});
+  var sm=el("div","sum");
+  sm.appendChild(el("span","chip ok",on.length+" standing"));
+  if(on.length)sm.appendChild(el("span","chip","about "+money(mo)+" a month at current shelf prices"));
+  if(noPrice)sm.appendChild(el("span","chip warn",noPrice+" without a price yet"));
+  intro.appendChild(sm);
+  intro.appendChild(el("div","note","Prices are today's Harris Teeter shelf prices for one unit, so treat the total as a rough guide."));
+  v.appendChild(intro);
+  if(!S.staples.length){v.appendChild(el("div","empty","No staples loaded yet."))}
+  var order=SECS.slice();S.staples.forEach(function(x){if(order.indexOf(x.section)<0)order.push(x.section)});
+  order.forEach(function(sec){
+    var items=S.staples.filter(function(x){return x.section===sec&&qm([x.name,x.note,x.section].join(" "))});if(!items.length)return;
+    v.appendChild(el("div","grp",sec));
+    var c=el("div","card");
+    items.forEach(function(x){
+      var r=el("div","srow");
+      var lb=el("label");var cb=el("input");cb.type="checkbox";cb.checked=!!x.on;cb.disabled=!S.canWrite||!S.db||S.busy;
+      cb.onchange=function(){write(putStaple(x,{on:cb.checked}))};
+      lb.appendChild(cb);
+      var t=el("div");t.appendChild(el("div","nm",x.name));
+      var sub=[typeof x.est==="number"?"$"+x.est.toFixed(2):null,x.note].filter(Boolean).join(" · ");
+      if(sub)t.appendChild(el("div","note",sub));
+      lb.appendChild(t);r.appendChild(lb);
+      var sl=el("select");CADS.forEach(function(cd){var o=el("option",null,cd[1]);o.value=cd[0];if(x.cadence===cd[0])o.selected=true;sl.appendChild(o)});
+      sl.disabled=!S.canWrite||!S.db||S.busy;
+      sl.onchange=function(){write(putStaple(x,{cadence:sl.value}))};
+      r.appendChild(sl);
+      var eb=el("button","b","Edit");eb.onclick=function(){openEdit("staple:"+x.id)};r.appendChild(eb);c.appendChild(r);
+      if(S.edit==="staple:"+x.id){var wrap=el("div");wrap.appendChild(editForm([{k:"name",label:"Name",val:x.name},{k:"section",label:"Section",val:x.section,opts:order},{k:"est",label:"Price for one (optional)",val:typeof x.est==="number"?x.est:"",type:"number"},{k:"note",label:"Note",val:x.note||""}],function(o){write(putStaple(x,{name:o.name.trim()||x.name,section:o.section,est:o.est===""?null:Number(o.est),note:o.note.trim()}))}));c.appendChild(wrap)}
+    });
+    v.appendChild(c);
+  });
+  if(S.canWrite&&S.db){
+    var a=el("div","card");a.appendChild(el("div","day","Add an item"));
+    var row=el("div","addrow");
+    var inp=el("input");inp.placeholder="e.g. Toilet paper";inp.value=S.newName;inp.oninput=function(){S.newName=inp.value};row.appendChild(inp);
+    var sel=el("select");SECS.forEach(function(s){var o=el("option",null,s);o.value=s;if(S.newSec===s)o.selected=true;sel.appendChild(o)});sel.onchange=function(){S.newSec=sel.value};row.appendChild(sel);
+    var ab=el("button","b p","Add");ab.disabled=S.busy;
+    ab.onclick=function(){var n=S.newName.trim();if(!n)return;var sec=S.newSec;S.newName="";write(S.db.collection("staples").add({name:n,section:sec,cadence:"weekly",on:true,est:null,note:""}))};
+    row.appendChild(ab);a.appendChild(row);v.appendChild(a);
+  }
+}
+
+
+var LOCS=["Pantry","Fridge","Freezer"];
+function dleft(s){if(!s)return null;var t=new Date(s+"T12:00:00");var n=new Date();n.setHours(12,0,0,0);return Math.round((t-n)/864e5)}
+function sizeOf(x){return x.size!==undefined?x.size:(x.qty||"")}
+function lotsOf(x){if(Array.isArray(x.lots))return x.lots.map(function(l){return {n:Number(l.n)||0,exp:l.exp||""}});return [{n:1,exp:x.exp||""}]}
+function cleanLots(ls){var m={},out=[];ls.forEach(function(l){if(!(l.n>0))return;var k=l.exp||"";if(m[k]){m[k].n+=l.n}else{m[k]={n:l.n,exp:k};out.push(m[k])}});out.sort(function(a,b){if(!a.exp)return 1;if(!b.exp)return -1;return a.exp<b.exp?-1:1});return out}
+function totalOf(x){return lotsOf(x).reduce(function(s,l){return s+l.n},0)}
+function soonest(x){var best=null;lotsOf(x).forEach(function(l){if(l.n>0&&l.exp){var d=dleft(l.exp);if(best===null||d<best)best=d}});return best}
+function putPantry(x,patch){var d={name:x.name,size:sizeOf(x),lots:cleanLots(lotsOf(x)),loc:x.loc||"Pantry",note:x.note||"",state:x.state||"have",restock:x.restock||""};for(var k in patch)d[k]=patch[k];if(d.lots&&d.state!=="used"&&!d.lots.length&&!("state" in patch))d.state="used";return S.db.doc("pantry/"+x.id).set(d)}
+function useOne(lots,k){lots=cleanLots(lots);while(k>0&&lots.length){lots[0].n--;k--;if(lots[0].n<=0)lots.shift()}return lots}
+function whenText(dl){if(dl===null)return "no date yet";if(dl<0)return "expired "+(-dl)+" day"+(dl===-1?"":"s")+" ago";if(dl===0)return "expires today";return "expires in "+dl+" day"+(dl===1?"":"s")}
+function fmtDate(s){if(!s)return "";var d=new Date(s+"T12:00:00");return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})}
+function countText(x){var t=totalOf(x),s=sizeOf(x);return t+" × "+(s||"container"+(t===1?"":"s"))}
+
+function pantryJson(){return JSON.stringify(S.pantry.filter(function(x){return x.state!=="used"}).map(function(x){return {id:x.id,name:x.name,size:sizeOf(x),loc:x.loc||"Pantry",lots:cleanLots(lotsOf(x)),note:x.note||""}}))}
+function askPantry(){
+  var p=S.pp;var text=p.text.trim();if((!text&&!p.imgs.length)||!S.sample||p.busy)return;
+  p.busy=true;p.err="";p.proposal=null;render();
+  var today=new Date().toISOString().slice(0,10);
+  var prompt="You are updating a family's home pantry inventory. Today is "+today+".\n\nCurrent inventory (JSON; each item has lots of containers, n = number of containers, exp = use-by date or empty):\n"+pantryJson()+"\n\n"+(p.imgs.length?"The attached image(s) are photos from the family (a receipt, a shelf, a fridge, or a product label). Read them carefully and only report what you can actually see.\n\n":"")+"The person said: "+(text||"(nothing, just the photo)")+"\n\nReturn ONLY a JSON object: {\"summary\":\"one short sentence\",\"ops\":[...]}. Each op is one of:\n- {\"action\":\"add\",\"id\":\"existing id or null\",\"name\":\"item name\",\"size\":\"size of one container, e.g. 28 oz can\",\"n\":number of containers,\"exp\":\"YYYY-MM-DD or empty\",\"loc\":\"Pantry|Fridge|Freezer\"} (use the existing id when the item is already listed, otherwise null)\n- {\"action\":\"use\",\"id\":\"existing id\",\"n\":containers used}\n- {\"action\":\"used_up\",\"id\":\"existing id\"}\nRules: never invent expiry dates; leave exp empty unless one is printed or stated. Do not repeat items already in the inventory unless the person bought or used some. If the request is just a question or unclear, return ops [] and answer in summary.";
+  var opts={cache:false};if(p.imgs.length)opts.images=p.imgs;
+  S.sample.json(prompt,opts).then(function(r){
+    p.busy=false;var ops=(r&&Array.isArray(r.ops))?r.ops:[];
+    p.proposal={summary:(r&&r.summary)||"",ops:ops};render();
+  }).catch(function(e){
+    p.busy=false;var c=e&&e.code;
+    p.err=c==="image_rejected"?"That photo was too large or not a supported type. Try another.":c==="images_unavailable"?"Photos are not available in this view.":c==="not_granted"?"Claude was not allowed in this view.":c==="rate_limited"?"Too many requests. Wait a moment and try again.":"Something went wrong. Try again.";render()});
+}
+function opLine(o){
+  var nm=o.name;if(o.id){var f=S.pantry.filter(function(x){return x.id===o.id})[0];if(f)nm=f.name}
+  if(o.action==="add")return "Add "+(o.n||1)+" × "+(o.size||"")+" "+nm+(o.exp?" (use by "+fmtDate(o.exp)+")":"")+(o.id?"":" — new item");
+  if(o.action==="use")return "Use "+(o.n||1)+" of "+nm;
+  if(o.action==="used_up")return "Mark "+nm+" used up";
+  return "Unknown change";
+}
+function applyOps(ops){
+  var work={},news=[];
+  function get(id){if(!work[id]){var f=S.pantry.filter(function(x){return x.id===id})[0];if(!f)return null;work[id]={x:f,lots:lotsOf(f),state:f.state||"have"}}return work[id]}
+  ops.forEach(function(o){
+    if(o.action==="add"){var n=Math.max(1,Math.round(Number(o.n)||1));var exp=/^\d{4}-\d{2}-\d{2}$/.test(o.exp||"")?o.exp:"";var w=o.id?get(o.id):null;
+      if(w){w.lots.push({n:n,exp:exp});w.state="have"}
+      else if(o.name){news.push({name:String(o.name),size:String(o.size||""),lots:cleanLots([{n:n,exp:exp}]),loc:LOCS.indexOf(o.loc)>=0?o.loc:"Pantry",note:"",state:"have",restock:""})}}
+    else if(o.action==="use"){var w2=get(o.id);if(w2)w2.lots=useOne(w2.lots,Math.max(1,Math.round(Number(o.n)||1)))}
+    else if(o.action==="used_up"){var w3=get(o.id);if(w3)w3.lots=[]}
+  });
+  var jobs=[];
+  Object.keys(work).forEach(function(id){var w=work[id];var lots=cleanLots(w.lots);jobs.push(putPantry(w.x,{lots:lots,state:lots.length?"have":"used"}))});
+  news.forEach(function(d){jobs.push(S.db.collection("pantry").add(d))});
+  return Promise.all(jobs);
+}
+function renderTell(v,dis){
+  var p=S.pp;var c=el("div","card");c.appendChild(el("div","day","Tell Claude"));
+  c.appendChild(el("div","note","Say what changed, or send a photo of a receipt, a shelf, or a label. Claude suggests the changes and nothing is saved until you confirm."));
+  if(!S.sample||!S.db||!S.canWrite){c.appendChild(el("div","status","Talking to Claude is not available in this view."));v.appendChild(c);return}
+  var ta=el("textarea");ta.rows=2;ta.placeholder="e.g. We used 1 can of chickpeas, and bought 2 more bags of farro";ta.value=p.text;ta.oninput=function(){p.text=ta.value};c.appendChild(ta);
+  var row=el("div","row");
+  if(S.canImg){
+    var fi=el("input");fi.type="file";fi.accept="image/*";fi.multiple=true;fi.style.display="none";
+    fi.onchange=function(){var max=(S.canImg&&S.canImg.maxCount)||4;var add=Array.prototype.slice.call(fi.files);var all=p.imgs.concat(add);if(all.length>max){p.err="Claude can look at up to "+max+" photos at a time. Kept the first "+max+"; send the rest in a second round.";all=all.slice(0,max)}else{p.err=""}p.imgs=all;render()};
+    var mx=(S.canImg&&S.canImg.maxCount)||4;var pb=el("button","b",p.imgs.length?"Add another photo ("+p.imgs.length+" of "+mx+")":"Add photo");pb.disabled=p.imgs.length>=mx;pb.onclick=function(){fi.click()};row.appendChild(pb);row.appendChild(fi);
+    if(p.imgs.length){var cl=el("button","b","Remove photos");cl.onclick=function(){p.imgs=[];render()};row.appendChild(cl)}
+  }
+  var go=el("button","b p",p.busy?"Thinking…":"Send");go.disabled=p.busy||dis;go.onclick=askPantry;row.appendChild(go);
+  {var clr=el("button","b","Clear");clr.onclick=function(){p.text="";p.imgs=[];p.proposal=null;p.err="";render()};row.appendChild(clr)}
+  c.appendChild(row);
+  if(p.err)c.appendChild(el("div","status",p.err));
+  if(p.proposal){
+    var pr=el("div","alts");if(p.proposal.summary)pr.appendChild(el("div","note",p.proposal.summary));
+    var ops=p.proposal.ops;
+    if(!ops.length)pr.appendChild(el("div","note","No pantry changes suggested."));
+    ops.forEach(function(o){pr.appendChild(el("div","alt",opLine(o)))});
+    var r2=el("div","row");
+    if(ops.length){var ok=el("button","b p","Apply these changes");ok.disabled=dis;ok.onclick=function(){var o=p.proposal.ops;p.proposal=null;p.text="";p.imgs=[];write(applyOps(o))};r2.appendChild(ok)}
+    var no=el("button","b",ops.length?"Discard":"Close");no.onclick=function(){p.proposal=null;render()};r2.appendChild(no);pr.appendChild(r2);c.appendChild(pr)}
+  v.appendChild(c)}
+
+function ideasPantry(){
+  var p=S.pp;if(!S.sample||p.ibusy)return;p.ibusy=true;p.ierr="";p.ideas="";render();
+  var today=new Date().toISOString().slice(0,10);
+  var prompt="Today is "+today+". Suggest 3 dinners this family can cook tonight or this week using ONLY what is in their pantry inventory below, with no shopping trip. Allow only basic staples (salt, pepper, oil, common spices, water). Build around items that expire soonest first, and say which. "+R()+" For each dinner include a simple baby-friendly serving or tweak if there is a baby in the household. For each dinner give: a name, the pantry items it uses (with counts), roughly how long it takes, and one line on how to make it. If the inventory cannot support 3 real dinners, say so and offer fewer, plus the one or two cheapest items to add. Be concise and plain text, no markdown symbols.\n\n"+equipText()+"\n\nInventory (JSON; lots = containers with use-by dates, n = count):\n"+pantryJson();
+  S.sample(prompt,{cache:false}).then(function(r){var t=(r&&r.text)||"";p.ideas=t;p.ichk="Checking against your household's rules…";render();return guardText(t).then(function(g){p.ibusy=false;p.ideas=g.text;p.ichk=g.note;render()})}).catch(function(e){p.ibusy=false;p.ierr="Could not get ideas right now. Try again in a moment.";render()});
+}
+function renderIdeas(v,dis){
+  var p=S.pp;var c=el("div","card");c.appendChild(el("div","day","Cook from what we have"));
+  c.appendChild(el("div","note","Dinner ideas using only the pantry, with soonest-expiring items first. No shopping trip."));
+  if(!S.sample||!S.db){v.appendChild(c);return}
+  var r=el("div","row");var b=el("button","b p",p.ibusy?"Thinking…":"What can we make?");b.disabled=p.ibusy;b.onclick=ideasPantry;r.appendChild(b);
+  if(p.ideas){var x=el("button","b","Clear");x.onclick=function(){p.ideas="";render()};r.appendChild(x)}
+  c.appendChild(r);
+  if(p.ierr)c.appendChild(el("div","status",p.ierr));
+  if(p.ideas){var m=el("div","msg a");m.textContent=p.ideas;c.appendChild(m);if(p.ichk)c.appendChild(el("div","note",p.ichk))}
+  v.appendChild(c)}
+
+function pantryEdit(x){return editForm([{k:"name",label:"Name",val:x.name},{k:"size",label:"Size of one container",val:sizeOf(x)},{k:"loc",label:"Where it lives",val:x.loc||"Pantry",opts:LOCS},{k:"note",label:"Note",val:x.note||""}],function(o){write(putPantry(x,{name:o.name.trim()||x.name,size:o.size.trim(),loc:o.loc,note:o.note.trim()}))})}
+function draftOf(x){return S.dl[x.id]}
+function holdAny(){S.hold=Object.keys(S.dl).length>0||!!S.edit}
+function rerenderHeld(){var h=S.hold;S.hold=false;render();S.hold=h}
+function lotRow(x,i,dis,bar){
+  var d=draftOf(x);var lots=d||lotsOf(x);var l=lots[i];var row=el("div","ctl");
+  function startDraft(){if(!S.dl[x.id])S.dl[x.id]=lotsOf(x).map(function(z){return {n:z.n,exp:z.exp}});S.hold=true;bar.show();return S.dl[x.id]}
+  var ct=el("b",null,String(l.n));ct.style.minWidth="1.4em";ct.style.textAlign="center";
+  function step(dn){
+    if(S.dl[x.id]){var dr=S.dl[x.id];dr[i].n=Math.max(0,dr[i].n+dn);ct.textContent=String(dr[i].n)}
+    else{var nx=lotsOf(x).map(function(z){return {n:z.n,exp:z.exp}});nx[i].n+=dn;write(putPantry(x,{lots:cleanLots(nx)}))}}
+  var mn=el("button","b","−");mn.disabled=dis;mn.onclick=function(){step(-1)};
+  var pl=el("button","b","+");pl.disabled=dis;pl.onclick=function(){step(1)};
+  var di=el("input");di.type="date";di.value=l.exp||"";di.disabled=dis;di.title="Use-by date for these containers";
+  di.onchange=function(){var dr=startDraft();dr[i].exp=di.value};
+  row.appendChild(mn);row.appendChild(ct);row.appendChild(pl);row.appendChild(di);
+  return row}
+
+function renderPantry(v){
+  if(S.pantry===null){v.appendChild(el("div","empty","Loading pantry…"));return}
+  var have=S.pantry.filter(function(x){return x.state!=="used"});
+  var used=S.pantry.filter(function(x){return x.state==="used"});
+  var searching=!!(S.q.pantry||"").trim();
+  if(searching){var pm=function(x){return qm([x.name,sizeOf(x),x.note,x.loc].join(" "))};have=have.filter(pm);used=used.filter(pm)}
+  var soon=have.filter(function(x){var d=soonest(x);return d!==null&&d<=7}).length;
+  var gone=have.filter(function(x){var d=soonest(x);return d!==null&&d<0}).length;
+  var nodate=have.filter(function(x){return soonest(x)===null}).length;
+  var dis=!S.canWrite||!S.db||S.busy;
+  if(!searching){renderTell(v,dis);renderIdeas(v,dis)}
+  var intro=el("div","card");
+  if(searching){if(!have.length&&!used.length)v.appendChild(el("div","empty","Nothing in the pantry matches your search."))}
+  else{intro.appendChild(el("div","note","Each item shows how many containers you have and the size of one. If you have more than one with different use-by dates, tap Add another date to give one of the containers its own date. The total stays the same, and you can use + if you really have one more. Each week's plan uses what is close to expiring first."));
+  var sm=el("div","sum");
+  sm.appendChild(el("span","chip",have.length+" items in stock"));
+  if(soon)sm.appendChild(el("span","chip warn",soon+" within a week"));
+  if(gone)sm.appendChild(el("span","chip bad",gone+" expired"));
+  if(nodate)sm.appendChild(el("span","chip",nodate+" without a date"));
+  intro.appendChild(sm);v.appendChild(intro)}
+  if(!have.length&&!searching)v.appendChild(el("div","empty","Nothing listed yet. Add the first item below."));
+  LOCS.concat(have.map(function(x){return x.loc}).filter(function(l,i,a){return l&&LOCS.indexOf(l)<0&&a.indexOf(l)===i})).forEach(function(loc){
+    var items=have.filter(function(x){return (x.loc||"Pantry")===loc});if(!items.length)return;
+    items.sort(function(a,b){var da=soonest(a),db=soonest(b);if(da===null&&db===null)return a.name<b.name?-1:1;if(da===null)return 1;if(db===null)return -1;return da-db});
+    v.appendChild(el("div","grp",loc));var c=el("div","card");
+    items.forEach(function(x){
+      var dl=soonest(x);var r=el("div","prow");var top=el("div","top");
+      var t=el("div");t.appendChild(el("div","nm",x.name));
+      var lots=lotsOf(x);var dated=lots.filter(function(l){return l.exp});
+      var parts=[countText(x)];if(dl!==null)parts.push("soonest "+whenText(dl).replace("expires","expires").replace("expired","expired"));else parts.push("no date yet");
+      if(x.note)parts.push(x.note);t.appendChild(el("div","note",parts.join(" · ")));top.appendChild(t);
+      if(dl!==null&&dl<0)top.appendChild(el("span","chip bad","Expired"));else if(dl!==null&&dl<=7)top.appendChild(el("span","chip warn","Use soon"));
+      r.appendChild(top);
+      var drafting=!!draftOf(x);var sbar=el("div","ctl");
+      var svb=el("button","b p","Save changes");var cxb=el("button","b","Cancel");
+      function showBar(){svb.style.display="";cxb.style.display=""}
+      if(!drafting){svb.style.display="none";cxb.style.display="none"}
+      svb.onclick=function(){var dr=S.dl[x.id];delete S.dl[x.id];holdAny();if(dr)write(putPantry(x,{lots:cleanLots(dr),state:cleanLots(dr).length?"have":"used"}));else render()};
+      cxb.onclick=function(){delete S.dl[x.id];holdAny();S.stale=false;render()};
+      sbar.appendChild(svb);sbar.appendChild(cxb);
+      var showLots=draftOf(x)||lots;
+      showLots.forEach(function(l,i){r.appendChild(lotRow(x,i,dis,{show:showBar}))});
+      r.appendChild(sbar);
+      var ctl=el("div","ctl");
+      var ad=el("button","b","Add another date");ad.disabled=dis;ad.onclick=function(){if(!S.dl[x.id])S.dl[x.id]=lotsOf(x).map(function(z){return {n:z.n,exp:z.exp}});var dr=S.dl[x.id],bi=-1;dr.forEach(function(z,k){if(z.n>1&&(bi<0||z.n>dr[bi].n))bi=k});if(bi>=0)dr[bi].n-=1;dr.push({n:1,exp:""});S.hold=true;rerenderHeld()};ctl.appendChild(ad);
+      var u1=el("button","b","Use one");u1.disabled=dis||drafting;u1.onclick=function(){var nx=useOne(lots,1);write(putPantry(x,{lots:nx,state:nx.length?"have":"used"}))};ctl.appendChild(u1);
+      var ub=el("button","b","Used up");ub.disabled=dis||drafting;ub.onclick=function(){write(putPantry(x,{lots:[],state:"used"}))};ctl.appendChild(ub);
+      var eb=el("button","b","Edit");eb.disabled=drafting;eb.onclick=function(){openEdit("pantry:"+x.id)};ctl.appendChild(eb);
+      r.appendChild(ctl);if(S.edit==="pantry:"+x.id)r.appendChild(pantryEdit(x));c.appendChild(r)});
+    v.appendChild(c)});
+  if(used.length){
+    v.appendChild(el("div","grp","Used up: buy again?"));var uc=el("div","card");
+    used.forEach(function(x){
+      var r=el("div","prow");var top=el("div","top");var t=el("div");t.appendChild(el("div","nm",x.name));if(sizeOf(x))t.appendChild(el("div","note",sizeOf(x)));top.appendChild(t);r.appendChild(top);
+      var ctl=el("div","ctl");var sl=el("select");[["","Undecided"],["yes","Buy again"],["no","Don't buy again"]].forEach(function(o){var op=el("option",null,o[1]);op.value=o[0];if((x.restock||"")===o[0])op.selected=true;sl.appendChild(op)});
+      sl.disabled=dis;sl.onchange=function(){write(putPantry(x,{restock:sl.value}))};ctl.appendChild(sl);
+      var bk=el("button","b","Back in stock");bk.disabled=dis;bk.onclick=function(){write(putPantry(x,{lots:[{n:1,exp:""}],state:"have"}))};ctl.appendChild(bk);
+      var eb2=el("button","b","Edit");eb2.onclick=function(){openEdit("pantry:"+x.id)};ctl.appendChild(eb2);
+      r.appendChild(ctl);if(S.edit==="pantry:"+x.id)r.appendChild(pantryEdit(x));uc.appendChild(r)});
+    v.appendChild(uc)}
+  if(S.canWrite&&S.db&&!searching){
+    var a=el("div","card");a.appendChild(el("div","day","Add an item"));
+    var row=el("div","addrow");
+    var n=el("input");n.placeholder="e.g. Canned chickpeas";n.value=S.pf.name;n.oninput=function(){S.pf.name=n.value};row.appendChild(n);
+    var q=el("input");q.placeholder="Size of one, e.g. 15 oz can";q.value=S.pf.qty;q.oninput=function(){S.pf.qty=q.value};row.appendChild(q);a.appendChild(row);
+    var row2=el("div","addrow");
+    var nn=el("input");nn.type="number";nn.min="1";nn.step="1";nn.value=S.pf.n||1;nn.title="How many containers";nn.style.flex="0 0 80px";nn.oninput=function(){S.pf.n=nn.value};row2.appendChild(nn);
+    var ls=el("select");LOCS.forEach(function(l){var o=el("option",null,l);o.value=l;if(S.pf.loc===l)o.selected=true;ls.appendChild(o)});ls.onchange=function(){S.pf.loc=ls.value};row2.appendChild(ls);
+    var ed=el("input");ed.type="date";ed.value=S.pf.exp;ed.title="Use-by date (optional)";ed.onchange=function(){S.pf.exp=ed.value};row2.appendChild(ed);
+    var ab=el("button","b p","Add");ab.disabled=S.busy;
+    ab.onclick=function(){var nm=S.pf.name.trim();if(!nm)return;var cnt=Math.max(1,Math.round(Number(S.pf.n)||1));var sz=S.pf.qty.trim();var norm=function(t){return String(t||"").toLowerCase().replace(/\s+/g," ").trim()};var ex=S.pantry.filter(function(x){return norm(x.name)===norm(nm)&&norm(sizeOf(x))===norm(sz)})[0];var lot={n:cnt,exp:S.pf.exp||""};var job;if(ex){job=putPantry(ex,{lots:cleanLots(lotsOf(ex).concat([lot])),state:"have"})}else{job=S.db.collection("pantry").add({name:nm,size:sz,lots:cleanLots([lot]),loc:S.pf.loc,note:"",state:"have",restock:""})}S.pf.name="";S.pf.qty="";S.pf.exp="";S.pf.n=1;write(job)};
+    row2.appendChild(ab);a.appendChild(row2);v.appendChild(a)}
+}
+
+
+var GSECS=["Produce","Meat & Seafood","Dairy","Pantry","Bakery","Other"];
+function putShop(x,patch){var d={};["name","buy","need","covers","leftover","section","kind","order","est","week"].forEach(function(k){if(x[k]!==undefined)d[k]=x[k]});d.have=!!x.have;for(var k in patch)d[k]=patch[k];return S.db.doc("shoplist/"+x.id).set(d)}
+function shopText(items,mode){
+  var out=[];
+  if(mode==="instacart"){items.forEach(function(x){out.push(x.buy)});return out.join("\n")}
+  GSECS.forEach(function(s){var g=items.filter(function(x){return x.section===s});if(!g.length)return;out.push(s.toUpperCase());g.forEach(function(x){out.push("- "+x.buy+(x.need?" ("+x.need+" needed)":""))});out.push("")});
+  return out.join("\n").trim();
+}
+function renderShop(v){
+  if(S.shop===null){v.appendChild(el("div","empty","Loading the list…"));return}
+  var cw=curWk()||"2026-10-09";var sh=S.shop.filter(function(x){return (x.week||"2026-10-09")===cw});
+  if(!sh.length){var e=el("div","card empty");e.appendChild(el("b",null,"No grocery list yet"));e.appendChild(document.createTextNode("Jake will load the week's list once the dinners are approved."));v.appendChild(e);return}
+  var mode=S.mode||"store";
+  var buy=sh.filter(function(x){return x.kind!=="check"&&!x.have}).sort(function(a,b){return (a.order||0)-(b.order||0)});
+  var chk=sh.filter(function(x){return x.kind==="check"&&!x.have});
+  var haveIt=sh.filter(function(x){return x.have});
+  var h=el("div","card");h.appendChild(el("div","day","How are we shopping this week?"));
+  var r=el("div","row");
+  [["store","In store (Skylight list)"],["instacart","Instacart order"]].forEach(function(m){var b=el("button","b"+(mode===m[0]?" p":""),m[1]);b.disabled=S.busy||!S.canWrite||!S.db;b.onclick=function(){write(S.db.doc("settings/shopping").set({mode:m[0]}))};r.appendChild(b)});
+  h.appendChild(r);
+  var q2=el("div","row");
+  [["skylight-list","Send list to Skylight","Send this week's list to Skylight"],["instacart-cart","Build Instacart cart","Build the Instacart cart"]].forEach(function(m){
+    var pend=(S.reqs||[]).some(function(x){return x.type===m[0]&&x.status==="pending"});
+    var b=el("button","b",pend?"Already asked, waiting":m[1]);b.disabled=S.busy||!S.canWrite||!S.db||pend;
+    b.onclick=function(){write(sendReq(m[0],m[2],{week:cw}))};q2.appendChild(b)});
+  h.appendChild(q2);
+  h.appendChild(el("div","note",mode==="store"?"The list is organized by store section. Ask Claude to send it to the Skylight grocery list.":"The list is just the products and sizes to search for, one per line. Copy it into Instacart, or ask Claude to build the cart if the Instacart connection is on."));
+  var sm=el("div","sum");sm.appendChild(el("span","chip",buy.length+" items to buy"));sm.appendChild(el("span","chip",chk.length+" to check at home"));var tot=0,np=0;buy.forEach(function(x){if(typeof x.est==="number")tot+=x.est;else np++});if(tot>0)sm.appendChild(el("span","chip","About $"+tot.toFixed(2)+" estimated"+(np?" ("+np+" unpriced)":"")));h.appendChild(sm);
+  v.appendChild(h);
+  var rq=reqCard(["skylight-list","instacart-cart"]);if(rq)v.appendChild(rq);
+  var cb=el("div","card");cb.appendChild(el("div","day","Copy this list"));
+  var ta=el("textarea");ta.readOnly=true;ta.rows=6;ta.value=shopText(buy,mode);cb.appendChild(ta);
+  var cr=el("div","row");var cp=el("button","b","Copy");cp.onclick=function(){ta.select();try{navigator.clipboard.writeText(ta.value).then(function(){cp.textContent="Copied"}).catch(function(){cp.textContent="Press and hold the text to copy"})}catch(e){cp.textContent="Press and hold the text to copy"}};cr.appendChild(cp);cb.appendChild(cr);v.appendChild(cb);
+  var sm2=function(x){return qm([x.buy,x.name,x.need,x.covers,x.section].join(" "))};
+  GSECS.forEach(function(s){
+    var g=buy.filter(function(x){return x.section===s&&sm2(x)});if(!g.length)return;
+    v.appendChild(el("div","grp",s));var c=el("div","card");
+    g.forEach(function(x){c.appendChild(shopRow(x,"I have this"))});v.appendChild(c)});
+  var chk2=chk.filter(sm2);if(chk2.length){v.appendChild(el("div","grp","Check what we have first"));var c2=el("div","card");chk2.forEach(function(x){c2.appendChild(shopRow(x,"We have it"))});v.appendChild(c2)}
+  var have2=haveIt.filter(sm2);if(have2.length){v.appendChild(el("div","grp","Already have"));var c3=el("div","card");have2.forEach(function(x){c3.appendChild(shopRow(x,"Need to buy"))});v.appendChild(c3)}
+  var est=S.meals?planMeals().filter(function(m){return m.kind==="dinner"&&m.cost}).map(function(m){return m.title.split(" ").slice(0,3).join(" ")+": "+m.cost}):[];
+  if(est.length){var ec=el("div","card");ec.appendChild(el("div","day","Estimated meal costs"));est.forEach(function(t){ec.appendChild(el("div","note",t))});ec.appendChild(el("div","note","Per-item prices will fill in from the receipt."));v.appendChild(ec)}
+}
+function shopRow(x,label){
+  var row=el("div","prow");var top=el("div","top");
+  var l=el("div");l.appendChild(el("b",null,x.buy));
+  var det=[];if(x.need)det.push("need "+x.need);if(x.covers)det.push(x.covers);
+  if(det.length)l.appendChild(el("div","note",det.join(" · ")));
+  if(x.leftover)l.appendChild(el("div","note","Left over: "+x.leftover));
+  top.appendChild(l);
+  if(typeof x.est==="number")top.appendChild(el("span","chip","$"+x.est.toFixed(2)));
+  row.appendChild(top);
+  if(S.canWrite&&S.db){var ctl=el("div","ctl");var b=el("button","b",label);b.disabled=S.busy;b.onclick=function(){write(putShop(x,{have:!x.have}))};ctl.appendChild(b);
+    var eb=el("button","b","Edit");eb.onclick=function(){openEdit("shop:"+x.id)};ctl.appendChild(eb);row.appendChild(ctl);
+    if(S.edit==="shop:"+x.id)row.appendChild(editForm([{k:"buy",label:"What to buy",val:x.buy},{k:"need",label:"Amount needed",val:x.need||""},{k:"section",label:"Section",val:x.section||"Other",opts:GSECS}],function(o){write(putShop(x,{buy:o.buy.trim()||x.buy,need:o.need.trim(),section:o.section}))}))}
+  return row;
+}
+
+function init(){
+  render();
+  Promise.all([window.claude.use("db"),window.claude.use("user"),window.claude.use("sample")]).then(function(r){
+    S.db=r[0];S.user=r[1];S.sample=r[2];
+    if(S.sample&&S.sample.limits){try{S.sample.limits().then(function(l){S.canImg=(l&&l.images)||null;render()}).catch(function(){})}catch(e){}}
+    if(S.user){
+      try{var cw=S.user.can("data.write");if(cw===false)S.canWrite=false}catch(e){}
+      Promise.resolve(S.user.id()).then(function(id){S.me=id;render()}).catch(function(){});
+    }
+    if(!S.db){S.meals=[];S.staples=[];S.pantry=[];S.equip=[];S.people=[];S.shop=[];render();return}
+    S.db.collection("meals").orderBy("order").onSnapshot(function(s){
+      S.meals=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});
+      var ids={};S.meals.forEach(function(m){if(m.decidedBy)ids[m.decidedBy]=1});resolve(ids);render();
+    },function(){S.meals=[];render()});
+    S.db.collection("staples").orderBy("name").onSnapshot(function(s){
+      S.staples=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render();
+    },function(){S.staples=[];render()});
+    S.db.collection("pantry").orderBy("name").onSnapshot(function(s){
+      S.pantry=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render();
+    },function(){S.pantry=[];render()});
+    S.db.collection("equipment").orderBy("name").onSnapshot(function(s){
+      S.equip=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render();
+    },function(){S.equip=[];render()});
+    S.db.collection("people").orderBy("name").onSnapshot(function(s){
+      S.people=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render();
+    },function(){S.people=[];render()});
+    S.db.doc("settings/household").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.hh={notes:(x&&x.notes)||""};render()},function(){});
+    S.db.collection("shoplist").onSnapshot(function(s){
+      S.shop=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render();
+    },function(){S.shop=[];render()});
+    S.db.doc("settings/shopping").onSnapshot(function(d){
+      var x=null;try{x=d.data()}catch(e){}S.mode=(x&&x.mode)||"store";render();
+    },function(){});
+    S.db.collection("recipes").onSnapshot(function(s){
+      S.recipes=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});
+      if(window.CookTab){window.CookTab.setRecipes(S.recipes);if(!S.hashDone){S.hashDone=true;var hid=window.CookTab.idInHash();if(hid){setTab("cook");window.CookTab.open(hid);return}}}
+      render();
+    },function(){S.recipes=[];render()});
+    S.db.collection("requests").orderBy("ts").onSnapshot(function(s){S.reqs=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render()},function(){S.reqs=[]});
+    S.db.collection("chat").orderBy("ts").limit(50).onSnapshot(function(s){
+      S.chat=s.docs.map(function(d){return d.data()});var ids={};S.chat.forEach(function(m){if(m.by)ids[m.by]=1});resolve(ids);render();
+    },function(){});
+  });
+}
+function resolve(ids){
+  if(!S.user)return;var list=Object.keys(ids);if(!list.length)return;
+  Promise.resolve(S.user.profiles(list)).then(function(ps){list.forEach(function(i){S.names[i]=(ps&&ps[i]&&ps[i].name)||""});render()}).catch(function(){});
+}
+window.CookExt={equip:function(){return S.equip||[]}};
+init();
+})();
+</script>
+
+<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}</script>
+</body></html>
