@@ -195,6 +195,7 @@ function renderRecipe(){
   app.appendChild(el("h1",null,r.title));
   app.appendChild(el("div","mut",[r.day,r.time,r.servings,r.cost].filter(Boolean).join(" · ")));
   if(r.intro)app.appendChild(el("p","mut",r.intro));
+  if(r.ahead){var ab=el("div","warnbox");ab.appendChild(el("b",null,"Make ahead: "));ab.appendChild(document.createTextNode(r.ahead));app.appendChild(ab)}
   var tabs=el("div","tabs");((hasPrep(r)?[["prep","Prep"]]:[]).concat([["cook","Step by step"],["whole","Whole recipe"]])).forEach(function(t){var b=el("button",S.mode===t[0]?"on":"",t[1]);b.onclick=function(){S.mode=t[0];render()};tabs.appendChild(b)});app.appendChild(tabs);
   if(S.mode==="prep"&&hasPrep(r)){
     app.appendChild(equipCard(r));
@@ -354,6 +355,7 @@ function mealCard(m){
   c.appendChild(mt);
   if((m.equip||[]).length){var em=el("div","meta");em.appendChild(el("span","who","Equipment"));m.equip.forEach(function(nm){var st=eqStatus(nm);em.appendChild(el("span","chip"+(st==="yes"?" ok":st==="no"?" bad":""),nm+(st==="no"?" (missing)":st==="unset"?" (unconfirmed)":"")))});c.appendChild(em)}
   if(m.note)c.appendChild(el("div","note",m.note));
+  if(m.ahead){var ah=el("div","note");ah.appendChild(el("b",null,"Make ahead: "));ah.appendChild(document.createTextNode(m.ahead));c.appendChild(ah)}
   if(m.baby)c.appendChild(el("div","note","Lenora: "+m.baby));
   if(m.decidedBy&&m.status!=="draft")c.appendChild(el("div","status",(mine(m.decidedBy)?"You":who(m.decidedBy))+(m.status==="approved"?" approved this":" asked for a swap")+(m.comment?": “"+m.comment+"”":"")));
   if(S.canWrite&&S.db){
@@ -364,7 +366,7 @@ function mealCard(m){
     var eb=el("button","b","Edit");eb.onclick=function(){openEdit("meal:"+m.id)};r.appendChild(eb);
     var rc=(window.CookTab&&m.date)?window.CookTab.forDate(m.date):null;if(rc){var cb=el("button","b","Cook");cb.onclick=function(){setTab("cook");window.CookTab.open(rc.id)};r.insertBefore(cb,r.firstChild)}
     c.appendChild(r);
-    if(S.edit==="meal:"+m.id)c.appendChild(editForm([{k:"title",label:"Dinner",val:m.title},{k:"time",label:"Time",val:m.time||""},{k:"cost",label:"Cost",val:m.cost||""},{k:"note",label:"Note",val:m.note||""},{k:"equip",label:"Equipment needed (comma separated)",val:(m.equip||[]).join(", ")}],function(o){write(S.db.doc("meals/"+m.id).update({title:o.title.trim()||m.title,time:o.time.trim(),cost:o.cost.trim(),note:o.note.trim(),equip:o.equip.split(",").map(function(t){return t.trim()}).filter(Boolean)}))}));
+    if(S.edit==="meal:"+m.id)c.appendChild(editForm([{k:"title",label:"Dinner",val:m.title},{k:"time",label:"Time",val:m.time||""},{k:"cost",label:"Cost",val:m.cost||""},{k:"note",label:"Note",val:m.note||""},{k:"ahead",label:"Make-ahead prep (optional)",val:m.ahead||""},{k:"equip",label:"Equipment needed (comma separated)",val:(m.equip||[]).join(", ")}],function(o){write(S.db.doc("meals/"+m.id).update({title:o.title.trim()||m.title,time:o.time.trim(),cost:o.cost.trim(),note:o.note.trim(),ahead:(o.ahead||"").trim(),equip:o.equip.split(",").map(function(t){return t.trim()}).filter(Boolean)}))}));
     if(S.open===m.id){
       var a=el("div","alts");
       var alts=m.alts||[];
