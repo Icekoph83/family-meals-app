@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-06k">
+<meta name="app-v" content="2026-11-06l">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -1142,8 +1142,27 @@ function lotRow(x,i,dis,bar){
   row.appendChild(mn);row.appendChild(ct);row.appendChild(pl);row.appendChild(di);
   return row}
 
+function walkQueue(){return (S.pantry||[]).filter(function(x){return x.state!=="used"&&!(S.ph||{})["pantry:"+x.id]}).sort(function(a,b){var la=LOCS.indexOf(a.loc||"Pantry"),lb=LOCS.indexOf(b.loc||"Pantry");return (la-lb)||a.name.localeCompare(b.name)})}
+function renderWalk(v){var q=S.walk.ids.map(function(id){return (S.pantry||[]).filter(function(x){return x.id===id})[0]}).filter(Boolean);var i=S.walk.i;
+  var stop=el("button","b","Stop the walk");stop.onclick=function(){S.walk=null;render()};
+  if(i>=q.length){var c0=el("div","card");c0.appendChild(el("h2",null,"That's the walk"));c0.appendChild(el("div","note","Photos added this time: "+S.walk.added+". Skipped: "+S.walk.skipped+"."));c0.appendChild(stop);v.appendChild(c0);return}
+  var x=q[i],c=el("div","card");c.appendChild(el("div","day","Photo walk · "+(i+1)+" of "+q.length));
+  var bar=el("div","bar");var fl=el("i");fl.style.width=(i/q.length*100)+"%";bar.appendChild(fl);c.appendChild(bar);
+  var h=el("h2",null,x.name);h.style.marginTop="10px";c.appendChild(h);c.appendChild(el("div","note",[sizeOf(x),x.loc||"Pantry",countText(x)].filter(Boolean).join(" · ")));
+  var PH=window.CookExt.photo;var err=S.walk.err;if(err)c.appendChild(el("div","banner",err));
+  var fi=el("input");fi.type="file";fi.accept="image/*";fi.setAttribute("capture","environment");fi.style.display="none";
+  var cam=el("button","b p","Take a photo");cam.style.cssText="width:100%;padding:16px;margin-top:10px;font-size:17px";cam.disabled=!PH.can()||S.walk.busy;
+  cam.onclick=function(){fi.click()};
+  fi.onchange=function(){var f=fi.files&&fi.files[0];if(!f)return;S.walk.busy=true;cam.disabled=true;cam.textContent="Saving…";
+    PH.add("pantry:"+x.id,f,360).then(function(ok){S.walk.busy=false;if(ok===true){S.walk.added++;S.walk.i++;S.walk.err=""}else S.walk.err="Could not save that photo. Try again or skip.";render();window.scrollTo(0,0)})};
+  c.appendChild(fi);c.appendChild(cam);
+  var row=el("div","row");row.style.marginTop="10px";
+  var sk=el("button","b","Skip this one");sk.onclick=function(){S.walk.skipped++;S.walk.i++;S.walk.err="";render()};row.appendChild(sk);
+  if(i>0){var bk=el("button","b","Back");bk.onclick=function(){S.walk.i--;render()};row.appendChild(bk)}
+  row.appendChild(stop);c.appendChild(row);v.appendChild(c)}
 function renderPantry(v){
   if(S.pantry===null){v.appendChild(el("div","empty","Loading pantry…"));return}
+  if(S.walk){renderWalk(v);return}
   var have=S.pantry.filter(function(x){return x.state!=="used"});
   var used=S.pantry.filter(function(x){return x.state==="used"});
   var searching=!!(S.q.pantry||"").trim();
@@ -1161,6 +1180,7 @@ function renderPantry(v){
   if(soon)sm.appendChild(el("span","chip warn",soon+" within a week"));
   if(gone)sm.appendChild(el("span","chip bad",gone+" expired"));
   if(nodate)sm.appendChild(el("span","chip",nodate+" without a date"));
+  var wq=walkQueue();if(wq.length&&S.canWrite&&S.db){var wb=el("button","b p","Photo walk ("+wq.length+" items without a photo)");wb.style.cssText="width:100%;margin-top:10px";wb.onclick=function(){S.walk={ids:walkQueue().map(function(x){return x.id}),i:0,added:0,skipped:0,err:"",busy:false};render();window.scrollTo(0,0)};sm.appendChild(wb)}
   intro.appendChild(sm);v.appendChild(intro)}
   if(!have.length&&!searching)v.appendChild(el("div","empty","Nothing listed yet. Add the first item below."));
   LOCS.concat(have.map(function(x){return x.loc}).filter(function(l,i,a){return l&&LOCS.indexOf(l)<0&&a.indexOf(l)===i})).forEach(function(loc){
