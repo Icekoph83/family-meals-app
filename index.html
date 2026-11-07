@@ -120,8 +120,9 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-06d">
+<meta name="app-v" content="2026-11-06e">
 <div id="upd"></div>
+<div id="pend"></div>
 <div id="ahead"></div>
 <div id="banner"></div>
 <div class="tabs" role="tablist">
@@ -423,6 +424,7 @@ var sqT=null;
 $("sq").oninput=function(){S.q[S.tab]=$("sq").value;S.edit=null;holdAny();clearTimeout(sqT);sqT=setTimeout(rerenderHeld,120)};
 $("sx").onclick=function(){S.q[S.tab]="";$("sq").value="";$("sq").blur();S.edit=null;holdAny();clearTimeout(sqT);rerenderHeld()};
 function render(){
+  try{renderPend()}catch(e){}
   try{renderAhead()}catch(e){console.error('AHEADERR '+e.message)}
   if(S.hold&&(S.edit||Object.keys(S.dl).length)){S.stale=true;return}
   S.hold=false;
@@ -469,6 +471,7 @@ function renderWeek(v){
   if(searching)v.appendChild(el("div","note","Searching every week."));
   var ok=list.filter(function(m){return m.status==="approved"}).length;
   v.appendChild(el("p","sub",ok+" of "+list.length+" nights approved"));
+  if(!searching&&S.db&&S.canWrite){var syp=(S.reqs||[]).some(function(x){return x.type==="skylight-sync"&&x.status==="pending"});var syb=el("button","b",syp?"Sync asked, waiting":"Sync with Skylight");syb.style.marginBottom="10px";syb.disabled=S.busy||syp;syb.onclick=function(){write(sendReq("skylight-sync","Sync the plan and Skylight",{}))};v.appendChild(syb)}
   if(!searching)weekEquip(v,list);
   var shown=list.filter(function(m){return qm([m.title,m.note,m.cuisine,m.day].join(" "))});
   if(!shown.length)v.appendChild(el("div","empty","Nothing matches your search."));
@@ -545,6 +548,11 @@ function icsEsc(t){return String(t||"").replace(/\\/g,"\\\\").replace(/;/g,"\\;"
 function icsFor(m){var d=new Date(m.date+"T12:00:00");d.setDate(d.getDate()-1);var ds=d.getFullYear()+("0"+(d.getMonth()+1)).slice(-2)+("0"+d.getDate()).slice(-2);
   var L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Family Meals//EN","BEGIN:VEVENT","UID:ahead-"+m.id+"@family-meals","DTSTAMP:"+new Date().toISOString().replace(/[-:]/g,"").slice(0,15)+"Z","DTSTART:"+ds+"T200000","DTEND:"+ds+"T203000","SUMMARY:"+icsEsc("Make ahead: "+m.title),"DESCRIPTION:"+icsEsc(m.ahead),"BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEsc("Make ahead: "+m.title),"TRIGGER:PT0S","END:VALARM","BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEsc("Make ahead: "+m.title),"TRIGGER:-PT30M","END:VALARM","END:VEVENT","END:VCALENDAR"];return L.join("\r\n")}
 function addAheadCal(m){var a=document.createElement("a");a.href="data:text/calendar;charset=utf-8,"+encodeURIComponent(icsFor(m));a.target="_blank";a.rel="noopener";a.download="make-ahead.ics";document.body.appendChild(a);a.click();a.remove()}
+function renderPend(){var h=$("pend");if(!h)return;h.textContent="";
+  var pn=(S.reqs||[]).filter(function(r){return r.status==="pending"});
+  if(pn.length){var b=el("div","banner");b.appendChild(el("b",null,"Waiting for Claude ("+pn.length+"): "));b.appendChild(document.createTextNode(pn.map(function(r){return r.label||r.type}).join("; ")+". Skylight and Instacart jobs run when Jake's computer is on (checked about every 2 hours) or when Jake chats with Claude."));h.appendChild(b)}
+  var sr=S.sync;if(sr&&sr.items&&sr.items.length){var c=el("div","aheadbar");c.appendChild(el("b","h","Skylight and the plan don't match"));sr.items.forEach(function(t){c.appendChild(el("div","note",t))});
+    c.appendChild(el("div","note","Checked "+new Date(sr.ts||0).toLocaleString([],{weekday:"short",hour:"numeric",minute:"2-digit"})+". Tell Claude which one is right."));h.appendChild(c)}}
 function renderAhead(){var h=$("ahead");if(!h)return;h.textContent="";
   (S.meals||[]).filter(function(m){return m.ahead&&!m.aheadDone&&m.kind!=="takeout"&&(dayDiff(m.date)===1||dayDiff(m.date)===0)}).sort(function(a,b){return a.date<b.date?-1:1}).forEach(function(m){
     var d=dayDiff(m.date),late=d===0;var b=el("div","aheadbar"+(late?" late":""));
@@ -1227,6 +1235,7 @@ function init(){
       S.people=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render();
     },function(){S.people=[];render()});
     S.db.doc("settings/household").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.hh={notes:(x&&x.notes)||""};render()},function(){});
+    S.db.doc("settings/syncreport").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.sync=x||null;render()},function(){});
     S.db.collection("pmatch").onSnapshot(function(s){S.pm={};s.docs.forEach(function(d){var x=d.data();if(x&&x.id)S.pm[d.id]=x.id})},function(){});
     S.db.collection("shoplist").onSnapshot(function(s){
       S.shop=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render();
