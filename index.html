@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-06j">
+<meta name="app-v" content="2026-11-06k">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -270,7 +270,11 @@ function renderPantryConfirm(r){
     var it=byId[row.id];var ln=el("div","row");ln.style.marginTop="8px";
     if(it){ln.appendChild(el("span","mut","Use"));var n=el("input");n.type="number";n.min="0";n.step="1";n.inputMode="numeric";n.style.width="80px";n.value=row.k;
       var hand=el("div","mut",onHand(it,row.use?row.k:0));
-      n.oninput=function(){row.k=Math.max(0,Math.floor(+n.value||0));hand.textContent=onHand(it,row.use?row.k:0)};ln.appendChild(n);c.appendChild(ln);c.appendChild(hand)}
+      n.oninput=function(){row.k=Math.max(0,Math.floor(+n.value||0));hand.textContent=onHand(it,row.use?row.k:0)};ln.appendChild(n);c.appendChild(ln);c.appendChild(hand);
+      var PHa=photoApi();if(PHa&&PHa.can()){var hasP=PHa.get("pantry:"+it.id);
+        if(hasP){var tp=document.createElement("img");tp.src=hasP;tp.alt="";tp.style.cssText="width:44px;height:44px;object-fit:cover;border-radius:8px;margin-top:6px";c.appendChild(tp)}
+        else{var pf=el("input");pf.type="file";pf.accept="image/*";pf.style.display="none";var pb=el("button",null,"Add a photo so it's easy to find");pb.style.marginTop="6px";pb.onclick=function(){pf.click()};
+          pf.onchange=function(){var f=pf.files&&pf.files[0];if(!f)return;pb.disabled=true;pb.textContent="Saving…";PHa.add("pantry:"+it.id,f,360).then(function(ok){PU.err=ok===true?"":"Could not save that photo.";render()})};c.appendChild(pf);c.appendChild(pb)}}}
     else c.appendChild(el("div","mut","Not from the pantry, nothing to update."));
     app.appendChild(c)});
   if(PU.err)app.appendChild(el("div","warnbox",PU.err));
