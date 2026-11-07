@@ -145,6 +145,45 @@ document.addEventListener("visibilitychange",function(){if(!document.hidden&&S.c
 function fmt(s){var m=Math.floor(s/60),x=s%60;return m+":"+(x<10?"0":"")+x}
 setInterval(function(){var t=S.timer;if(!t||t.fired)return;var left=Math.round((t.end-Date.now())/1000);if(left<=0){t.fired=true;try{navigator.vibrate&&navigator.vibrate([400,200,400,200,400])}catch(e){}}var n=document.getElementById("tmv");if(n)n.textContent=t.fired?"Time's up!":fmt(left)},500);
 
+function fbx(){return window.CookExt&&window.CookExt.fb}
+function newFb(fin){return {v:"",note:"",prep:"",cook:"",fin:!!fin,err:""}}
+function verdictLabel(v){return v==="again"?"Make again":v==="changes"?"Make again with changes":v==="never"?"Don't make again":""}
+function finishCook(){S.step=0;S.done={};S.pdone={};S.fb=null;save();S.cur=null;render()}
+function fmtDate(ts){try{return new Date(ts).toLocaleDateString(undefined,{month:"short",day:"numeric"})}catch(e){return""}}
+function renderFeedback(r){
+  var F=fbx(),f=S.fb||(S.fb=newFb(false));app.textContent="";
+  var back=el("button",null,"← Back");back.onclick=function(){S.mode=f.fin?"cook":"whole";S.fb=null;render()};app.appendChild(back);
+  app.appendChild(el("h1",null,"How did it go?"));app.appendChild(el("div","mut",r.title));
+  if(!F||!F.can()){app.appendChild(el("div","warnbox","Feedback can't be saved right now (not signed in or read-only)."))}
+  var c=el("div","card");c.appendChild(el("h2",null,"Make it again?"));
+  [["again","Make again"],["changes","Make again with changes"],["never","Don't make again"]].forEach(function(o){
+    var b=el("button",f.v===o[0]?"pri":"",o[1]);b.style.cssText="display:block;width:100%;margin:6px 0;text-align:left";b.onclick=function(){f.v=o[0];render()};c.appendChild(b)});
+  var hint=f.v==="again"?"It goes in the favorites pool for future weeks.":f.v==="changes"?"Say what to change below. Claude rewrites the recipe before it comes back and tells you what changed.":f.v==="never"?"It moves to Archived right away and won't be suggested again. You can restore it later.":"";
+  if(hint)c.appendChild(el("div","mut",hint));app.appendChild(c);
+  var n=el("div","card");n.appendChild(el("h2",null,"Notes"));
+  var ta=el("textarea");ta.rows=4;ta.placeholder="e.g. too spicy for Lenora, needs more sauce, tofu didn't crisp";ta.value=f.note;ta.oninput=function(){f.note=ta.value};n.appendChild(ta);
+  n.appendChild(el("div","mut","Real times, if they were off (minutes, optional). Planned: "+(r.time||"not set")));
+  var tr=el("div","row");tr.style.marginTop="8px";
+  [["prep","Real prep"],["cook","Real cook"]].forEach(function(t){var w=el("div");w.style.flex="1";w.appendChild(el("div","mut",t[1]));var i=el("input");i.type="number";i.min="0";i.inputMode="numeric";i.value=f[t[0]];i.oninput=function(){f[t[0]]=i.value};w.appendChild(i);tr.appendChild(w)});
+  n.appendChild(tr);app.appendChild(n);
+  if(f.err)app.appendChild(el("div","warnbox",f.err));
+  var row=el("div","row");var sv=el("button","pri","Save");sv.disabled=!f.v||!F||!F.can();
+  sv.onclick=function(){sv.disabled=true;F.submit(r,{v:f.v,note:(f.note||"").trim(),prep:f.prep,cook:f.cook}).then(function(ok){
+    if(!ok){f.err="Could not save that. Check your connection and try again.";render();return}
+    var fin=f.fin,v=f.v;S.fb=null;S.toast=v==="never"?"Archived: "+r.title+". It won't be suggested again.":"Thanks, feedback saved.";
+    if(fin)finishCook();else if(v==="never"){S.cur=null;render()}else{S.mode="whole";render()}})};
+  row.appendChild(sv);
+  if(f.fin){var sk=el("button",null,"Skip");sk.onclick=function(){finishCook()};row.appendChild(sk)}
+  app.appendChild(row);
+  var past=F?F.list(r.id):[];
+  if(past.length){var h=el("div","card");h.appendChild(el("h2",null,"Earlier feedback"));
+    past.forEach(function(e){var d=el("div");d.style.cssText="padding:8px 0;border-bottom:1px solid var(--line)";
+      d.appendChild(el("div","mut",F.who(e.by)+" · "+fmtDate(e.ts)+(verdictLabel(e.verdict)?" · "+verdictLabel(e.verdict):e.verdict==="restored"?" · Restored":"")));
+      if(e.note)d.appendChild(el("div",null,e.note));
+      if(e.times&&(e.times.prep||e.times.cook))d.appendChild(el("div","mut","Real time: "+[e.times.prep?"prep "+e.times.prep+" min":"",e.times.cook?"cook "+e.times.cook+" min":""].filter(Boolean).join(", ")));
+      h.appendChild(d)});app.appendChild(h)}
+}
+
 function ingRow(i,hl,r){
   var row=el("label","ing"+(S.done[i.id]?" done":"")+(hl?" hl":""));
   var cb=el("input");cb.type="checkbox";cb.checked=!!S.done[i.id];
@@ -155,12 +194,19 @@ function ingRow(i,hl,r){
 function renderList(){
   app.textContent="";app.appendChild(el("h1",null,"Cook"));
   if(!S.loaded){app.appendChild(el("p","mut","Loading recipes…"));return}
+  if(S.toast){app.appendChild(el("div","warnbox",S.toast));S.toast=""}
   if(!S.recipes.length){var c=el("div","card");c.appendChild(el("p",null,"No recipes loaded yet."));c.appendChild(el("p","mut","Ask Claude to add this week's recipes."));app.appendChild(c);return}
-  S.recipes.forEach(function(r){var b=el("button","card rc");b.appendChild(el("h2",null,r.title));
+  var live=S.recipes.filter(function(r){return !r.retired}),gone=S.recipes.filter(function(r){return r.retired});
+  live.forEach(function(r){var b=el("button","card rc");b.appendChild(el("h2",null,r.title));
     b.appendChild(el("div","mut",[r.day,r.time,r.servings,r.cost].filter(Boolean).join(" · ")));
     if((r.equip||[]).some(function(e){return eqState(e.n)==="no"}))b.appendChild(el("div","mut","Missing equipment, tap for the swap"));
     var p=ls("cook:"+r.id);if(p&&p.step>0)b.appendChild(el("div","mut","In progress: step "+(p.step+1)+" of "+(r.steps||[]).length));
-    b.onclick=function(){open(r)};app.appendChild(b)})}
+    if(r.verdict)b.appendChild(el("div","mut",verdictLabel(r.verdict)));
+    b.onclick=function(){open(r)};app.appendChild(b)});
+  if(gone.length){var ar=el("div","card");ar.appendChild(el("h2",null,"Archived ("+gone.length+")"));ar.appendChild(el("div","mut","Marked don't make again. Not suggested when planning."));
+    gone.forEach(function(r){var row=el("div","eq");var l=el("div");l.appendChild(el("b",null,r.title));row.appendChild(l);
+      var F=fbx();if(F&&F.can()){var rb=el("button",null,"Restore");rb.onclick=function(){F.restore(r).then(function(){S.toast="Restored: "+r.title;render()})};row.appendChild(rb)}ar.appendChild(row)});
+    app.appendChild(ar)}}
 
 function prepCard(r,im,interactive){
   var list=r.prep||[];var c=el("div","card");c.appendChild(el("h2",null,"Prep"));
@@ -191,9 +237,11 @@ function equipCard(r){
   return out}
 function renderRecipe(){
   var r=S.cur,steps=r.steps||[],im=ingMap(r);app.textContent="";
+  if(S.mode==="fb"){renderFeedback(r);return}
   var back=el("button",null,"← All recipes");back.onclick=function(){S.cur=null;render()};app.appendChild(back);
   app.appendChild(el("h1",null,r.title));
   app.appendChild(el("div","mut",[r.day,r.time,r.servings,r.cost].filter(Boolean).join(" · ")));
+  if(r.verdict)app.appendChild(el("div","mut","Your verdict: "+verdictLabel(r.verdict)));
   if(r.intro)app.appendChild(el("p","mut",r.intro));
   if(r.ahead){var ab=el("div","warnbox");ab.appendChild(el("b",null,"Make ahead: "));ab.appendChild(document.createTextNode(r.ahead));app.appendChild(ab)}
   var tabs=el("div","tabs");((hasPrep(r)?[["prep","Prep"]]:[]).concat([["cook","Step by step"],["whole","Whole recipe"]])).forEach(function(t){var b=el("button",S.mode===t[0]?"on":"",t[1]);b.onclick=function(){S.mode=t[0];render()};tabs.appendChild(b)});app.appendChild(tabs);
@@ -213,6 +261,7 @@ function renderRecipe(){
       st.onclick=function(){S.step=n;S.mode="cook";save();render()};d.appendChild(st)});app.appendChild(d);
     if(r.baby){var bb=el("div","baby","Baby: "+r.baby);app.appendChild(bb)}
     var rs=el("button",null,"Reset progress");rs.onclick=function(){S.step=0;S.done={};S.pdone={};save();render()};app.appendChild(rs);
+    var fbb=el("button",null,"How did it go?");fbb.style.marginLeft="8px";fbb.onclick=function(){S.fb=newFb(false);S.mode="fb";render();window.scrollTo(0,0)};app.appendChild(fbb);
     return}
   var s=steps[S.step];if(!s){app.appendChild(el("p",null,"No steps."));return}
   var bar=el("div","bar"),fill=el("i");fill.style.width=((S.step+1)/steps.length*100)+"%";bar.appendChild(fill);app.appendChild(bar);
@@ -228,16 +277,16 @@ function renderRecipe(){
   (r.ingredients||[]).forEach(function(i){ic.appendChild(ingRow(i,uses.indexOf(i.id)>=0,r))});app.appendChild(ic);
   var nav=el("div","nav"),in2=el("div");
   var p=el("button",null,"← Back");p.disabled=S.step===0;p.onclick=function(){S.step--;save();render();window.scrollTo(0,0)};
-  var last=S.step>=steps.length-1;var n=el("button","pri",last?"Done":"Next →");
-  n.onclick=function(){if(last){S.step=0;S.done={};S.pdone={};save();S.cur=null;render()}else{S.step++;save();render();window.scrollTo(0,0)}};
+  var last=S.step>=steps.length-1;var n=el("button","pri",last?"Done, how did it go?":"Next →");
+  n.onclick=function(){if(last){S.fb=newFb(true);S.mode="fb";save();render();window.scrollTo(0,0)}else{S.step++;save();render();window.scrollTo(0,0)}};
   in2.appendChild(p);in2.appendChild(n);nav.appendChild(in2);app.appendChild(nav)}
 
 function render(){if(!app)return;var y=window.scrollY;if(S.cur){wakeOn();renderRecipe()}else renderList();if(y)window.scrollTo(0,y)}
 
 function todayIso(){var n=new Date();return n.getFullYear()+"-"+("0"+(n.getMonth()+1)).slice(-2)+"-"+("0"+n.getDate()).slice(-2)}
 function byId(id){return S.recipes.filter(function(r){return r.id===id})[0]||null}
-function pickDefault(){var iso=todayIso(),pick=null;S.recipes.forEach(function(r){if(r.date===iso)pick=r});
-  if(!pick){var best=null;S.recipes.forEach(function(r){if(r.date&&r.date>=iso&&(!best||r.date<best.date))best=r});pick=best}return pick}
+function pickDefault(){var iso=todayIso(),pick=null;S.recipes.forEach(function(r){if(r.date===iso&&!r.retired)pick=r});
+  if(!pick){var best=null;S.recipes.forEach(function(r){if(!r.retired&&r.date&&r.date>=iso&&(!best||r.date<best.date))best=r});pick=best}return pick}
 window.CookTab={
   mount:function(c){var w=document.createElement("div");w.id="ck";c.appendChild(w);app=w;
     if(!S.auto&&S.recipes.length){S.auto=true;var q="";try{q=location.hash+location.search}catch(e){}var pick=null;S.recipes.forEach(function(r){if(q&&q.indexOf(r.id)>=0)pick=r});if(!pick&&!S.cur)pick=pickDefault();if(pick){open(pick);return}}
@@ -248,7 +297,8 @@ window.CookTab={
   forDate:function(d){var f=null;S.recipes.forEach(function(r){if(r.date===d)f=r});return f},
   has:function(id){return !!byId(id)},
   idInHash:function(){var q="";try{q=location.hash+location.search}catch(e){}var f=null;S.recipes.forEach(function(r){if(q&&q.indexOf(r.id)>=0)f=r});return f?f.id:null},
-  refresh:function(){render()},
+  feedback:function(id){var r=byId(id);if(r){S.auto=true;S.cur=r;S.fb=newFb(false);S.mode="fb";S.timer=null;render();window.scrollTo(0,0);return true}return false},
+  refresh:function(){var a=document.activeElement;if(S.mode==="fb"&&app&&a&&app.contains(a)&&/^(INPUT|TEXTAREA)$/.test(a.tagName))return;render()},
   active:function(){return !!app}
 };
 })();
@@ -352,6 +402,8 @@ function mealCard(m){
   if(m.cost)mt.appendChild(el("span","chip",m.cost));
   if(m.cuisine)mt.appendChild(el("span","chip",m.cuisine));
   if(m.veg)mt.appendChild(el("span","chip ok","Meatless"));
+  var rcv=(window.CookTab&&m.date)?window.CookTab.forDate(m.date):null;
+  if(rcv&&rcv.verdict)mt.appendChild(el("span","chip"+(rcv.verdict==="never"?" bad":rcv.verdict==="again"?" ok":" warn"),rcv.verdict==="again"?"Make again":rcv.verdict==="changes"?"Needs changes":"Retired"));
   c.appendChild(mt);
   if((m.equip||[]).length){var em=el("div","meta");em.appendChild(el("span","who","Equipment"));m.equip.forEach(function(nm){var st=eqStatus(nm);em.appendChild(el("span","chip"+(st==="yes"?" ok":st==="no"?" bad":""),nm+(st==="no"?" (missing)":st==="unset"?" (unconfirmed)":"")))});c.appendChild(em)}
   if(m.note)c.appendChild(el("div","note",m.note));
@@ -365,6 +417,8 @@ function mealCard(m){
     var sw=el("button","b","Swap…");sw.onclick=function(){S.open=S.open===m.id?null:m.id;render()};r.appendChild(sw);
     var eb=el("button","b","Edit");eb.onclick=function(){openEdit("meal:"+m.id)};r.appendChild(eb);
     var rc=(window.CookTab&&m.date)?window.CookTab.forDate(m.date):null;if(rc){var cb=el("button","b","Cook");cb.onclick=function(){setTab("cook");window.CookTab.open(rc.id)};r.insertBefore(cb,r.firstChild)}
+    var iso0=new Date();iso0=iso0.getFullYear()+"-"+("0"+(iso0.getMonth()+1)).slice(-2)+"-"+("0"+iso0.getDate()).slice(-2);
+    if(rc&&m.date<=iso0){var fbn=el("button","b",rc.verdict?"Feedback ✓":"Feedback");fbn.onclick=function(){setTab("cook");window.CookTab.feedback(rc.id)};r.appendChild(fbn)}
     c.appendChild(r);
     if(S.edit==="meal:"+m.id)c.appendChild(editForm([{k:"title",label:"Dinner",val:m.title},{k:"time",label:"Time",val:m.time||""},{k:"cost",label:"Cost",val:m.cost||""},{k:"note",label:"Note",val:m.note||""},{k:"ahead",label:"Make-ahead prep (optional)",val:m.ahead||""},{k:"equip",label:"Equipment needed (comma separated)",val:(m.equip||[]).join(", ")}],function(o){write(S.db.doc("meals/"+m.id).update({title:o.title.trim()||m.title,time:o.time.trim(),cost:o.cost.trim(),note:o.note.trim(),ahead:(o.ahead||"").trim(),equip:o.equip.split(",").map(function(t){return t.trim()}).filter(Boolean)}))}));
     if(S.open===m.id){
@@ -1073,6 +1127,7 @@ function init(){
       if(window.CookTab){window.CookTab.setRecipes(S.recipes);if(!S.hashDone){S.hashDone=true;var hid=window.CookTab.idInHash();if(hid){setTab("cook");window.CookTab.open(hid);return}}}
       render();
     },function(){S.recipes=[];render()});
+    S.db.collection("feedback").orderBy("ts").onSnapshot(function(s){S.fbs=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});var ids={};S.fbs.forEach(function(m){if(m.by)ids[m.by]=1});resolve(ids);render()},function(){S.fbs=[]});
     S.db.collection("requests").orderBy("ts").onSnapshot(function(s){S.reqs=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render()},function(){S.reqs=[]});
     S.db.collection("chat").orderBy("ts").limit(50).onSnapshot(function(s){
       S.chat=s.docs.map(function(d){return d.data()});var ids={};S.chat.forEach(function(m){if(m.by)ids[m.by]=1});resolve(ids);render();
@@ -1083,7 +1138,17 @@ function resolve(ids){
   if(!S.user)return;var list=Object.keys(ids);if(!list.length)return;
   Promise.resolve(S.user.profiles(list)).then(function(ps){list.forEach(function(i){S.names[i]=(ps&&ps[i]&&ps[i].name)||""});render()}).catch(function(){});
 }
-window.CookExt={equip:function(){return S.equip||[]}};
+window.CookExt={equip:function(){return S.equip||[]},fb:{
+  can:function(){return !!(S.db&&S.canWrite)},
+  list:function(rid){return (S.fbs||[]).filter(function(e){return e.rid===rid}).slice().sort(function(a,b){return (b.ts||0)-(a.ts||0)})},
+  who:function(id){return !id?"Someone":mine(id)?"You":(who(id)||"Someone")},
+  submit:function(r,o){if(!S.db)return Promise.resolve(false);var ts=Date.now();
+    var ent={rid:r.id,title:r.title,verdict:o.v,note:o.note||"",by:S.me||"",ts:ts,handled:(o.v==="never"||o.v==="again")&&!o.note&&!o.prep&&!o.cook};
+    if(o.prep||o.cook)ent.times={prep:+o.prep||null,cook:+o.cook||null};
+    return Promise.all([S.db.collection("feedback").add(ent),S.db.doc("recipes/"+r.id).update({verdict:o.v,retired:o.v==="never",fbBy:S.me||"",fbTs:ts})]).then(function(){return true}).catch(function(){return false})},
+  restore:function(r){if(!S.db)return Promise.resolve(false);var ts=Date.now();
+    return Promise.all([S.db.collection("feedback").add({rid:r.id,title:r.title,verdict:"restored",note:"",by:S.me||"",ts:ts,handled:true}),S.db.doc("recipes/"+r.id).update({retired:false,verdict:"",fbBy:S.me||"",fbTs:ts})]).then(function(){return true}).catch(function(){return false})}
+}};
 init();
 })();
 </script>
