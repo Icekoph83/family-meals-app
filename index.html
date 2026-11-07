@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-07c">
+<meta name="app-v" content="2026-11-07d">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -617,9 +617,9 @@ function icsFor(m){var d=new Date(m.date+"T12:00:00");d.setDate(d.getDate()-1);v
 function aheadWhen(m){var d=new Date(m.date+"T20:00:00");d.setDate(d.getDate()-1);if(d.getTime()<Date.now()+60000)d=new Date(Date.now()+30*60000);var z=function(n){return ("0"+n).slice(-2)};return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate())+"T"+z(d.getHours())+":"+z(d.getMinutes())+":00"}
 function remindPhone(m){var j=JSON.stringify({title:"Make ahead: "+m.title,due:aheadWhen(m),notes:m.ahead||""});location.href="shortcuts://run-shortcut?name="+encodeURIComponent("Make Ahead Reminder")+"&input=text&text="+encodeURIComponent(j)}
 function scDone(){try{return localStorage.getItem("fm:sc")==="1"}catch(e){return false}}
-function scSetup(){var d=el("details","note");d.appendChild(el("summary",null,"First time? Set up the reminder shortcut (2 minutes, once per phone)"));
+function scSetup(){var d=el("details","note");d.appendChild(el("summary",null,"First time? Set up the reminder shortcut (once per phone)"));
   ["Open the Shortcuts app and tap + for a new shortcut. Name it exactly: Make Ahead Reminder","Add the action Get Dictionary from Input.","Add Get Dictionary Value, set to Get Value for title in Dictionary. Add it again for due, and again for notes.","Add Get Dates from Input on the due value.","Add the action Add New Reminder. Set the title to the title value, the notes to the notes value, and tap to add a due date, set to the date from the previous step. Add an alert at the due time.","Tap Done. Then come back here and tap Remind me on iPhone. The first run asks you to allow it."].forEach(function(t,i){d.appendChild(el("div","note",(i+1)+". "+t))});
-  var ok=el("button",null,"I set it up");ok.onclick=function(){try{localStorage.setItem("fm:sc","1")}catch(e){}render()};d.appendChild(ok);return d}
+  if(S.scUrl){var g=el("a","b","Get the shortcut (opens Shortcuts, tap Add Shortcut)");g.href=S.scUrl;g.target="_blank";g.rel="noopener";d.insertBefore(g,d.children[1]);d.insertBefore(el("div","note","Easiest: tap Get the shortcut below. Or build it yourself with the steps."),d.children[1])}var ok=el("button",null,"I set it up");ok.onclick=function(){try{localStorage.setItem("fm:sc","1")}catch(e){}render()};d.appendChild(ok);return d}
 function addAheadFile(m){var blob=new Blob([icsFor(m)],{type:"text/calendar"}),f=null;try{f=new File([blob],"make-ahead.ics",{type:"text/calendar"})}catch(e){}
   function openBlob(){var u=URL.createObjectURL(blob),w=null;try{w=window.open(u,"_blank")}catch(e){}if(!w)location.href=u;setTimeout(function(){URL.revokeObjectURL(u)},60000)}
   if(f&&navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:"Make ahead: "+m.title}).catch(function(e){if(!e||e.name!=="AbortError")openBlob()});return}
@@ -1337,6 +1337,7 @@ function init(){
       S.people=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render();
     },function(){S.people=[];render()});
     S.db.doc("settings/household").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.hh={notes:(x&&x.notes)||""};render()},function(){});
+    S.db.doc("settings/reminder").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.scUrl=(x&&x.url)||"";render()},function(){});
     S.db.doc("settings/syncreport").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.sync=x||null;render()},function(){});
     S.db.collection("quick").onSnapshot(function(s){S.quick=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render()},function(){S.quick=[]});
     S.phx={};S.phf={};S.db.collection("phx").onSnapshot(function(s){S.phx={};s.docs.forEach(function(d){var x=d.data();if(x&&x.f)S.phx[d.id]=x});phLoad()},function(){});
