@@ -50,6 +50,12 @@ textarea,input{width:100%;box-sizing:border-box;font:inherit;padding:10px;border
 .who{font-size:12px;color:var(--mute);margin-bottom:2px}
 .empty{text-align:center;color:var(--mute);padding:26px 10px}
 .empty b{display:block;color:var(--ink);font:600 18px Georgia,serif;margin-bottom:6px}
+.aheadbar{background:var(--warnbg);color:var(--ink);border:2px solid var(--warn);border-radius:12px;padding:12px;margin:0 0 12px}
+.aheadbar.late{border-color:#b3261e;background:#fdecea}
+.aheadbar b.h{display:block;font-size:16px;margin-bottom:4px}
+.aheadbar .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.aheadbar .acts button{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-weight:600}
+.aheadbar .acts button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
 .banner{background:var(--warnbg);color:var(--warn);border-radius:10px;padding:8px 12px;font-size:13.5px;margin:0 0 12px}
 .grp{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:18px 0 4px}
 .srow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
@@ -114,6 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
+<div id="ahead"></div>
 <div id="banner"></div>
 <div class="tabs" role="tablist">
 <button class="tab" role="tab" data-t="week" aria-selected="true">Week</button>
@@ -187,6 +194,15 @@ function renderFeedback(r){
       h.appendChild(d)});app.appendChild(h)}
 }
 
+function aheadApi(){return window.CookExt&&window.CookExt.ahead}
+function renderGate(r){var A=aheadApi(),m=A&&A.pending(r.date);app.textContent="";
+  var back=el("button",null,"← All recipes");back.onclick=function(){S.cur=null;render()};app.appendChild(back);
+  app.appendChild(el("h1",null,"Before you start"));app.appendChild(el("div","mut",r.title));
+  var c=el("div","warnbox");c.style.padding="14px";c.appendChild(el("b",null,"Did you make ahead?"));c.appendChild(el("p",null,r.ahead||(m&&m.ahead)||""));app.appendChild(c);
+  function btn(t,cls,fn){var b=el("button",cls,t);b.style.cssText="width:100%;padding:14px;margin:6px 0";b.onclick=fn;app.appendChild(b)}
+  btn("Yes, it's done","pri",function(){A.done(m,"done");S.gateOk=S.gateOk||{};S.gateOk[r.id]=1;render();window.scrollTo(0,0)});
+  btn("Not yet, show me the prep list","",function(){S.gateOk=S.gateOk||{};S.gateOk[r.id]=1;S.mode=hasPrep(r)?"prep":"whole";render();window.scrollTo(0,0)});
+  btn("Skip it, I'll do it all fresh (takes longer)","",function(){A.done(m,"skipped");S.gateOk=S.gateOk||{};S.gateOk[r.id]=1;render();window.scrollTo(0,0)})}
 function pantryApi(){return window.CookExt&&window.CookExt.pantry}
 var PSTOP={fresh:1,small:1,medium:1,large:1,whole:1,extra:1,firm:1,low:1,sodium:1,shredded:1,grated:1,sliced:1,diced:1,minced:1,chopped:1,crumbled:1,pressed:1,drained:1,rinsed:1,cubed:1,halved:1,torn:1,optional:1,plain:1,ground:1,dried:1,the:1,and:1,pantry:1,from:1,of:1,to:1,for:1,a:1,about:1,more:1,mixed:1,boneless:1,skinless:1,frozen:1,canned:1,can:1};
 function toks(t){t=String(t||"").toLowerCase().replace(/\(.*?\)/g," ").split(",")[0].split(/ or /)[0];
@@ -286,6 +302,7 @@ function renderRecipe(){
   var r=S.cur,steps=r.steps||[],im=ingMap(r);app.textContent="";
   if(S.mode==="fb"){renderFeedback(r);return}
   if(S.mode==="pantry"){renderPantryConfirm(r);return}
+  if(S.mode==="cook"&&r.ahead&&aheadApi()&&aheadApi().pending(r.date)&&!(S.gateOk&&S.gateOk[r.id])){renderGate(r);return}
   var back=el("button",null,"← All recipes");back.onclick=function(){S.cur=null;render()};app.appendChild(back);
   app.appendChild(el("h1",null,r.title));
   app.appendChild(el("div","mut",[r.day,r.time,r.servings,r.cost].filter(Boolean).join(" · ")));
@@ -385,6 +402,7 @@ var sqT=null;
 $("sq").oninput=function(){S.q[S.tab]=$("sq").value;S.edit=null;holdAny();clearTimeout(sqT);sqT=setTimeout(rerenderHeld,120)};
 $("sx").onclick=function(){S.q[S.tab]="";$("sq").value="";$("sq").blur();S.edit=null;holdAny();clearTimeout(sqT);rerenderHeld()};
 function render(){
+  try{renderAhead()}catch(e){console.error('AHEADERR '+e.message)}
   if(S.hold&&(S.edit||Object.keys(S.dl).length)){S.stale=true;return}
   S.hold=false;
   syncSearch();
@@ -455,7 +473,11 @@ function mealCard(m){
   c.appendChild(mt);
   if((m.equip||[]).length){var em=el("div","meta");em.appendChild(el("span","who","Equipment"));m.equip.forEach(function(nm){var st=eqStatus(nm);em.appendChild(el("span","chip"+(st==="yes"?" ok":st==="no"?" bad":""),nm+(st==="no"?" (missing)":st==="unset"?" (unconfirmed)":"")))});c.appendChild(em)}
   if(m.note)c.appendChild(el("div","note",m.note));
-  if(m.ahead){var ah=el("div","note");ah.appendChild(el("b",null,"Make ahead: "));ah.appendChild(document.createTextNode(m.ahead));c.appendChild(ah)}
+  if(m.ahead){var dd=dayDiff(m.date),ahd=m.aheadDone,ah=el("div","aheadbar"+(!ahd&&dd===0?" late":""));ah.style.margin="8px 0";
+    ah.appendChild(el("b","h",ahd?(ahd.how==="skipped"?"Make ahead: skipped":"Make ahead: done"):(m.date&&dd<0?"Make ahead":"Make ahead by 8 PM"+(m.date?" the night before":""))));
+    ah.appendChild(el("div","note",m.ahead));
+    if(!ahd&&m.date&&dd>=0){var ac2=el("div","acts"),d2=el("button",null,"Mark done");d2.onclick=function(){markAhead(m,"done")};ac2.appendChild(d2);var c2=el("button",null,"Remind me on iPhone");c2.onclick=function(){addAheadCal(m)};ac2.appendChild(c2);ah.appendChild(ac2)}
+    c.appendChild(ah)}
   if(m.baby)c.appendChild(el("div","note","Lenora: "+m.baby));
   if(m.decidedBy&&m.status!=="draft")c.appendChild(el("div","status",(mine(m.decidedBy)?"You":who(m.decidedBy))+(m.status==="approved"?" approved this":" asked for a swap")+(m.comment?": “"+m.comment+"”":"")));
   if(S.canWrite&&S.db){
@@ -492,6 +514,24 @@ function reqCard(types){
     if(r.result)row.appendChild(el("div","note",r.result));
     var d=new Date(r.ts||0);row.appendChild(el("div","note","Asked "+d.toLocaleString([], {weekday:"short",hour:"numeric",minute:"2-digit"})+(r.by?" by "+(r.by==="jake"?"Jake":r.by==="maggie"?"Maggie":r.by):"")));c.appendChild(row)});
   return c}
+function localIso(){var n=new Date();return n.getFullYear()+"-"+("0"+(n.getMonth()+1)).slice(-2)+"-"+("0"+n.getDate()).slice(-2)}
+function dayDiff(d){if(!d)return 99;var a=new Date(d+"T12:00:00"),n=new Date(localIso()+"T12:00:00");return Math.round((a-n)/864e5)}
+function aheadPending(d){var f=null;(S.meals||[]).forEach(function(m){if(m.date===d&&m.ahead&&!m.aheadDone&&m.kind!=="takeout")f=m});return f}
+function markAhead(m,how){if(!S.db||!m)return Promise.resolve();m.aheadDone={how:how,by:S.me||"",ts:Date.now()};return write(S.db.doc("meals/"+m.id).update({aheadDone:m.aheadDone}))}
+function icsEsc(t){return String(t||"").replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\r?\n/g,"\\n")}
+function icsFor(m){var d=new Date(m.date+"T12:00:00");d.setDate(d.getDate()-1);var ds=d.getFullYear()+("0"+(d.getMonth()+1)).slice(-2)+("0"+d.getDate()).slice(-2);
+  var L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Family Meals//EN","BEGIN:VEVENT","UID:ahead-"+m.id+"@family-meals","DTSTAMP:"+new Date().toISOString().replace(/[-:]/g,"").slice(0,15)+"Z","DTSTART:"+ds+"T200000","DTEND:"+ds+"T203000","SUMMARY:"+icsEsc("Make ahead: "+m.title),"DESCRIPTION:"+icsEsc(m.ahead),"BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEsc("Make ahead: "+m.title),"TRIGGER:PT0S","END:VALARM","BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEsc("Make ahead: "+m.title),"TRIGGER:-PT30M","END:VALARM","END:VEVENT","END:VCALENDAR"];return L.join("\r\n")}
+function addAheadCal(m){var a=document.createElement("a");a.href="data:text/calendar;charset=utf-8,"+encodeURIComponent(icsFor(m));a.target="_blank";a.rel="noopener";a.download="make-ahead.ics";document.body.appendChild(a);a.click();a.remove()}
+function renderAhead(){var h=$("ahead");if(!h)return;h.textContent="";
+  (S.meals||[]).filter(function(m){return m.ahead&&!m.aheadDone&&m.kind!=="takeout"&&(dayDiff(m.date)===1||dayDiff(m.date)===0)}).sort(function(a,b){return a.date<b.date?-1:1}).forEach(function(m){
+    var d=dayDiff(m.date),late=d===0;var b=el("div","aheadbar"+(late?" late":""));
+    b.appendChild(el("b","h",late?"Dinner is today and the make-ahead isn't done":"Make ahead tonight for tomorrow's dinner"));
+    b.appendChild(el("div",null,m.title));b.appendChild(el("div","note",m.ahead));
+    var ac=el("div","acts");
+    var dn=el("button","pri","Done");dn.onclick=function(){markAhead(m,"done")};ac.appendChild(dn);
+    if(!late){var cal=el("button",null,"Remind me on iPhone");cal.onclick=function(){addAheadCal(m)};ac.appendChild(cal)}
+    var sk=el("button",null,"Skip it");sk.onclick=function(){markAhead(m,"skipped")};ac.appendChild(sk);
+    b.appendChild(ac);h.appendChild(b)})}
 function write(p){S.busy=true;S.err="";rerenderHeld();return Promise.resolve(p).catch(function(e){S.err="Could not save that change"+((e&&(e.code||e.message))?" ("+(e.code||e.message)+")":"")+"."}).then(function(){S.busy=false;rerenderHeld()})}
 function setStatus(m,st){
   var comment="";
@@ -1186,7 +1226,7 @@ function resolve(ids){
   if(!S.user)return;var list=Object.keys(ids);if(!list.length)return;
   Promise.resolve(S.user.profiles(list)).then(function(ps){list.forEach(function(i){S.names[i]=(ps&&ps[i]&&ps[i].name)||""});render()}).catch(function(){});
 }
-window.CookExt={equip:function(){return S.equip||[]},fb:{
+window.CookExt={ahead:{pending:aheadPending,done:markAhead},equip:function(){return S.equip||[]},fb:{
   can:function(){return !!(S.db&&S.canWrite)},
   list:function(rid){return (S.fbs||[]).filter(function(e){return e.rid===rid}).slice().sort(function(a,b){return (b.ts||0)-(a.ts||0)})},
   who:function(id){return !id?"Someone":mine(id)?"You":(who(id)||"Someone")},
