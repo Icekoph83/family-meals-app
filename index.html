@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-06l">
+<meta name="app-v" content="2026-11-07a">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -561,7 +561,7 @@ var QKEYS=["title","time","veg","note","equip","ahead","aheadDone","baby","cuisi
 function quickSwap(m,q){var orig=(window.CookTab&&m.date)?window.CookTab.forDate(m.date):null;var snap={};QKEYS.forEach(function(k){if(m[k]!==undefined)snap[k]=m[k]});
   var rid="qk-"+q.id+"-"+m.date;var rec=Object.assign({},q);delete rec.mins;delete rec.id;rec.date=m.date;rec.day=(DAYS[m.day]||"").slice(0,3);rec.order=m.order||0;rec.quick=true;
   var jobs=[S.db.doc("recipes/"+rid).set(rec)];if(orig&&!orig.quick)jobs.push(S.db.doc("recipes/"+orig.id).update({date:"",prevDate:m.date}));
-  var patch={title:q.title,time:q.time,veg:!!q.veg,note:"Quick swap: tired night, short meal.",equip:(q.equip||[]).map(function(e){return e.n}),ahead:"",aheadDone:null,baby:q.baby||"",cuisine:"",cost:"",skylightStale:true,quickSwap:{rid:rid,origRid:orig&&!orig.quick?orig.id:"",snap:snap,ts:Date.now(),by:S.me||""},status:"approved"};
+  var patch={title:q.title,time:q.time,veg:!!q.veg,note:"Quick swap: tired night, short meal.",equip:(q.equip||[]).map(function(e){return e.n}),ahead:"",aheadDone:null,baby:q.baby||"",cuisine:"",cost:q.cost||"",skylightStale:true,quickSwap:{rid:rid,origRid:orig&&!orig.quick?orig.id:"",snap:snap,ts:Date.now(),by:S.me||""},status:"approved"};
   jobs.push(S.db.doc("meals/"+m.id).update(patch));return write(Promise.all(jobs))}
 function quickUndo(m){var qs=m.quickSwap;if(!qs)return;var patch=Object.assign({},qs.snap);QKEYS.forEach(function(k){if(patch[k]===undefined)patch[k]=k==="veg"?false:""});patch.quickSwap=null;patch.skylightStale=true;
   var jobs=[S.db.doc("meals/"+m.id).update(patch),S.db.doc("recipes/"+qs.rid).delete()];if(qs.origRid)jobs.push(S.db.doc("recipes/"+qs.origRid).update({date:m.date,prevDate:""}));return write(Promise.all(jobs))}
