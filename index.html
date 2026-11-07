@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-07b">
+<meta name="app-v" content="2026-11-07c">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -527,7 +527,7 @@ function mealCard(m){
   if(m.ahead){var dd=dayDiff(m.date),ahd=m.aheadDone,ah=el("div","aheadbar"+(!ahd&&dd===0?" late":""));ah.style.margin="8px 0";
     ah.appendChild(el("b","h",ahd?(ahd.how==="skipped"?"Make ahead: skipped":"Make ahead: done"):(m.date&&dd<0?"Make ahead":"Make ahead by 8 PM"+(m.date?" the night before":""))));
     ah.appendChild(el("div","note",m.ahead));
-    if(!ahd&&m.date&&dd>=0){var ac2=el("div","acts"),d2=el("button",null,"Mark done");d2.onclick=function(){markAhead(m,"done")};ac2.appendChild(d2);var c2=el("button",null,"Remind me on iPhone");c2.onclick=function(){addAheadCal(m)};ac2.appendChild(c2);ah.appendChild(ac2)}
+    if(!ahd&&m.date&&dd>=0){var ac2=el("div","acts"),d2=el("button",null,"Mark done");d2.onclick=function(){markAhead(m,"done")};ac2.appendChild(d2);var c2=el("button",null,"Remind me on iPhone");c2.onclick=function(){remindPhone(m)};ac2.appendChild(c2);if(!scDone())ah.appendChild(scSetup());ah.appendChild(ac2)}
     c.appendChild(ah)}
   if(m.baby)c.appendChild(el("div","note","Lenora: "+m.baby));
   if(m.decidedBy&&m.status!=="draft")c.appendChild(el("div","status",(mine(m.decidedBy)?"You":who(m.decidedBy))+(m.status==="approved"?" approved this":" asked for a swap")+(m.comment?": “"+m.comment+"”":"")));
@@ -614,7 +614,13 @@ function markAhead(m,how){if(!S.db||!m)return Promise.resolve();m.aheadDone={how
 function icsEsc(t){return String(t||"").replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\r?\n/g,"\\n")}
 function icsFor(m){var d=new Date(m.date+"T12:00:00");d.setDate(d.getDate()-1);var ds=d.getFullYear()+("0"+(d.getMonth()+1)).slice(-2)+("0"+d.getDate()).slice(-2);
   var L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Family Meals//EN","BEGIN:VEVENT","UID:ahead-"+m.id+"@family-meals","DTSTAMP:"+new Date().toISOString().replace(/[-:]/g,"").slice(0,15)+"Z","DTSTART:"+ds+"T200000","DTEND:"+ds+"T203000","SUMMARY:"+icsEsc("Make ahead: "+m.title),"DESCRIPTION:"+icsEsc(m.ahead),"BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEsc("Make ahead: "+m.title),"TRIGGER:PT0S","END:VALARM","BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEsc("Make ahead: "+m.title),"TRIGGER:-PT30M","END:VALARM","END:VEVENT","END:VCALENDAR"];return L.join("\r\n")}
-function addAheadCal(m){var blob=new Blob([icsFor(m)],{type:"text/calendar"}),f=null;try{f=new File([blob],"make-ahead.ics",{type:"text/calendar"})}catch(e){}
+function aheadWhen(m){var d=new Date(m.date+"T20:00:00");d.setDate(d.getDate()-1);if(d.getTime()<Date.now()+60000)d=new Date(Date.now()+30*60000);var z=function(n){return ("0"+n).slice(-2)};return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate())+"T"+z(d.getHours())+":"+z(d.getMinutes())+":00"}
+function remindPhone(m){var j=JSON.stringify({title:"Make ahead: "+m.title,due:aheadWhen(m),notes:m.ahead||""});location.href="shortcuts://run-shortcut?name="+encodeURIComponent("Make Ahead Reminder")+"&input=text&text="+encodeURIComponent(j)}
+function scDone(){try{return localStorage.getItem("fm:sc")==="1"}catch(e){return false}}
+function scSetup(){var d=el("details","note");d.appendChild(el("summary",null,"First time? Set up the reminder shortcut (2 minutes, once per phone)"));
+  ["Open the Shortcuts app and tap + for a new shortcut. Name it exactly: Make Ahead Reminder","Add the action Get Dictionary from Input.","Add Get Dictionary Value, set to Get Value for title in Dictionary. Add it again for due, and again for notes.","Add Get Dates from Input on the due value.","Add the action Add New Reminder. Set the title to the title value, the notes to the notes value, and tap to add a due date, set to the date from the previous step. Add an alert at the due time.","Tap Done. Then come back here and tap Remind me on iPhone. The first run asks you to allow it."].forEach(function(t,i){d.appendChild(el("div","note",(i+1)+". "+t))});
+  var ok=el("button",null,"I set it up");ok.onclick=function(){try{localStorage.setItem("fm:sc","1")}catch(e){}render()};d.appendChild(ok);return d}
+function addAheadFile(m){var blob=new Blob([icsFor(m)],{type:"text/calendar"}),f=null;try{f=new File([blob],"make-ahead.ics",{type:"text/calendar"})}catch(e){}
   function openBlob(){var u=URL.createObjectURL(blob),w=null;try{w=window.open(u,"_blank")}catch(e){}if(!w)location.href=u;setTimeout(function(){URL.revokeObjectURL(u)},60000)}
   if(f&&navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:"Make ahead: "+m.title}).catch(function(e){if(!e||e.name!=="AbortError")openBlob()});return}
   openBlob()}
@@ -630,9 +636,9 @@ function renderAhead(){var h=$("ahead");if(!h)return;h.textContent="";
     b.appendChild(el("div",null,m.title));b.appendChild(el("div","note",m.ahead));
     var ac=el("div","acts");
     var dn=el("button","pri","Done");dn.onclick=function(){markAhead(m,"done")};ac.appendChild(dn);
-    if(!late){var cal=el("button",null,"Remind me on iPhone");cal.onclick=function(){addAheadCal(m)};ac.appendChild(cal)}
+    if(!late){var cal=el("button",null,"Remind me on iPhone");cal.onclick=function(){remindPhone(m)};ac.appendChild(cal);var cf=el("button",null,"Calendar file");cf.onclick=function(){addAheadFile(m)};ac.appendChild(cf)}
     var sk=el("button",null,"Skip it");sk.onclick=function(){markAhead(m,"skipped")};ac.appendChild(sk);
-    b.appendChild(ac);h.appendChild(b)})}
+    b.appendChild(ac);if(!late&&!scDone())b.appendChild(scSetup());h.appendChild(b)})}
 function write(p){S.busy=true;S.err="";rerenderHeld();return Promise.resolve(p).catch(function(e){S.err="Could not save that change"+((e&&(e.code||e.message))?" ("+(e.code||e.message)+")":"")+"."}).then(function(){S.busy=false;rerenderHeld()})}
 function setStatus(m,st){
   var comment="";
