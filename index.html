@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-06g">
+<meta name="app-v" content="2026-11-06h">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -178,6 +178,12 @@ function renderFeedback(r){
   var tr=el("div","row");tr.style.marginTop="8px";
   [["prep","Real prep"],["cook","Real cook"]].forEach(function(t){var w=el("div");w.style.flex="1";w.appendChild(el("div","mut",t[1]));var i=el("input");i.type="number";i.min="0";i.inputMode="numeric";i.value=f[t[0]];i.oninput=function(){f[t[0]]=i.value};w.appendChild(i);tr.appendChild(w)});
   n.appendChild(tr);app.appendChild(n);
+  var ph=el("div","card");ph.appendChild(el("h2",null,"Photo"));var PA=photoApi();var cur=pimg(r.id,200);if(cur)ph.appendChild(cur);
+  ph.appendChild(el("div","mut",cur?"Your photo of this dish. Add a new one to replace it.":"Snap the finished dish. It shows up on the week plan and in Cook Mode."));
+  var fi=el("input");fi.type="file";fi.accept="image/*";fi.style.display="none";var pb0=el("button",null,cur?"Replace photo":"Add a photo");pb0.style.marginTop="8px";pb0.disabled=!PA||!PA.can();
+  pb0.onclick=function(){fi.click()};fi.onchange=function(){var f=fi.files&&fi.files[0];if(!f)return;pb0.disabled=true;pb0.textContent="Saving…";PA.add(r.id,f).then(function(ok){if(!ok)f_err("Could not save that photo.");render()})};
+  function f_err(t){S.fb&&(S.fb.err=t)}
+  ph.appendChild(fi);ph.appendChild(pb0);app.appendChild(ph);
   var pc=el("div","card");pc.appendChild(el("h2",null,"Pantry"));
   pc.appendChild(el("div","mut",f.pdone!=null?"Pantry updated ("+f.pdone+" item"+(f.pdone===1?"":"s")+"). You can adjust it again if you missed something.":"Mark what you used up so the pantry counts stay right. You'll review everything before it's saved."));
   var pb=el("button",null,f.pdone!=null?"Update pantry again →":"Update pantry →");pb.style.marginTop="8px";pb.disabled=!pantryApi();pb.onclick=function(){S.pu=null;S.mode="pantry";render();window.scrollTo(0,0)};pc.appendChild(pb);app.appendChild(pc);
@@ -223,6 +229,8 @@ function coverage(rec,sources){var have=[],miss=[];(rec.ingredients||[]).forEach
     if(hit.length/t.length<0.5)return false;if(GEN[head]&&t.length>1&&hit.length<2)return false;
     var txt=(x.it.name+" "+(x.it.size||"")).toLowerCase();if(wantCan&&!/\bcans?\b|canned|\bfl\b|carton|tetra/.test(txt))return false;if(wantJar&&!/\bjar/.test(txt))return false;return true});if(c[0])have.push(i.name.split(",")[0].replace(/\(.*?\)/g,"").trim()+" → "+c[0].it.name);else miss.push(i.name.split(",")[0].replace(/\(.*?\)/g,"").trim())});return {have:have,miss:miss}}
 function pkey(ing){return toks(ing.name).join("-")}
+function photoApi(){return window.CookExt&&window.CookExt.photo}
+function pimg(rid,h){var P=photoApi(),d=P&&P.get(rid);if(!d)return null;var i=document.createElement("img");i.src=d;i.alt="";i.style.cssText="display:block;width:100%;height:"+h+"px;object-fit:cover;border-radius:10px;margin:0 0 8px";return i}
 function pantryApi(){return window.CookExt&&window.CookExt.pantry}
 var PSTOP={fresh:1,small:1,medium:1,large:1,whole:1,extra:1,firm:1,low:1,sodium:1,shredded:1,grated:1,sliced:1,diced:1,minced:1,chopped:1,crumbled:1,pressed:1,drained:1,rinsed:1,cubed:1,halved:1,torn:1,optional:1,plain:1,ground:1,dried:1,the:1,and:1,pantry:1,from:1,of:1,to:1,for:1,a:1,about:1,more:1,mixed:1,boneless:1,skinless:1,frozen:1,canned:1,can:1};
 function toks(t){t=String(t||"").toLowerCase().replace(/\(.*?\)/g," ").split(",")[0].split(/ or /)[0];
@@ -284,7 +292,7 @@ function renderList(){
   if(S.toast){app.appendChild(el("div","warnbox",S.toast));S.toast=""}
   if(!S.recipes.length){var c=el("div","card");c.appendChild(el("p",null,"No recipes loaded yet."));c.appendChild(el("p","mut","Ask Claude to add this week's recipes."));app.appendChild(c);return}
   var live=S.recipes.filter(function(r){return !r.retired}),gone=S.recipes.filter(function(r){return r.retired});
-  live.forEach(function(r){var b=el("button","card rc");b.appendChild(el("h2",null,r.title));
+  live.forEach(function(r){var b=el("button","card rc");var pi=pimg(r.id,120);if(pi)b.appendChild(pi);b.appendChild(el("h2",null,r.title));
     b.appendChild(el("div","mut",[r.day,r.time,r.servings,r.cost].filter(Boolean).join(" · ")));
     if((r.equip||[]).some(function(e){return eqState(e.n)==="no"}))b.appendChild(el("div","mut","Missing equipment, tap for the swap"));
     var p=ls("cook:"+r.id);if(p&&p.step>0)b.appendChild(el("div","mut","In progress: step "+(p.step+1)+" of "+(r.steps||[]).length));
@@ -328,6 +336,7 @@ function renderRecipe(){
   if(S.mode==="pantry"){renderPantryConfirm(r);return}
   if(S.mode==="cook"&&r.ahead&&aheadApi()&&aheadApi().pending(r.date)&&!(S.gateOk&&S.gateOk[r.id])){renderGate(r);return}
   var back=el("button",null,"← All recipes");back.onclick=function(){S.cur=null;render()};app.appendChild(back);
+  var hp=pimg(r.id,180);if(hp)app.appendChild(hp);
   app.appendChild(el("h1",null,r.title));
   app.appendChild(el("div","mut",[r.day,r.time,r.servings,r.cost].filter(Boolean).join(" · ")));
   if(r.verdict||r.vp)app.appendChild(el("div","mut","Verdicts: "+vpLine(r)));
@@ -501,6 +510,7 @@ function mealCard(m){
   if(m.cuisine)mt.appendChild(el("span","chip",m.cuisine));
   if(m.veg)mt.appendChild(el("span","chip ok","Meatless"));
   var rcv=(window.CookTab&&m.date)?window.CookTab.forDate(m.date):null;
+  if(rcv&&S.ph&&S.ph[rcv.id]){var mi=document.createElement("img");mi.src=S.ph[rcv.id];mi.alt="";mi.style.cssText="display:block;width:100%;height:150px;object-fit:cover;border-radius:10px;margin:0 0 8px";c.insertBefore(mi,c.firstChild)}
   if(rcv&&rcv.verdict)mt.appendChild(el("span","chip"+(rcv.verdict==="never"?" bad":rcv.verdict==="again"?" ok":" warn"),rcv.verdict==="again"?"Make again":rcv.verdict==="changes"?"Needs changes":"Retired"));
   var exs=(window.CookTab&&window.CookTab.expiring&&m.date&&m.date>=localIso())?window.CookTab.expiring(m.date):[];
   exs.forEach(function(x){mt.appendChild(el("span","chip warn","Uses up "+x.name.replace(/\s*\(.*\)/,"")+" (expires "+x.exp.slice(5).replace("-","/")+")"))});
@@ -1273,6 +1283,7 @@ function init(){
     S.db.doc("settings/household").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.hh={notes:(x&&x.notes)||""};render()},function(){});
     S.db.doc("settings/syncreport").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.sync=x||null;render()},function(){});
     S.db.collection("quick").onSnapshot(function(s){S.quick=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render()},function(){S.quick=[]});
+    S.db.collection("photos").onSnapshot(function(s){S.ph={};s.docs.forEach(function(d){var x=d.data();if(x&&x.d)S.ph[d.id]=x.d});render()},function(){S.ph={}});
     S.db.collection("pmatch").onSnapshot(function(s){S.pm={};s.docs.forEach(function(d){var x=d.data();if(x&&x.id)S.pm[d.id]=x.id})},function(){});
     S.db.collection("shoplist").onSnapshot(function(s){
       S.shop=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render();
@@ -1296,7 +1307,10 @@ function resolve(ids){
   if(!S.user)return;var list=Object.keys(ids);if(!list.length)return;
   Promise.resolve(S.user.profiles(list)).then(function(ps){list.forEach(function(i){S.names[i]=(ps&&ps[i]&&ps[i].name)||""});render()}).catch(function(){});
 }
-window.CookExt={ahead:{pending:aheadPending,done:markAhead},equip:function(){return S.equip||[]},fb:{
+window.CookExt={photo:{get:function(rid){return (S.ph||{})[rid]||""},can:function(){return !!(S.db&&S.canWrite)},
+  add:function(rid,file){return new Promise(function(res){var rd=new FileReader();rd.onerror=function(){res(false)};rd.onload=function(){var im=new Image();im.onerror=function(){res(false)};im.onload=function(){
+    var W=560,sc=Math.min(1,W/im.width),cv=document.createElement("canvas");cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
+    var d=cv.toDataURL("image/jpeg",0.62);if(!S.ph)S.ph={};S.ph[rid]=d;S.db.doc("photos/"+rid).set({d:d,ts:Date.now(),by:S.me||""}).then(function(){res(true)}).catch(function(){res(false)})};im.src=rd.result};rd.readAsDataURL(file)})}},ahead:{pending:aheadPending,done:markAhead},equip:function(){return S.equip||[]},fb:{
   can:function(){return !!(S.db&&S.canWrite)},
   list:function(rid){return (S.fbs||[]).filter(function(e){return e.rid===rid}).slice().sort(function(a,b){return (b.ts||0)-(a.ts||0)})},
   who:function(id){return !id?"Someone":mine(id)?"You":(who(id)||"Someone")},
