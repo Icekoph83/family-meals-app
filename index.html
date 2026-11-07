@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-07e">
+<meta name="app-v" content="2026-11-07f">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -490,7 +490,7 @@ function renderWeek(v){
     mid.appendChild(el("div","title",shortD(S.wk)+" to "+shortD(addDays(S.wk,6))));
     mid.appendChild(el("div","note",S.wk===cur?"This week":(S.wk<cur?"Past week":"Coming up")));
     nav.appendChild(pv);nav.appendChild(mid);nav.appendChild(nx);v.appendChild(nav);
-    if(S.wk!==cur){var bk=el("button","b p","Back to this week");bk.style.marginBottom="10px";bk.onclick=function(){S.wk=cur;render()};v.appendChild(bk)}
+    var bk=el("button","b p","Jump to today");bk.style.marginBottom="10px";bk.onclick=function(){S.wk=cur;S.jump=1;render()};v.appendChild(bk)
   }
   if(searching)v.appendChild(el("div","note","Searching every week."));
   var ok=list.filter(function(m){return m.status==="approved"}).length;
@@ -500,11 +500,14 @@ function renderWeek(v){
   var shown=list.filter(function(m){return qm([m.title,m.note,m.cuisine,m.day].join(" "))});
   if(!shown.length)v.appendChild(el("div","empty","Nothing matches your search."));
   shown.forEach(function(m){v.appendChild(mealCard(m))});
+  if(S.jump){S.jump=0;setTimeout(function(){var t=localIso(),c=null,cs=document.querySelectorAll("[data-mdate]");for(var q=0;q<cs.length;q++){if(cs[q].getAttribute("data-mdate")>=t){c=cs[q];break}}
+    if(c){c.scrollIntoView({block:"start",behavior:"smooth"});c.style.outline="2px solid var(--acc,#2d8086)";setTimeout(function(){c.style.outline=""},1800)}else window.scrollTo({top:0,behavior:"smooth"})},60)}
 }
 
 function mealCard(m){
-  var c=el("div","card");
+  var c=el("div","card");if(m.date)c.setAttribute("data-mdate",m.date);
   var d=el("div","day");d.appendChild(el("span",null,DAYS[m.day]||m.day));
+  if(m.date&&m.date===localIso())d.appendChild(el("span","chip warn","Today"));
   if(m.status==="approved")d.appendChild(el("span","chip ok","Approved"));
   else if(m.status==="swap")d.appendChild(el("span","chip warn","Wants a swap"));
   else d.appendChild(el("span","chip","Draft"));
