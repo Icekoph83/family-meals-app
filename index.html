@@ -120,6 +120,8 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
+<meta name="app-v" content="2026-11-06c">
+<div id="upd"></div>
 <div id="ahead"></div>
 <div id="banner"></div>
 <div class="tabs" role="tablist">
@@ -203,6 +205,13 @@ function renderGate(r){var A=aheadApi(),m=A&&A.pending(r.date);app.textContent="
   btn("Yes, it's done","pri",function(){A.done(m,"done");S.gateOk=S.gateOk||{};S.gateOk[r.id]=1;render();window.scrollTo(0,0)});
   btn("Not yet, show me the prep list","",function(){S.gateOk=S.gateOk||{};S.gateOk[r.id]=1;S.mode=hasPrep(r)?"prep":"whole";render();window.scrollTo(0,0)});
   btn("Skip it, I'll do it all fresh (takes longer)","",function(){A.done(m,"skipped");S.gateOk=S.gateOk||{};S.gateOk[r.id]=1;render();window.scrollTo(0,0)})}
+function vpLine(r){var F=fbx();var vp=r.vp||{};var ks=Object.keys(vp);if(!ks.length)return r.verdict?verdictLabel(r.verdict):"";
+  return ks.map(function(k){return (F&&F.who?F.who(k):"Someone")+": "+verdictLabel(vp[k])}).join(" · ")}
+function expiring(date){var r=null;S.recipes.forEach(function(x){if(x.date===date)r=x});var P=pantryApi();if(!r||!P)return [];
+  var lim=new Date();lim.setDate(lim.getDate()+5);var li=lim.getFullYear()+"-"+("0"+(lim.getMonth()+1)).slice(-2)+"-"+("0"+lim.getDate()).slice(-2);
+  var soon=P.items().filter(function(x){return x.exp&&x.exp<=li});if(!soon.length)return [];var out=[],seen={};
+  (r.ingredients||[]).forEach(function(i){var c=candList(i,soon);if(c[0]&&c[0].s>=0.5&&!seen[c[0].it.id]){seen[c[0].it.id]=1;out.push({name:c[0].it.name,exp:c[0].it.exp})}});return out}
+function pkey(ing){return toks(ing.name).join("-")}
 function pantryApi(){return window.CookExt&&window.CookExt.pantry}
 var PSTOP={fresh:1,small:1,medium:1,large:1,whole:1,extra:1,firm:1,low:1,sodium:1,shredded:1,grated:1,sliced:1,diced:1,minced:1,chopped:1,crumbled:1,pressed:1,drained:1,rinsed:1,cubed:1,halved:1,torn:1,optional:1,plain:1,ground:1,dried:1,the:1,and:1,pantry:1,from:1,of:1,to:1,for:1,a:1,about:1,more:1,mixed:1,boneless:1,skinless:1,frozen:1,canned:1,can:1};
 function toks(t){t=String(t||"").toLowerCase().replace(/\(.*?\)/g," ").split(",")[0].split(/ or /)[0];
@@ -214,8 +223,11 @@ function candList(ing,items){var I=toks(ing.name);if(!I.length)return [];var hea
 function contCount(amt){var a=String(amt||"");if(!/\b(cans?|blocks?|jars?|bottles?|box(es)?|bags?|packages?|pkg|pints?|heads?|bunch(es)?|loaf|loaves|cartons?|containers?)\b/i.test(a))return 0;
   var m=a.match(/^\s*(\d+)?\s*(?:(\d+)\/(\d+))?/);var v=0;if(m){if(m[1])v+=+m[1];if(m[2]&&m[3])v+=(+m[2])/(+m[3])}return Math.max(1,Math.ceil(v||1))}
 function buildPU(r){var P=pantryApi();var items=P?P.items():[];
-  var rows=(r.ingredients||[]).map(function(i){var c=candList(i,items);var best=(c[0]&&c[0].s>=0.3)?c[0].it:null;var cc=contCount(i.amt);
-    return {ing:i,id:best?best.id:"",use:!!(best&&cc&&c[0].s>=0.5),k:cc||1,cand:c.map(function(x){return x.it.id})}});
+  var mem=(P&&P.memory&&P.memory())||{};
+  var rows=(r.ingredients||[]).map(function(i){var c=candList(i,items);var best=(c[0]&&c[0].s>=0.3)?c[0].it:null;var cc=contCount(i.amt);var mid=mem[pkey(i)];var rem=false;
+    if(mid&&items.some(function(x){return x.id===mid})){best={id:mid};rem=true}
+    var cand=c.map(function(x){return x.it.id});if(rem&&cand.indexOf(mid)<0)cand.unshift(mid);
+    return {ing:i,id:best?best.id:"",use:!!(best&&cc&&(rem||(c[0]&&c[0].s>=0.5))),k:cc||1,cand:cand,rem:rem}});
   S.pu={rows:rows,items:items,err:"",busy:false}}
 function onHand(it,k){if(!it)return "Not from the pantry, nothing to update.";var left=Math.max(0,it.total-(+k||0));return "Have "+it.total+" × "+(it.size||"container")+(it.total===1?"":"s")+". After: "+left+"."}
 function renderPantryConfirm(r){
@@ -244,6 +256,7 @@ function renderPantryConfirm(r){
   var go=el("button","pri","Update pantry"+(use.length?" ("+use.length+" item"+(use.length===1?"":"s")+")":""));go.style.cssText="width:100%;padding:14px;margin:6px 0";go.disabled=!use.length||PU.busy||!P;
   go.onclick=function(){PU.busy=true;PU.err="";render();P.apply(use.map(function(x){return {id:x.id,k:x.k}})).then(function(n){PU.busy=false;
     if(n<0){PU.err="Could not update the pantry. Check your connection and try again.";render();return}
+    try{if(P.remember)P.remember(PU.rows.filter(function(x){return x.id&&(x.use||x.rem)}).map(function(x){return {key:pkey(x.ing),id:x.id}}))}catch(e){}
     if(S.fb)S.fb.pdone=n;S.pu=null;S.mode="fb";render();window.scrollTo(0,0)})};
   app.appendChild(go)}
 
@@ -264,7 +277,7 @@ function renderList(){
     b.appendChild(el("div","mut",[r.day,r.time,r.servings,r.cost].filter(Boolean).join(" · ")));
     if((r.equip||[]).some(function(e){return eqState(e.n)==="no"}))b.appendChild(el("div","mut","Missing equipment, tap for the swap"));
     var p=ls("cook:"+r.id);if(p&&p.step>0)b.appendChild(el("div","mut","In progress: step "+(p.step+1)+" of "+(r.steps||[]).length));
-    if(r.verdict)b.appendChild(el("div","mut",verdictLabel(r.verdict)));
+    if(r.verdict||r.vp)b.appendChild(el("div","mut",vpLine(r)));
     b.onclick=function(){open(r)};app.appendChild(b)});
   if(gone.length){var ar=el("div","card");ar.appendChild(el("h2",null,"Archived ("+gone.length+")"));ar.appendChild(el("div","mut","Marked don't make again. Not suggested when planning."));
     gone.forEach(function(r){var row=el("div","eq");var l=el("div");l.appendChild(el("b",null,r.title));row.appendChild(l);
@@ -306,7 +319,7 @@ function renderRecipe(){
   var back=el("button",null,"← All recipes");back.onclick=function(){S.cur=null;render()};app.appendChild(back);
   app.appendChild(el("h1",null,r.title));
   app.appendChild(el("div","mut",[r.day,r.time,r.servings,r.cost].filter(Boolean).join(" · ")));
-  if(r.verdict)app.appendChild(el("div","mut","Your verdict: "+verdictLabel(r.verdict)));
+  if(r.verdict||r.vp)app.appendChild(el("div","mut","Verdicts: "+vpLine(r)));
   if(r.intro)app.appendChild(el("p","mut",r.intro));
   if(r.ahead){var ab=el("div","warnbox");ab.appendChild(el("b",null,"Make ahead: "));ab.appendChild(document.createTextNode(r.ahead));app.appendChild(ab)}
   var tabs=el("div","tabs");((hasPrep(r)?[["prep","Prep"]]:[]).concat([["cook","Step by step"],["whole","Whole recipe"]])).forEach(function(t){var b=el("button",S.mode===t[0]?"on":"",t[1]);b.onclick=function(){S.mode=t[0];render()};tabs.appendChild(b)});app.appendChild(tabs);
@@ -359,6 +372,7 @@ window.CookTab={
   unmount:function(){app=null},
   setRecipes:function(list){var t=todayIso();S.recipes=list.slice().sort(function(a,b){var ua=(a.date||"")>=t,ub=(b.date||"")>=t;if(ua!==ub)return ua?-1:1;if(ua)return (a.date||"").localeCompare(b.date||"");return (b.date||"").localeCompare(a.date||"")});S.loaded=true;if(S.cur){var f=byId(S.cur.id);if(f)S.cur=f}},
   open:function(id){var r=byId(id);if(r){S.auto=true;open(r);return true}return false},
+  expiring:expiring,
   forDate:function(d){var f=null;S.recipes.forEach(function(r){if(r.date===d)f=r});return f},
   has:function(id){return !!byId(id)},
   idInHash:function(){var q="";try{q=location.hash+location.search}catch(e){}var f=null;S.recipes.forEach(function(r){if(q&&q.indexOf(r.id)>=0)f=r});return f?f.id:null},
@@ -470,6 +484,8 @@ function mealCard(m){
   if(m.veg)mt.appendChild(el("span","chip ok","Meatless"));
   var rcv=(window.CookTab&&m.date)?window.CookTab.forDate(m.date):null;
   if(rcv&&rcv.verdict)mt.appendChild(el("span","chip"+(rcv.verdict==="never"?" bad":rcv.verdict==="again"?" ok":" warn"),rcv.verdict==="again"?"Make again":rcv.verdict==="changes"?"Needs changes":"Retired"));
+  var exs=(window.CookTab&&window.CookTab.expiring&&m.date&&m.date>=localIso())?window.CookTab.expiring(m.date):[];
+  exs.forEach(function(x){mt.appendChild(el("span","chip warn","Uses up "+x.name.replace(/\s*\(.*\)/,"")+" (expires "+x.exp.slice(5).replace("-","/")+")"))});
   c.appendChild(mt);
   if((m.equip||[]).length){var em=el("div","meta");em.appendChild(el("span","who","Equipment"));m.equip.forEach(function(nm){var st=eqStatus(nm);em.appendChild(el("span","chip"+(st==="yes"?" ok":st==="no"?" bad":""),nm+(st==="no"?" (missing)":st==="unset"?" (unconfirmed)":"")))});c.appendChild(em)}
   if(m.note)c.appendChild(el("div","note",m.note));
@@ -1204,6 +1220,7 @@ function init(){
       S.people=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render();
     },function(){S.people=[];render()});
     S.db.doc("settings/household").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.hh={notes:(x&&x.notes)||""};render()},function(){});
+    S.db.collection("pmatch").onSnapshot(function(s){S.pm={};s.docs.forEach(function(d){var x=d.data();if(x&&x.id)S.pm[d.id]=x.id})},function(){});
     S.db.collection("shoplist").onSnapshot(function(s){
       S.shop=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render();
     },function(){S.shop=[];render()});
@@ -1233,11 +1250,13 @@ window.CookExt={ahead:{pending:aheadPending,done:markAhead},equip:function(){ret
   submit:function(r,o){if(!S.db)return Promise.resolve(false);var ts=Date.now();
     var ent={rid:r.id,title:r.title,verdict:o.v,note:o.note||"",by:S.me||"",ts:ts,handled:(o.v==="never"||o.v==="again")&&!o.note&&!o.prep&&!o.cook};
     if(o.prep||o.cook)ent.times={prep:+o.prep||null,cook:+o.cook||null};
-    return Promise.all([S.db.collection("feedback").add(ent),S.db.doc("recipes/"+r.id).update({verdict:o.v,retired:o.v==="never",fbBy:S.me||"",fbTs:ts})]).then(function(){return true}).catch(function(){return false})},
+    return Promise.all([S.db.collection("feedback").add(ent),S.db.doc("recipes/"+r.id).update({verdict:o.v,retired:o.v==="never",fbBy:S.me||"",fbTs:ts,vp:Object.assign({},r.vp||{},S.me?(function(){var q={};q[S.me]=o.v;return q})():{})})]).then(function(){return true}).catch(function(){return false})},
   restore:function(r){if(!S.db)return Promise.resolve(false);var ts=Date.now();
     return Promise.all([S.db.collection("feedback").add({rid:r.id,title:r.title,verdict:"restored",note:"",by:S.me||"",ts:ts,handled:true}),S.db.doc("recipes/"+r.id).update({retired:false,verdict:"",fbBy:S.me||"",fbTs:ts})]).then(function(){return true}).catch(function(){return false})}
 },pantry:{
-  items:function(){return (S.pantry||[]).filter(function(x){return x.state!=="used"}).map(function(x){return {id:x.id,name:x.name,size:sizeOf(x),total:totalOf(x)}})},
+  memory:function(){return S.pm||{}},
+  remember:function(pairs){if(!S.db)return;var pm=S.pm||(S.pm={});pairs.forEach(function(p){if(p.key&&pm[p.key]!==p.id){pm[p.key]=p.id;S.db.doc("pmatch/"+p.key).set({id:p.id,ts:Date.now()})}})},
+  items:function(){return (S.pantry||[]).filter(function(x){return x.state!=="used"}).map(function(x){var ex=(lotsOf(x)||[]).map(function(l){return l.exp}).filter(Boolean).sort()[0]||"";return {id:x.id,name:x.name,size:sizeOf(x),total:totalOf(x),exp:ex}})},
   apply:function(uses){if(!S.db)return Promise.resolve(-1);var agg={};uses.forEach(function(u){if(u.id&&u.k>0)agg[u.id]=(agg[u.id]||0)+u.k});
     var jobs=[];Object.keys(agg).forEach(function(id){var x=(S.pantry||[]).filter(function(p){return p.id===id})[0];if(!x)return;var nx=useOne(lotsOf(x),agg[id]);jobs.push(putPantry(x,{lots:nx,state:nx.length?"have":"used"}))});
     return Promise.all(jobs).then(function(){return jobs.length}).catch(function(){return -1})}
@@ -1246,5 +1265,7 @@ init();
 })();
 </script>
 
+<script>(function(){var cur=(document.querySelector('meta[name="app-v"]')||{}).content;function chk(){fetch("index.html?v="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var m=t.match(/name="app-v" content="([^"]+)"/);if(m&&cur&&m[1]!==cur){var u=document.getElementById("upd");if(u&&!u.firstChild){u.className="aheadbar";u.appendChild(document.createTextNode("A new version of the app is ready. "));var b=document.createElement("button");b.textContent="Update now";b.style.cssText="padding:8px 12px;border-radius:10px;border:1px solid var(--line);font:inherit;font-weight:600";b.onclick=function(){(window.caches?caches.delete("fm-shell-v1"):Promise.resolve()).then(function(){location.reload()})};u.appendChild(b)}}}).catch(function(){})}
+window.addEventListener("load",function(){setTimeout(chk,3000)});document.addEventListener("visibilitychange",function(){if(!document.hidden)chk()})})()</script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}</script>
 </body></html>
