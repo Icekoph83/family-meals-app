@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-07d">
+<meta name="app-v" content="2026-11-07e">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -249,7 +249,7 @@ function buildPU(r){var P=pantryApi();var items=P?P.items():[];
   var rows=(r.ingredients||[]).map(function(i){var c=candList(i,items);var best=(c[0]&&c[0].s>=0.3)?c[0].it:null;var cc=contCount(i.amt);var mid=mem[pkey(i)];var rem=false;
     if(mid&&items.some(function(x){return x.id===mid})){best={id:mid};rem=true}
     var cand=c.map(function(x){return x.it.id});if(rem&&cand.indexOf(mid)<0)cand.unshift(mid);
-    return {ing:i,id:best?best.id:"",use:!!(best&&cc&&(rem||(c[0]&&c[0].s>=0.5))),k:cc||1,cand:cand,rem:rem}});
+    return {ing:i,id:best?best.id:"",use:!!(best&&cc),k:cc||1,cand:cand,rem:rem}});
   S.pu={rows:rows,items:items,err:"",busy:false}}
 function onHand(it,k){if(!it)return "Not from the pantry, nothing to update.";var left=Math.max(0,it.total-(+k||0));return "Have "+it.total+" × "+(it.size||"container")+(it.total===1?"":"s")+". After: "+left+"."}
 function renderPantryConfirm(r){
@@ -279,7 +279,7 @@ function renderPantryConfirm(r){
     app.appendChild(c)});
   if(PU.err)app.appendChild(el("div","warnbox",PU.err));
   var use=PU.rows.filter(function(x){return x.use&&x.id&&x.k>0});
-  var go=el("button","pri","Update pantry"+(use.length?" ("+use.length+" item"+(use.length===1?"":"s")+")":""));go.style.cssText="width:100%;padding:14px;margin:6px 0";go.disabled=!use.length||PU.busy||!P;
+  var go=el("button","pri",use.length?"Update pantry ("+use.length+" item"+(use.length===1?"":"s")+")":"Tick what you used first");go.style.cssText="width:100%;padding:14px;margin:6px 0";go.disabled=!use.length||PU.busy||!P;
   go.onclick=function(){PU.busy=true;PU.err="";render();P.apply(use.map(function(x){return {id:x.id,k:x.k}})).then(function(n){PU.busy=false;
     if(n<0){PU.err="Could not update the pantry. Check your connection and try again.";render();return}
     try{if(P.remember)P.remember(PU.rows.filter(function(x){return x.id&&(x.use||x.rem)}).map(function(x){return {key:pkey(x.ing),id:x.id}}))}catch(e){}
