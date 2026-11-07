@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-07a">
+<meta name="app-v" content="2026-11-07b">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -614,7 +614,10 @@ function markAhead(m,how){if(!S.db||!m)return Promise.resolve();m.aheadDone={how
 function icsEsc(t){return String(t||"").replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\r?\n/g,"\\n")}
 function icsFor(m){var d=new Date(m.date+"T12:00:00");d.setDate(d.getDate()-1);var ds=d.getFullYear()+("0"+(d.getMonth()+1)).slice(-2)+("0"+d.getDate()).slice(-2);
   var L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Family Meals//EN","BEGIN:VEVENT","UID:ahead-"+m.id+"@family-meals","DTSTAMP:"+new Date().toISOString().replace(/[-:]/g,"").slice(0,15)+"Z","DTSTART:"+ds+"T200000","DTEND:"+ds+"T203000","SUMMARY:"+icsEsc("Make ahead: "+m.title),"DESCRIPTION:"+icsEsc(m.ahead),"BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEsc("Make ahead: "+m.title),"TRIGGER:PT0S","END:VALARM","BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEsc("Make ahead: "+m.title),"TRIGGER:-PT30M","END:VALARM","END:VEVENT","END:VCALENDAR"];return L.join("\r\n")}
-function addAheadCal(m){var a=document.createElement("a");a.href="data:text/calendar;charset=utf-8,"+encodeURIComponent(icsFor(m));a.target="_blank";a.rel="noopener";a.download="make-ahead.ics";document.body.appendChild(a);a.click();a.remove()}
+function addAheadCal(m){var blob=new Blob([icsFor(m)],{type:"text/calendar"}),f=null;try{f=new File([blob],"make-ahead.ics",{type:"text/calendar"})}catch(e){}
+  function openBlob(){var u=URL.createObjectURL(blob),w=null;try{w=window.open(u,"_blank")}catch(e){}if(!w)location.href=u;setTimeout(function(){URL.revokeObjectURL(u)},60000)}
+  if(f&&navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:"Make ahead: "+m.title}).catch(function(e){if(!e||e.name!=="AbortError")openBlob()});return}
+  openBlob()}
 function renderPend(){var h=$("pend");if(!h)return;h.textContent="";
   var pn=(S.reqs||[]).filter(function(r){return r.status==="pending"});
   if(pn.length){var b=el("div","banner");b.appendChild(el("b",null,"Waiting for Claude ("+pn.length+"): "));b.appendChild(document.createTextNode(pn.map(function(r){return r.label||r.type}).join("; ")+". Skylight and Instacart jobs run when Jake's computer is on (checked about every 2 hours) or when Jake chats with Claude."));h.appendChild(b)}
