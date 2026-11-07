@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-06i">
+<meta name="app-v" content="2026-11-06j">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -181,7 +181,7 @@ function renderFeedback(r){
   var ph=el("div","card");ph.appendChild(el("h2",null,"Photo"));var PA=photoApi();var cur=pimg(r.id,200);if(cur)ph.appendChild(cur);
   ph.appendChild(el("div","mut",cur?"Your photo of this dish. Add a new one to replace it.":"Snap the finished dish. It shows up on the week plan and in Cook Mode."));
   var fi=el("input");fi.type="file";fi.accept="image/*";fi.style.display="none";var pb0=el("button",null,cur?"Replace photo":"Add a photo");pb0.style.marginTop="8px";pb0.disabled=!PA||!PA.can();
-  pb0.onclick=function(){fi.click()};fi.onchange=function(){var f=fi.files&&fi.files[0];if(!f)return;pb0.disabled=true;pb0.textContent="Saving…";PA.add(r.id,f).then(function(ok){if(ok!==true)f_err(ok==="full"?"Photo storage is full for this dish's slot. Tell Jake.":"Could not save that photo.");render()})};
+  pb0.onclick=function(){fi.click()};fi.onchange=function(){var f=fi.files&&fi.files[0];if(!f)return;pb0.disabled=true;pb0.textContent="Saving…";PA.add(r.id,f).then(function(ok){if(ok!==true)f_err(ok==="full"?"Could not save that photo.":"Could not save that photo.");render()})};
   function f_err(t){S.fb&&(S.fb.err=t)}
   ph.appendChild(fi);ph.appendChild(pb0);app.appendChild(ph);
   var pc=el("div","card");pc.appendChild(el("h2",null,"Pantry"));
@@ -579,6 +579,20 @@ function quickPanel(m){var a=el("div","alts");S.qmax=S.qmax||20;
   var ask=el("div","note","Want something else? Describe it and Claude will write a quick recipe from what is actually in the house (usually within the hour).");ask.style.marginTop="10px";a.appendChild(ask);
   var ti=el("input");ti.type="text";ti.placeholder="e.g. no meat, uses the tofu";ti.style.cssText="width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;margin:6px 0";ti.value=S.qnote||"";ti.oninput=function(){S.qnote=ti.value};a.appendChild(ti);
   var rb=el("button","b","Ask Claude for a quick meal");rb.disabled=S.busy;rb.onclick=function(){var n=(S.qnote||"").trim();S.qs=null;S.qnote="";write(sendReq("quick-meal","Quick meal for "+(DAYS[m.day]||m.day)+" (up to "+S.qmax+" min)"+(n?": "+n:""),{mealId:m.id,date:m.date,mins:S.qmax,note:n}))};a.appendChild(rb);return a}
+var PH_REPO="Icekoph83/family-meals";
+function phTok(){try{return localStorage.getItem("fm:token")||""}catch(e){return ""}}
+function phHdr(raw){return {Authorization:"Bearer "+phTok(),Accept:raw?"application/vnd.github.raw":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"}}
+function phFile(key){return "photos/"+String(key).replace(/[^A-Za-z0-9_-]/g,"_")+".jpg"}
+function phMerge(){S.ph=Object.assign.apply(null,[{}].concat(Object.keys(S.phs||{}).map(function(k){return S.phs[k]})).concat([S.phf||{}]))}
+var phDB=null;function phIdb(){return phDB||(phDB=new Promise(function(res){try{var r=indexedDB.open("fm-photos",1);r.onupgradeneeded=function(){r.result.createObjectStore("p")};r.onsuccess=function(){res(r.result)};r.onerror=function(){res(null)}}catch(e){res(null)}}))}
+function phIget(k){return phIdb().then(function(db){return new Promise(function(res){if(!db)return res(null);try{var q=db.transaction("p").objectStore("p").get(k);q.onsuccess=function(){res(q.result||null)};q.onerror=function(){res(null)}}catch(e){res(null)}})})}
+function phIput(k,v){return phIdb().then(function(db){if(!db)return;try{db.transaction("p","readwrite").objectStore("p").put(v,k)}catch(e){}})}
+var phBusy=false;
+function phLoad(){if(phBusy)return;S.phts=S.phts||{};var need=Object.keys(S.phx||{}).filter(function(k){return S.phts[k]!==S.phx[k].ts});if(!need.length)return;phBusy=true;
+  var i=0,done=0;function one(){var k=need[i++];if(!k)return Promise.resolve();var x=S.phx[k],ck=k+"@"+x.ts;
+    return phIget(ck).then(function(b){if(b)return b;return fetch("https://api.github.com/repos/"+PH_REPO+"/contents/"+x.f,{headers:phHdr(true),cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){phIput(ck,b);return b})})
+      .then(function(b){S.phf[k]=URL.createObjectURL(b);S.phts[k]=x.ts;done++;if(done%4===0){phMerge();render()}}).catch(function(){}).then(one)}
+  Promise.all([one(),one(),one()]).then(function(){phBusy=false;phMerge();render()})}
 function sendReq(type,label,payload){return S.db.collection("requests").add({type:type,label:label,payload:payload||{},status:"pending",by:S.me||"",ts:Date.now()})}
 function reqCard(types){
   var list=(S.reqs||[]).filter(function(r){return !types||types.indexOf(r.type)>=0}).slice().reverse().slice(0,4);
@@ -1176,7 +1190,7 @@ function renderPantry(v){
       var ub=el("button","b","Used up");ub.disabled=dis||drafting;ub.onclick=function(){write(putPantry(x,{lots:[],state:"used"}))};ctl.appendChild(ub);
       var eb=el("button","b","Edit");eb.disabled=drafting;eb.onclick=function(){openEdit("pantry:"+x.id)};ctl.appendChild(eb);
       var pf=el("input");pf.type="file";pf.accept="image/*";pf.style.display="none";var pbt=el("button","b",pimgd?"Replace photo":"Add photo");pbt.disabled=dis||drafting||!window.CookExt.photo.can();
-      pbt.onclick=function(){pf.click()};pf.onchange=function(){var f=pf.files&&pf.files[0];if(!f)return;pbt.disabled=true;pbt.textContent="Saving…";window.CookExt.photo.add(pkey2,f,360).then(function(ok){if(ok!==true)S.err=ok==="full"?"Photo storage is full in that slot. Tell Jake.":"Could not save that photo.";render()})};
+      pbt.onclick=function(){pf.click()};pf.onchange=function(){var f=pf.files&&pf.files[0];if(!f)return;pbt.disabled=true;pbt.textContent="Saving…";window.CookExt.photo.add(pkey2,f,360).then(function(ok){if(ok!==true)S.err=ok==="full"?"Could not save that photo.":"Could not save that photo.";render()})};
       ctl.appendChild(pf);ctl.appendChild(pbt);
       r.appendChild(ctl);if(S.edit==="pantry:"+x.id)r.appendChild(pantryEdit(x));c.appendChild(r)});
     v.appendChild(c)});
@@ -1292,7 +1306,8 @@ function init(){
     S.db.doc("settings/household").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.hh={notes:(x&&x.notes)||""};render()},function(){});
     S.db.doc("settings/syncreport").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.sync=x||null;render()},function(){});
     S.db.collection("quick").onSnapshot(function(s){S.quick=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render()},function(){S.quick=[]});
-    S.phs={};for(var pn=0;pn<8;pn++)(function(n){S.db.collection("ph"+n).onSnapshot(function(s){var o={};s.docs.forEach(function(d){var x=d.data();if(x&&x.d)o[d.id]=x.d});S.phs[n]=o;S.ph=Object.assign.apply(null,[{}].concat(Object.keys(S.phs).map(function(k){return S.phs[k]})));render()},function(){})})(pn);
+    S.phx={};S.phf={};S.db.collection("phx").onSnapshot(function(s){S.phx={};s.docs.forEach(function(d){var x=d.data();if(x&&x.f)S.phx[d.id]=x});phLoad()},function(){});
+    S.phs={};for(var pn=0;pn<8;pn++)(function(n){S.db.collection("ph"+n).onSnapshot(function(s){var o={};s.docs.forEach(function(d){var x=d.data();if(x&&x.d)o[d.id]=x.d});S.phs[n]=o;phMerge();render()},function(){})})(pn);
     S.db.collection("pmatch").onSnapshot(function(s){S.pm={};s.docs.forEach(function(d){var x=d.data();if(x&&x.id)S.pm[d.id]=x.id})},function(){});
     S.db.collection("shoplist").onSnapshot(function(s){
       S.shop=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render();
@@ -1319,9 +1334,11 @@ function resolve(ids){
 window.CookExt={photo:{get:function(rid){return (S.ph||{})[rid]||""},can:function(){return !!(S.db&&S.canWrite)},
   add:function(rid,file,W){W=W||560;return new Promise(function(res){var rd=new FileReader();rd.onerror=function(){res(false)};rd.onload=function(){var im=new Image();im.onerror=function(){res(false)};im.onload=function(){
     var sc=Math.min(1,W/im.width),cv=document.createElement("canvas");cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
-    var d=cv.toDataURL("image/jpeg",0.6);var h=0;for(var k=0;k<rid.length;k++)h=(h*31+rid.charCodeAt(k))>>>0;var n=h%8;var sh=(S.phs&&S.phs[n])||{};var tot=0;Object.keys(sh).forEach(function(key){if(key!==rid)tot+=sh[key].length});
-    if(tot+d.length>800*1024){res("full");return}
-    if(!S.ph)S.ph={};S.ph[rid]=d;S.db.doc("ph"+n+"/"+rid).set({d:d,ts:Date.now(),by:S.me||""}).then(function(){res(true)}).catch(function(){res(false)})};im.src=rd.result};rd.readAsDataURL(file)})}},ahead:{pending:aheadPending,done:markAhead},equip:function(){return S.equip||[]},fb:{
+    var d=cv.toDataURL("image/jpeg",0.65),b64=d.split(",")[1],path=phFile(rid),url="https://api.github.com/repos/"+PH_REPO+"/contents/"+path,ts=Date.now();
+    fetch(url,{headers:phHdr(false),cache:"no-store"}).then(function(r){return r.ok?r.json().then(function(j){return j.sha}):null}).then(function(sha){
+      var body={message:"Photo: "+rid,content:b64};if(sha)body.sha=sha;
+      return fetch(url,{method:"PUT",headers:Object.assign({"Content-Type":"application/json"},phHdr(false)),body:JSON.stringify(body)})}).then(function(r){if(!r.ok)throw 0;
+      if(!S.phf)S.phf={};S.phf[rid]=d;S.phts=S.phts||{};S.phts[rid]=ts;phMerge();return S.db.doc("phx/"+rid).set({f:path,ts:ts,by:S.me||""})}).then(function(){res(true)}).catch(function(){res(false)})};im.src=rd.result};rd.readAsDataURL(file)})}},ahead:{pending:aheadPending,done:markAhead},equip:function(){return S.equip||[]},fb:{
   can:function(){return !!(S.db&&S.canWrite)},
   list:function(rid){return (S.fbs||[]).filter(function(e){return e.rid===rid}).slice().sort(function(a,b){return (b.ts||0)-(a.ts||0)})},
   who:function(id){return !id?"Someone":mine(id)?"You":(who(id)||"Someone")},
