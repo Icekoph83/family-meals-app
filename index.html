@@ -227,7 +227,7 @@ function pantryApi(){return window.CookExt&&window.CookExt.pantry}
 var PSTOP={fresh:1,small:1,medium:1,large:1,whole:1,extra:1,firm:1,low:1,sodium:1,shredded:1,grated:1,sliced:1,diced:1,minced:1,chopped:1,crumbled:1,pressed:1,drained:1,rinsed:1,cubed:1,halved:1,torn:1,optional:1,plain:1,ground:1,dried:1,the:1,and:1,pantry:1,from:1,of:1,to:1,for:1,a:1,about:1,more:1,mixed:1,boneless:1,skinless:1,frozen:1,canned:1,can:1};
 function toks(t){t=String(t||"").toLowerCase().replace(/\(.*?\)/g," ").split(",")[0].split(/ or /)[0];
   return t.split(/[^a-z]+/).filter(function(w){return w.length>1&&!PSTOP[w]}).map(function(w){return w.replace(/ies$/,"y").replace(/oes$/,"o").replace(/([^s])s$/,"$1")})}
-var PDQ={powder:1,sauce:1,paste:1,extract:1,oil:1,juice:1,seasoning:1,salt:1,flake:1,soup:1};
+var PDQ={powder:1,sauce:1,paste:1,extract:1,oil:1,juice:1,seasoning:1,salt:1,flake:1,soup:1,crushed:1,crumb:1,panko:1,couscou:1};
 function candList(ing,items){var I=toks(ing.name);if(!I.length)return [];var head=I[I.length-1];var out=[];
   items.forEach(function(it){var P=toks(it.name);var m=I.filter(function(w){return P.indexOf(w)>=0}).length;if(!m||P.indexOf(head)<0)return;if(P.some(function(w){return PDQ[w]&&I.indexOf(w)<0}))return;out.push({it:it,s:m/(I.length+P.length-m)})});
   out.sort(function(a,b){return b.s-a.s||a.it.name.localeCompare(b.it.name)});return out}
@@ -549,20 +549,21 @@ function quickSwap(m,q){var orig=(window.CookTab&&m.date)?window.CookTab.forDate
 function quickUndo(m){var qs=m.quickSwap;if(!qs)return;var patch=Object.assign({},qs.snap);QKEYS.forEach(function(k){if(patch[k]===undefined)patch[k]=k==="veg"?false:""});patch.quickSwap=null;patch.skylightStale=true;
   var jobs=[S.db.doc("meals/"+m.id).update(patch),S.db.doc("recipes/"+qs.rid).delete()];if(qs.origRid)jobs.push(S.db.doc("recipes/"+qs.origRid).update({date:m.date,prevDate:""}));return write(Promise.all(jobs))}
 function onHandSources(){var o=[];(S.pantry||[]).forEach(function(x){if(x.state!=="used")o.push({name:x.name,size:sizeOf(x)||""})});
-  var cw=curWk();(S.shop||[]).forEach(function(x){if(x.week===cw&&x.kind!=="check")o.push({name:x.name||"",size:""})});
-  (S.staples||[]).forEach(function(x){if(x.on)o.push({name:x.name||"",size:""})});return o}
+  var td=localIso();(S.shop||[]).forEach(function(x){if(x.kind==="check"||!x.week)return;var ds=String(x.covers||"").toLowerCase().match(/\b(mon|tue|wed|thu|fri|sat|sun)/g)||[];
+    var fut=ds.some(function(d){return (S.meals||[]).some(function(m){return wkOf(m)===x.week&&String(m.day||"").slice(0,3)===d&&m.date>td})});
+    if(fut)o.push({name:x.name||"",size:""})});return o}
 function quickPanel(m){var a=el("div","alts");S.qmax=S.qmax||20;
   var cr=el("div","row");[15,20].forEach(function(n){var b=el("button","b"+(S.qmax===n?" p":""),"Up to "+n+" min");b.onclick=function(){S.qmax=n;render()};cr.appendChild(b)});a.appendChild(cr);
   var src=onHandSources();var cvf=(window.CookTab&&window.CookTab.coverage)||function(){return {have:[],miss:[]}};
   var all=(S.quick||[]).filter(function(q){return (q.mins||99)<=S.qmax}).map(function(q){return {q:q,cv:cvf(q,src)}}).sort(function(x,y){return x.cv.miss.length-y.cv.miss.length||(x.q.mins||0)-(y.q.mins||0)||x.q.title.localeCompare(y.q.title)});
   var only=S.qhave!==false;var ql=only?all.filter(function(x){return x.cv.miss.length===0}):all;
-  var tg=el("label","note");var tc=el("input");tc.type="checkbox";tc.checked=only;tc.onchange=function(){S.qhave=tc.checked;render()};tg.appendChild(tc);tg.appendChild(document.createTextNode(" Only meals I can make with what we have (pantry, this week's groceries, staples)"));tg.style.display="block";tg.style.margin="8px 0";a.appendChild(tg);
+  var tg=el("label","note");var tc=el("input");tc.type="checkbox";tc.checked=only;tc.onchange=function(){S.qhave=tc.checked;render()};tg.appendChild(tc);tg.appendChild(document.createTextNode(" Only meals I can make with what we have (pantry, plus groceries for dinners not cooked yet)"));tg.style.display="block";tg.style.margin="8px 0";a.appendChild(tg);
   if(!ql.length)a.appendChild(el("div","note",only?"Nothing in the quick library is fully covered by what we have right now. Untick the box to see what each one is missing, or ask Claude below.":"No quick meals saved at that length yet. Ask Claude below."));
   ql.forEach(function(it){var q=it.q,cv=it.cv;var row=el("div","alt");var l=el("div");l.appendChild(el("div",null,q.title));l.appendChild(el("div","note",[q.time,q.veg?"Meatless":""].filter(Boolean).join(" · ")));
     var cc=el("span","chip "+(cv.miss.length?"warn":"ok"),cv.miss.length?"Missing: "+cv.miss.join(", "):"Have everything");cc.style.marginTop="4px";l.appendChild(cc);var dt=el("details");dt.className="note";dt.appendChild(el("summary",null,"What it matched"));cv.have.forEach(function(h){dt.appendChild(el("div",null,h))});l.appendChild(dt);row.appendChild(l);
     var q2=q;
     var u=el("button","b p","Use this");u.disabled=S.busy;u.onclick=function(){S.qs=null;quickSwap(m,q2)};row.appendChild(u);a.appendChild(row)});
-  var ask=el("div","note","Want something else? Describe it and Claude will write a quick recipe from what we have on hand (usually within the hour).");ask.style.marginTop="10px";a.appendChild(ask);
+  var ask=el("div","note","Want something else? Describe it and Claude will write a quick recipe from what is actually in the house (usually within the hour).");ask.style.marginTop="10px";a.appendChild(ask);
   var ti=el("input");ti.type="text";ti.placeholder="e.g. no meat, uses the tofu";ti.style.cssText="width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;margin:6px 0";ti.value=S.qnote||"";ti.oninput=function(){S.qnote=ti.value};a.appendChild(ti);
   var rb=el("button","b","Ask Claude for a quick meal");rb.disabled=S.busy;rb.onclick=function(){var n=(S.qnote||"").trim();S.qs=null;S.qnote="";write(sendReq("quick-meal","Quick meal for "+(DAYS[m.day]||m.day)+" (up to "+S.qmax+" min)"+(n?": "+n:""),{mealId:m.id,date:m.date,mins:S.qmax,note:n}))};a.appendChild(rb);return a}
 function sendReq(type,label,payload){return S.db.collection("requests").add({type:type,label:label,payload:payload||{},status:"pending",by:S.me||"",ts:Date.now()})}
