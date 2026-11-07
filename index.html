@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-06e">
+<meta name="app-v" content="2026-11-06f">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -512,10 +512,12 @@ function mealCard(m){
     ap.onclick=function(){setStatus(m,"approved")};r.appendChild(ap);
     var sw=el("button","b","Swap…");sw.onclick=function(){S.open=S.open===m.id?null:m.id;render()};r.appendChild(sw);
     var eb=el("button","b","Edit");eb.onclick=function(){openEdit("meal:"+m.id)};r.appendChild(eb);
+    if(m.kind!=="takeout"&&m.date&&m.date>=localIso()){if(m.quickSwap){var ub=el("button","b","Put the original back");ub.disabled=S.busy;ub.onclick=function(){quickUndo(m)};r.appendChild(ub)}else{var qb=el("button","b","Too tired? Quick meal");qb.onclick=function(){S.qs=S.qs===m.id?null:m.id;render()};r.appendChild(qb)}}
     var rc=(window.CookTab&&m.date)?window.CookTab.forDate(m.date):null;if(rc){var cb=el("button","b","Cook");cb.onclick=function(){setTab("cook");window.CookTab.open(rc.id)};r.insertBefore(cb,r.firstChild)}
     var iso0=new Date();iso0=iso0.getFullYear()+"-"+("0"+(iso0.getMonth()+1)).slice(-2)+"-"+("0"+iso0.getDate()).slice(-2);
     if(rc&&m.date<=iso0){var fbn=el("button","b",rc.verdict?"Feedback ✓":"Feedback");fbn.onclick=function(){setTab("cook");window.CookTab.feedback(rc.id)};r.appendChild(fbn)}
     c.appendChild(r);
+    if(S.qs===m.id)c.appendChild(quickPanel(m));
     if(S.edit==="meal:"+m.id)c.appendChild(editForm([{k:"title",label:"Dinner",val:m.title},{k:"time",label:"Time",val:m.time||""},{k:"cost",label:"Cost",val:m.cost||""},{k:"note",label:"Note",val:m.note||""},{k:"ahead",label:"Make-ahead prep (optional)",val:m.ahead||""},{k:"equip",label:"Equipment needed (comma separated)",val:(m.equip||[]).join(", ")}],function(o){write(S.db.doc("meals/"+m.id).update({title:o.title.trim()||m.title,time:o.time.trim(),cost:o.cost.trim(),note:o.note.trim(),ahead:(o.ahead||"").trim(),equip:o.equip.split(",").map(function(t){return t.trim()}).filter(Boolean)}))}));
     if(S.open===m.id){
       var a=el("div","alts");
@@ -530,6 +532,23 @@ function mealCard(m){
   return c;
 }
 
+var QKEYS=["title","time","veg","note","equip","ahead","aheadDone","baby","cuisine","cost","kind"];
+function quickSwap(m,q){var orig=(window.CookTab&&m.date)?window.CookTab.forDate(m.date):null;var snap={};QKEYS.forEach(function(k){if(m[k]!==undefined)snap[k]=m[k]});
+  var rid="qk-"+q.id+"-"+m.date;var rec=Object.assign({},q);delete rec.mins;delete rec.id;rec.date=m.date;rec.day=(DAYS[m.day]||"").slice(0,3);rec.order=m.order||0;rec.quick=true;
+  var jobs=[S.db.doc("recipes/"+rid).set(rec)];if(orig&&!orig.quick)jobs.push(S.db.doc("recipes/"+orig.id).update({date:"",prevDate:m.date}));
+  var patch={title:q.title,time:q.time,veg:!!q.veg,note:"Quick swap: tired night, short meal.",equip:(q.equip||[]).map(function(e){return e.n}),ahead:"",aheadDone:null,baby:q.baby||"",cuisine:"",cost:"",skylightStale:true,quickSwap:{rid:rid,origRid:orig&&!orig.quick?orig.id:"",snap:snap,ts:Date.now(),by:S.me||""},status:"approved"};
+  jobs.push(S.db.doc("meals/"+m.id).update(patch));return write(Promise.all(jobs))}
+function quickUndo(m){var qs=m.quickSwap;if(!qs)return;var patch=Object.assign({},qs.snap);QKEYS.forEach(function(k){if(patch[k]===undefined)patch[k]=k==="veg"?false:""});patch.quickSwap=null;patch.skylightStale=true;
+  var jobs=[S.db.doc("meals/"+m.id).update(patch),S.db.doc("recipes/"+qs.rid).delete()];if(qs.origRid)jobs.push(S.db.doc("recipes/"+qs.origRid).update({date:m.date,prevDate:""}));return write(Promise.all(jobs))}
+function quickPanel(m){var a=el("div","alts");S.qmax=S.qmax||20;
+  var cr=el("div","row");[15,20].forEach(function(n){var b=el("button","b"+(S.qmax===n?" p":""),"Up to "+n+" min");b.onclick=function(){S.qmax=n;render()};cr.appendChild(b)});a.appendChild(cr);
+  var ql=(S.quick||[]).filter(function(q){return (q.mins||99)<=S.qmax}).sort(function(x,y){return (x.mins||0)-(y.mins||0)||x.title.localeCompare(y.title)});
+  if(!ql.length)a.appendChild(el("div","note","No quick meals saved at that length yet. Ask Claude below."));
+  ql.forEach(function(q){var row=el("div","alt");var l=el("div");l.appendChild(el("div",null,q.title));l.appendChild(el("div","note",[q.time,q.veg?"Meatless":""].filter(Boolean).join(" · ")));row.appendChild(l);
+    var u=el("button","b p","Use this");u.disabled=S.busy;u.onclick=function(){S.qs=null;quickSwap(m,q)};row.appendChild(u);a.appendChild(row)});
+  var ask=el("div","note","Want something else? Describe it and Claude will write a quick recipe (usually within the hour).");ask.style.marginTop="10px";a.appendChild(ask);
+  var ti=el("input");ti.type="text";ti.placeholder="e.g. no meat, uses the tofu";ti.style.cssText="width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;margin:6px 0";ti.value=S.qnote||"";ti.oninput=function(){S.qnote=ti.value};a.appendChild(ti);
+  var rb=el("button","b","Ask Claude for a quick meal");rb.disabled=S.busy;rb.onclick=function(){var n=(S.qnote||"").trim();S.qs=null;S.qnote="";write(sendReq("quick-meal","Quick meal for "+(DAYS[m.day]||m.day)+" (up to "+S.qmax+" min)"+(n?": "+n:""),{mealId:m.id,date:m.date,mins:S.qmax,note:n}))};a.appendChild(rb);return a}
 function sendReq(type,label,payload){return S.db.collection("requests").add({type:type,label:label,payload:payload||{},status:"pending",by:S.me||"",ts:Date.now()})}
 function reqCard(types){
   var list=(S.reqs||[]).filter(function(r){return !types||types.indexOf(r.type)>=0}).slice().reverse().slice(0,4);
@@ -1236,6 +1255,7 @@ function init(){
     },function(){S.people=[];render()});
     S.db.doc("settings/household").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.hh={notes:(x&&x.notes)||""};render()},function(){});
     S.db.doc("settings/syncreport").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.sync=x||null;render()},function(){});
+    S.db.collection("quick").onSnapshot(function(s){S.quick=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render()},function(){S.quick=[]});
     S.db.collection("pmatch").onSnapshot(function(s){S.pm={};s.docs.forEach(function(d){var x=d.data();if(x&&x.id)S.pm[d.id]=x.id})},function(){});
     S.db.collection("shoplist").onSnapshot(function(s){
       S.shop=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render();
