@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-06h">
+<meta name="app-v" content="2026-11-06i">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -181,7 +181,7 @@ function renderFeedback(r){
   var ph=el("div","card");ph.appendChild(el("h2",null,"Photo"));var PA=photoApi();var cur=pimg(r.id,200);if(cur)ph.appendChild(cur);
   ph.appendChild(el("div","mut",cur?"Your photo of this dish. Add a new one to replace it.":"Snap the finished dish. It shows up on the week plan and in Cook Mode."));
   var fi=el("input");fi.type="file";fi.accept="image/*";fi.style.display="none";var pb0=el("button",null,cur?"Replace photo":"Add a photo");pb0.style.marginTop="8px";pb0.disabled=!PA||!PA.can();
-  pb0.onclick=function(){fi.click()};fi.onchange=function(){var f=fi.files&&fi.files[0];if(!f)return;pb0.disabled=true;pb0.textContent="Saving…";PA.add(r.id,f).then(function(ok){if(!ok)f_err("Could not save that photo.");render()})};
+  pb0.onclick=function(){fi.click()};fi.onchange=function(){var f=fi.files&&fi.files[0];if(!f)return;pb0.disabled=true;pb0.textContent="Saving…";PA.add(r.id,f).then(function(ok){if(ok!==true)f_err(ok==="full"?"Photo storage is full for this dish's slot. Tell Jake.":"Could not save that photo.");render()})};
   function f_err(t){S.fb&&(S.fb.err=t)}
   ph.appendChild(fi);ph.appendChild(pb0);app.appendChild(ph);
   var pc=el("div","card");pc.appendChild(el("h2",null,"Pantry"));
@@ -231,6 +231,9 @@ function coverage(rec,sources){var have=[],miss=[];(rec.ingredients||[]).forEach
 function pkey(ing){return toks(ing.name).join("-")}
 function photoApi(){return window.CookExt&&window.CookExt.photo}
 function pimg(rid,h){var P=photoApi(),d=P&&P.get(rid);if(!d)return null;var i=document.createElement("img");i.src=d;i.alt="";i.style.cssText="display:block;width:100%;height:"+h+"px;object-fit:cover;border-radius:10px;margin:0 0 8px";return i}
+function ingThumb(i){var P=pantryApi(),PH=photoApi();if(!P||!PH)return null;var items=P.items();var t=toks(i.name);if(!t.length)return null;
+  var c=candList(i,items).filter(function(x){if(!PH.get("pantry:"+x.it.id))return false;var Q=toks(x.it.name).concat(toks(x.it.size));return t.filter(function(w){return Q.indexOf(w)>=0}).length/t.length>=0.5});
+  if(!c[0])return null;var d=PH.get("pantry:"+c[0].it.id);var im=document.createElement("img");im.src=d;im.alt=c[0].it.name;im.title=c[0].it.name;im.style.cssText="width:44px;height:44px;object-fit:cover;border-radius:8px;flex:none;margin-left:8px";return im}
 function pantryApi(){return window.CookExt&&window.CookExt.pantry}
 var PSTOP={fresh:1,small:1,medium:1,large:1,whole:1,extra:1,firm:1,low:1,sodium:1,shredded:1,grated:1,sliced:1,diced:1,minced:1,chopped:1,crumbled:1,pressed:1,drained:1,rinsed:1,cubed:1,halved:1,torn:1,optional:1,plain:1,ground:1,dried:1,the:1,and:1,pantry:1,from:1,of:1,to:1,for:1,a:1,about:1,more:1,mixed:1,boneless:1,skinless:1,frozen:1,canned:1,can:1};
 function toks(t){t=String(t||"").toLowerCase().replace(/\(.*?\)/g," ").split(",")[0].split(/ or /)[0];
@@ -284,7 +287,7 @@ function ingRow(i,hl,r){
   var cb=el("input");cb.type="checkbox";cb.checked=!!S.done[i.id];
   cb.onchange=function(){S.done[i.id]=cb.checked;save();render()};
   var sp=el("span");var a=el("span","amt",i.amt?i.amt+" ":"");sp.appendChild(a);sp.appendChild(document.createTextNode(i.name));
-  row.appendChild(cb);row.appendChild(sp);return row}
+  row.appendChild(cb);row.appendChild(sp);var th2=ingThumb(i);if(th2){row.style.display="flex";row.style.alignItems="center";sp.style.flex="1";row.appendChild(th2)}return row}
 
 function renderList(){
   app.textContent="";app.appendChild(el("h1",null,"Cook"));
@@ -1148,12 +1151,15 @@ function renderPantry(v){
     v.appendChild(el("div","grp",loc));var c=el("div","card");
     items.forEach(function(x){
       var dl=soonest(x);var r=el("div","prow");var top=el("div","top");
-      var t=el("div");t.appendChild(el("div","nm",x.name));
+      var pkey2="pantry:"+x.id;var pimgd=(S.ph||{})[pkey2];
+      if(pimgd){var th=document.createElement("img");th.src=pimgd;th.alt="";th.style.cssText="width:56px;height:56px;object-fit:cover;border-radius:8px;margin-right:10px;cursor:pointer;flex:none";th.onclick=function(){S.pz=S.pz===x.id?null:x.id;render()};top.style.alignItems="center";top.appendChild(th)}
+      var t=el("div");t.style.flex="1";t.appendChild(el("div","nm",x.name));
       var lots=lotsOf(x);var dated=lots.filter(function(l){return l.exp});
       var parts=[countText(x)];if(dl!==null)parts.push("soonest "+whenText(dl).replace("expires","expires").replace("expired","expired"));else parts.push("no date yet");
       if(x.note)parts.push(x.note);t.appendChild(el("div","note",parts.join(" · ")));top.appendChild(t);
       if(dl!==null&&dl<0)top.appendChild(el("span","chip bad","Expired"));else if(dl!==null&&dl<=7)top.appendChild(el("span","chip warn","Use soon"));
       r.appendChild(top);
+      if(pimgd&&S.pz===x.id){var big=document.createElement("img");big.src=pimgd;big.alt="";big.style.cssText="display:block;width:100%;max-height:360px;object-fit:contain;border-radius:10px;margin:8px 0";big.onclick=function(){S.pz=null;render()};r.appendChild(big)}
       var drafting=!!draftOf(x);var sbar=el("div","ctl");
       var svb=el("button","b p","Save changes");var cxb=el("button","b","Cancel");
       function showBar(){svb.style.display="";cxb.style.display=""}
@@ -1169,6 +1175,9 @@ function renderPantry(v){
       var u1=el("button","b","Use one");u1.disabled=dis||drafting;u1.onclick=function(){var nx=useOne(lots,1);write(putPantry(x,{lots:nx,state:nx.length?"have":"used"}))};ctl.appendChild(u1);
       var ub=el("button","b","Used up");ub.disabled=dis||drafting;ub.onclick=function(){write(putPantry(x,{lots:[],state:"used"}))};ctl.appendChild(ub);
       var eb=el("button","b","Edit");eb.disabled=drafting;eb.onclick=function(){openEdit("pantry:"+x.id)};ctl.appendChild(eb);
+      var pf=el("input");pf.type="file";pf.accept="image/*";pf.style.display="none";var pbt=el("button","b",pimgd?"Replace photo":"Add photo");pbt.disabled=dis||drafting||!window.CookExt.photo.can();
+      pbt.onclick=function(){pf.click()};pf.onchange=function(){var f=pf.files&&pf.files[0];if(!f)return;pbt.disabled=true;pbt.textContent="Saving…";window.CookExt.photo.add(pkey2,f,360).then(function(ok){if(ok!==true)S.err=ok==="full"?"Photo storage is full in that slot. Tell Jake.":"Could not save that photo.";render()})};
+      ctl.appendChild(pf);ctl.appendChild(pbt);
       r.appendChild(ctl);if(S.edit==="pantry:"+x.id)r.appendChild(pantryEdit(x));c.appendChild(r)});
     v.appendChild(c)});
   if(used.length){
@@ -1283,7 +1292,7 @@ function init(){
     S.db.doc("settings/household").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.hh={notes:(x&&x.notes)||""};render()},function(){});
     S.db.doc("settings/syncreport").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.sync=x||null;render()},function(){});
     S.db.collection("quick").onSnapshot(function(s){S.quick=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render()},function(){S.quick=[]});
-    S.db.collection("photos").onSnapshot(function(s){S.ph={};s.docs.forEach(function(d){var x=d.data();if(x&&x.d)S.ph[d.id]=x.d});render()},function(){S.ph={}});
+    S.phs={};for(var pn=0;pn<8;pn++)(function(n){S.db.collection("ph"+n).onSnapshot(function(s){var o={};s.docs.forEach(function(d){var x=d.data();if(x&&x.d)o[d.id]=x.d});S.phs[n]=o;S.ph=Object.assign.apply(null,[{}].concat(Object.keys(S.phs).map(function(k){return S.phs[k]})));render()},function(){})})(pn);
     S.db.collection("pmatch").onSnapshot(function(s){S.pm={};s.docs.forEach(function(d){var x=d.data();if(x&&x.id)S.pm[d.id]=x.id})},function(){});
     S.db.collection("shoplist").onSnapshot(function(s){
       S.shop=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render();
@@ -1308,9 +1317,11 @@ function resolve(ids){
   Promise.resolve(S.user.profiles(list)).then(function(ps){list.forEach(function(i){S.names[i]=(ps&&ps[i]&&ps[i].name)||""});render()}).catch(function(){});
 }
 window.CookExt={photo:{get:function(rid){return (S.ph||{})[rid]||""},can:function(){return !!(S.db&&S.canWrite)},
-  add:function(rid,file){return new Promise(function(res){var rd=new FileReader();rd.onerror=function(){res(false)};rd.onload=function(){var im=new Image();im.onerror=function(){res(false)};im.onload=function(){
-    var W=560,sc=Math.min(1,W/im.width),cv=document.createElement("canvas");cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
-    var d=cv.toDataURL("image/jpeg",0.62);if(!S.ph)S.ph={};S.ph[rid]=d;S.db.doc("photos/"+rid).set({d:d,ts:Date.now(),by:S.me||""}).then(function(){res(true)}).catch(function(){res(false)})};im.src=rd.result};rd.readAsDataURL(file)})}},ahead:{pending:aheadPending,done:markAhead},equip:function(){return S.equip||[]},fb:{
+  add:function(rid,file,W){W=W||560;return new Promise(function(res){var rd=new FileReader();rd.onerror=function(){res(false)};rd.onload=function(){var im=new Image();im.onerror=function(){res(false)};im.onload=function(){
+    var sc=Math.min(1,W/im.width),cv=document.createElement("canvas");cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
+    var d=cv.toDataURL("image/jpeg",0.6);var h=0;for(var k=0;k<rid.length;k++)h=(h*31+rid.charCodeAt(k))>>>0;var n=h%8;var sh=(S.phs&&S.phs[n])||{};var tot=0;Object.keys(sh).forEach(function(key){if(key!==rid)tot+=sh[key].length});
+    if(tot+d.length>800*1024){res("full");return}
+    if(!S.ph)S.ph={};S.ph[rid]=d;S.db.doc("ph"+n+"/"+rid).set({d:d,ts:Date.now(),by:S.me||""}).then(function(){res(true)}).catch(function(){res(false)})};im.src=rd.result};rd.readAsDataURL(file)})}},ahead:{pending:aheadPending,done:markAhead},equip:function(){return S.equip||[]},fb:{
   can:function(){return !!(S.db&&S.canWrite)},
   list:function(rid){return (S.fbs||[]).filter(function(e){return e.rid===rid}).slice().sort(function(a,b){return (b.ts||0)-(a.ts||0)})},
   who:function(id){return !id?"Someone":mine(id)?"You":(who(id)||"Someone")},
