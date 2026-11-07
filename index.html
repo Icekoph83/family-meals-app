@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-06c">
+<meta name="app-v" content="2026-11-06d">
 <div id="upd"></div>
 <div id="ahead"></div>
 <div id="banner"></div>
@@ -139,12 +139,12 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 </div>
 <script>
 (function(){
-var S={kit:null,ext:null,recipes:[],cur:null,mode:"cook",step:0,done:{},pdone:{},loaded:false,timer:null,wake:null};
+var S={kit:null,ext:null,recipes:[],cur:null,mode:"cook",step:0,done:{},pdone:{},loaded:false,tms:{},wake:null};
 var app=null;
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c.split(" ").map(function(k){return k?"ck-"+k:""}).join(" ");if(x!=null)e.textContent=x;return e}
 function ls(k,v){try{if(v===undefined){return JSON.parse(localStorage.getItem(k)||"null")}localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
 function save(){if(S.cur)ls("cook:"+S.cur.id,{step:S.step,done:S.done,prep:S.pdone})}
-function open(r){S.cur=r;var p=ls("cook:"+r.id)||{};S.step=p.step||0;S.done=p.done||{};S.pdone=p.prep||{};S.mode=(hasPrep(r)&&!(p.step>0))?"prep":"cook";S.timer=null;render();window.scrollTo(0,0)}
+function open(r){S.cur=r;var p=ls("cook:"+r.id)||{};S.step=p.step||0;S.done=p.done||{};S.pdone=p.prep||{};S.mode=(hasPrep(r)&&!(p.step>0))?"prep":"cook";S.tms={};render();window.scrollTo(0,0)}
 function hasPrep(r){return (r.prep||[]).length||(r.equip||[]).length||(r.flow||[]).length}
 function norm(t){return String(t||"").toLowerCase().replace(/\s+/g," ").trim()}
 function eqState(n){var L=(window.CookExt&&window.CookExt.equip&&window.CookExt.equip())||[];var f=null;L.forEach(function(x){if(norm(x.name)===norm(n))f=x});if(!f)return "unset";return f.have==="yes"?"yes":f.have==="no"?"no":"unset"}
@@ -152,7 +152,9 @@ function ingMap(r){var m={};(r.ingredients||[]).forEach(function(i){m[i.id]=i});
 function wakeOn(){try{if(navigator.wakeLock&&!S.wake){navigator.wakeLock.request("screen").then(function(w){S.wake=w;w.addEventListener("release",function(){S.wake=null})}).catch(function(){})}}catch(e){}}
 document.addEventListener("visibilitychange",function(){if(!document.hidden&&S.cur)wakeOn()});
 function fmt(s){var m=Math.floor(s/60),x=s%60;return m+":"+(x<10?"0":"")+x}
-setInterval(function(){var t=S.timer;if(!t||t.fired)return;var left=Math.round((t.end-Date.now())/1000);if(left<=0){t.fired=true;try{navigator.vibrate&&navigator.vibrate([400,200,400,200,400])}catch(e){}}var n=document.getElementById("tmv");if(n)n.textContent=t.fired?"Time's up!":fmt(left)},500);
+setInterval(function(){Object.keys(S.tms).forEach(function(k){var t=S.tms[k];if(!t)return;var left=Math.round((t.end-Date.now())/1000);
+  if(!t.fired&&left<=0){t.fired=true;try{navigator.vibrate&&navigator.vibrate([400,200,400,200,400])}catch(e){}if(+k!==S.step&&S.mode==="cook")render()}
+  var txt=t.fired?"Time's up!":fmt(left);var n=document.getElementById("tmb"+k);if(n)n.textContent=txt;if(+k===S.step){var m=document.getElementById("tmv");if(m)m.textContent=txt}})},500);
 
 function fbx(){return window.CookExt&&window.CookExt.fb}
 function newFb(fin){return {v:"",note:"",prep:"",cook:"",fin:!!fin,err:""}}
@@ -344,11 +346,16 @@ function renderRecipe(){
   var s=steps[S.step];if(!s){app.appendChild(el("p",null,"No steps."));return}
   var bar=el("div","bar"),fill=el("i");fill.style.width=((S.step+1)/steps.length*100)+"%";bar.appendChild(fill);app.appendChild(bar);
   app.appendChild(el("div","mut","Step "+(S.step+1)+" of "+steps.length));
+  Object.keys(S.tms).map(Number).filter(function(k){return k!==S.step&&S.tms[k]}).sort(function(a,b){return a-b}).forEach(function(k){var t=S.tms[k],st=steps[k]||{};
+    var bx=el("div","warnbox");bx.style.cssText="display:flex;align-items:center;gap:8px;flex-wrap:wrap";
+    var lb=el("span",null,"Step "+(k+1)+(st.title?" · "+st.title:"")+": ");lb.style.flex="1";var tv2=el("b",null,t.fired?"Time's up!":fmt(Math.max(0,Math.round((t.end-Date.now())/1000))));tv2.id="tmb"+k;lb.appendChild(tv2);bx.appendChild(lb);
+    var g=el("button",null,"Go to step");g.onclick=function(){S.step=k;save();render();window.scrollTo(0,0)};bx.appendChild(g);
+    var x=el("button",null,t.fired?"Dismiss":"Cancel");x.onclick=function(){delete S.tms[k];render()};bx.appendChild(x);app.appendChild(bx)});
   var c=el("div","card");c.appendChild(el("h2",null,s.title||""));c.appendChild(el("div","big",s.text||""));
   if((s.uses||[]).length){c.appendChild(el("div","mut","Using now"));var w=el("div");s.uses.forEach(function(id){var i=im[id];if(i)w.appendChild(el("span","chip",(i.amt?i.amt+" ":"")+i.name))});c.appendChild(w)}
-  if(s.timer){var tr=el("div","row");var t=S.timer&&S.timer.step===S.step?S.timer:null;
+  if(s.timer){var tr=el("div","row");var t=S.tms[S.step]||null;
     var tv=el("span","tm",t?(t.fired?"Time's up!":fmt(Math.max(0,Math.round((t.end-Date.now())/1000)))):fmt(s.timer));tv.id="tmv";tr.appendChild(tv);
-    var tb=el("button",null,t?"Restart timer":"Start timer");tb.onclick=function(){S.timer={step:S.step,end:Date.now()+s.timer*1000,fired:false};render()};tr.appendChild(tb);c.appendChild(tr)}
+    var tb=el("button",null,t?"Restart timer":"Start timer");tb.onclick=function(){S.tms[S.step]={end:Date.now()+s.timer*1000,fired:false};render()};tr.appendChild(tb);c.appendChild(tr)}
   if(r.baby&&S.step===steps.length-1){c.appendChild(el("div","baby","Baby: "+r.baby))}
   app.appendChild(c);
   var ic=el("div","card");ic.appendChild(el("h2",null,"All ingredients"));var uses=s.uses||[];
@@ -376,7 +383,7 @@ window.CookTab={
   forDate:function(d){var f=null;S.recipes.forEach(function(r){if(r.date===d)f=r});return f},
   has:function(id){return !!byId(id)},
   idInHash:function(){var q="";try{q=location.hash+location.search}catch(e){}var f=null;S.recipes.forEach(function(r){if(q&&q.indexOf(r.id)>=0)f=r});return f?f.id:null},
-  feedback:function(id){var r=byId(id);if(r){S.auto=true;S.cur=r;S.fb=newFb(false);S.mode="fb";S.timer=null;render();window.scrollTo(0,0);return true}return false},
+  feedback:function(id){var r=byId(id);if(r){S.auto=true;S.cur=r;S.fb=newFb(false);S.mode="fb";S.tms={};render();window.scrollTo(0,0);return true}return false},
   refresh:function(){var a=document.activeElement;if((S.mode==="fb"||S.mode==="pantry")&&app&&a&&app.contains(a)&&/^(INPUT|TEXTAREA)$/.test(a.tagName))return;render()},
   active:function(){return !!app}
 };
