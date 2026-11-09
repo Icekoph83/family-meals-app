@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-07f">
+<meta name="app-v" content="2026-11-09a">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -239,8 +239,10 @@ var PSTOP={fresh:1,small:1,medium:1,large:1,whole:1,extra:1,firm:1,low:1,sodium:
 function toks(t){t=String(t||"").toLowerCase().replace(/\(.*?\)/g," ").split(",")[0].split(/ or /)[0];
   return t.split(/[^a-z]+/).filter(function(w){return w.length>1&&!PSTOP[w]}).map(function(w){return w.replace(/ies$/,"y").replace(/oes$/,"o").replace(/([^s])s$/,"$1")})}
 var PDQ={powder:1,sauce:1,paste:1,extract:1,oil:1,juice:1,seasoning:1,salt:1,flake:1,soup:1,crushed:1,crumb:1,panko:1,couscou:1};
+var FRESHH={garlic:1,ginger:1,cilantro:1,basil:1,parsley:1,mint:1,dill:1,chive:1,scallion:1,thyme:1,rosemary:1,sage:1,lemon:1,lime:1,onion:1,spinach:1};
 function candList(ing,items){var I=toks(ing.name);if(!I.length)return [];var head=I[I.length-1];var out=[];
-  items.forEach(function(it){var P=toks(it.name);var m=I.filter(function(w){return P.indexOf(w)>=0}).length;if(!m||P.indexOf(head)<0)return;if(P.some(function(w){return PDQ[w]&&I.indexOf(w)<0}))return;out.push({it:it,s:m/(I.length+P.length-m)})});
+  var wantFresh=!!FRESHH[head]&&!/\b(dried|dry|ground|powder|flake|freeze|jarred|minced jar)\b/i.test(String(ing.name)+" "+String(ing.amt||""));
+  items.forEach(function(it){if(wantFresh&&/\b(dried|freeze.?dried|ground|powder|flakes?|leaves|juice|jar)\b/i.test(String(it.name)+" "+String(it.size||"")))return;var P=toks(it.name);var m=I.filter(function(w){return P.indexOf(w)>=0}).length;if(!m||P.indexOf(head)<0)return;if(P.some(function(w){return PDQ[w]&&I.indexOf(w)<0}))return;out.push({it:it,s:m/(I.length+P.length-m)})});
   out.sort(function(a,b){return b.s-a.s||a.it.name.localeCompare(b.it.name)});return out}
 function contCount(amt){var a=String(amt||"");if(!/\b(cans?|blocks?|jars?|bottles?|box(es)?|bags?|packages?|pkg|pints?|heads?|bunch(es)?|loaf|loaves|cartons?|containers?)\b/i.test(a))return 0;
   var m=a.match(/^\s*(\d+)?\s*(?:(\d+)\/(\d+))?/);var v=0;if(m){if(m[1])v+=+m[1];if(m[2]&&m[3])v+=(+m[2])/(+m[3])}return Math.max(1,Math.ceil(v||1))}
