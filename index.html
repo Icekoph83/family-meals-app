@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-09a">
+<meta name="app-v" content="2026-11-09b">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -570,7 +570,7 @@ function quickSwap(m,q){var orig=(window.CookTab&&m.date)?window.CookTab.forDate
   jobs.push(S.db.doc("meals/"+m.id).update(patch));return write(Promise.all(jobs))}
 function quickUndo(m){var qs=m.quickSwap;if(!qs)return;var patch=Object.assign({},qs.snap);QKEYS.forEach(function(k){if(patch[k]===undefined)patch[k]=k==="veg"?false:""});patch.quickSwap=null;patch.skylightStale=true;
   var jobs=[S.db.doc("meals/"+m.id).update(patch),S.db.doc("recipes/"+qs.rid).delete()];if(qs.origRid)jobs.push(S.db.doc("recipes/"+qs.origRid).update({date:m.date,prevDate:""}));return write(Promise.all(jobs))}
-function onHandSources(){var o=[];(S.pantry||[]).forEach(function(x){if(x.state!=="used")o.push({name:x.name,size:sizeOf(x)||""})});
+function onHandSources(){var o=[];(S.pantry||[]).forEach(function(x){if(x.state!=="used"&&!allExpired(x))o.push({name:x.name,size:sizeOf(x)||""})});
   var td=localIso();(S.shop||[]).forEach(function(x){if(x.kind==="check"||!x.week)return;var ds=String(x.covers||"").toLowerCase().match(/\b(mon|tue|wed|thu|fri|sat|sun)/g)||[];
     var fut=ds.some(function(d){return (S.meals||[]).some(function(m){return wkOf(m)===x.week&&String(m.day||"").slice(0,3)===d&&m.date>td})});
     if(fut)o.push({name:x.name||"",size:""})});return o}
@@ -1051,6 +1051,7 @@ function dleft(s){if(!s)return null;var t=new Date(s+"T12:00:00");var n=new Date
 function sizeOf(x){return x.size!==undefined?x.size:(x.qty||"")}
 function lotsOf(x){if(Array.isArray(x.lots))return x.lots.map(function(l){return {n:Number(l.n)||0,exp:l.exp||""}});return [{n:1,exp:x.exp||""}]}
 function cleanLots(ls){var m={},out=[];ls.forEach(function(l){if(!(l.n>0))return;var k=l.exp||"";if(m[k]){m[k].n+=l.n}else{m[k]={n:l.n,exp:k};out.push(m[k])}});out.sort(function(a,b){if(!a.exp)return 1;if(!b.exp)return -1;return a.exp<b.exp?-1:1});return out}
+function allExpired(x){var l=lotsOf(x).filter(function(l){return l.n>0});return l.length>0&&l.every(function(l){return l.exp&&dleft(l.exp)<0})}
 function totalOf(x){return lotsOf(x).reduce(function(s,l){return s+l.n},0)}
 function soonest(x){var best=null;lotsOf(x).forEach(function(l){if(l.n>0&&l.exp){var d=dleft(l.exp);if(best===null||d<best)best=d}});return best}
 function putPantry(x,patch){var d={name:x.name,size:sizeOf(x),lots:cleanLots(lotsOf(x)),loc:x.loc||"Pantry",note:x.note||"",state:x.state||"have",restock:x.restock||""};for(var k in patch)d[k]=patch[k];if(d.lots&&d.state!=="used"&&!d.lots.length&&!("state" in patch))d.state="used";return S.db.doc("pantry/"+x.id).set(d)}
@@ -1390,7 +1391,7 @@ window.CookExt={photo:{get:function(rid){return (S.ph||{})[rid]||""},can:functio
 },pantry:{
   memory:function(){return S.pm||{}},
   remember:function(pairs){if(!S.db)return;var pm=S.pm||(S.pm={});pairs.forEach(function(p){if(p.key&&pm[p.key]!==p.id){pm[p.key]=p.id;S.db.doc("pmatch/"+p.key).set({id:p.id,ts:Date.now()})}})},
-  items:function(){return (S.pantry||[]).filter(function(x){return x.state!=="used"}).map(function(x){var ex=(lotsOf(x)||[]).map(function(l){return l.exp}).filter(Boolean).sort()[0]||"";return {id:x.id,name:x.name,size:sizeOf(x),total:totalOf(x),exp:ex}})},
+  items:function(){return (S.pantry||[]).filter(function(x){return x.state!=="used"&&!allExpired(x)}).map(function(x){var ex=(lotsOf(x)||[]).map(function(l){return l.exp}).filter(Boolean).sort()[0]||"";return {id:x.id,name:x.name,size:sizeOf(x),total:totalOf(x),exp:ex}})},
   apply:function(uses){if(!S.db)return Promise.resolve(-1);var agg={};uses.forEach(function(u){if(u.id&&u.k>0)agg[u.id]=(agg[u.id]||0)+u.k});
     var jobs=[];Object.keys(agg).forEach(function(id){var x=(S.pantry||[]).filter(function(p){return p.id===id})[0];if(!x)return;var nx=useOne(lotsOf(x),agg[id]);jobs.push(putPantry(x,{lots:nx,state:nx.length?"have":"used"}))});
     return Promise.all(jobs).then(function(){return jobs.length}).catch(function(){return -1})}
