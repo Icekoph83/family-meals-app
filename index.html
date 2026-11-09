@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-09b">
+<meta name="app-v" content="2026-11-09c">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -1197,6 +1197,11 @@ function renderPantry(v){
   if(nodate)sm.appendChild(el("span","chip",nodate+" without a date"));
   var wq=walkQueue();if(wq.length&&S.canWrite&&S.db){var wb=el("button","b p","Photo walk ("+wq.length+" items without a photo)");wb.style.cssText="width:100%;margin-top:10px";wb.onclick=function(){S.walk={ids:walkQueue().map(function(x){return x.id}),i:0,added:0,skipped:0,err:"",busy:false};render();window.scrollTo(0,0)};sm.appendChild(wb)}
   intro.appendChild(sm);v.appendChild(intro)}
+  var toss=searching?[]:have.filter(allExpired).sort(function(a,b){return soonest(a)-soonest(b)});
+  if(toss.length){var tc=el("div","card");tc.appendChild(el("h2",null,"Toss these ("+toss.length+")"));tc.appendChild(el("div","note","Everything here is past its date. The planner ignores these. Tap Tossed once an item is in the trash, or edit the date below if it is still good."));
+    toss.forEach(function(x){var row=el("div","prow");var top=el("div","top");var t=el("div");t.style.flex="1";t.appendChild(el("div","nm",x.name));t.appendChild(el("div","note",(x.loc||"Pantry")+" · "+whenText(soonest(x))));top.appendChild(t);
+      var tb=el("button","b","Tossed");tb.disabled=dis;tb.onclick=function(){write(putPantry(x,{lots:[],state:"used"}))};top.appendChild(tb);row.appendChild(top);tc.appendChild(row)});
+    var ta=el("button","b p","Tossed all "+toss.length);ta.style.cssText="width:100%;margin-top:10px";ta.disabled=dis;ta.onclick=function(){if(!confirm("Mark all "+toss.length+" expired items as thrown out?"))return;write(toss.reduce(function(pr,x){return pr.then(function(){return putPantry(x,{lots:[],state:"used"})})},Promise.resolve()))};tc.appendChild(ta);v.appendChild(tc)}
   if(!have.length&&!searching)v.appendChild(el("div","empty","Nothing listed yet. Add the first item below."));
   LOCS.concat(have.map(function(x){return x.loc}).filter(function(l,i,a){return l&&LOCS.indexOf(l)<0&&a.indexOf(l)===i})).forEach(function(loc){
     var items=have.filter(function(x){return (x.loc||"Pantry")===loc});if(!items.length)return;
