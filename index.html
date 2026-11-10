@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-09c">
+<meta name="app-v" content="2026-11-10a">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -285,6 +285,7 @@ function renderPantryConfirm(r){
   go.onclick=function(){PU.busy=true;PU.err="";render();P.apply(use.map(function(x){return {id:x.id,k:x.k}})).then(function(n){PU.busy=false;
     if(n<0){PU.err="Could not update the pantry. Check your connection and try again.";render();return}
     try{if(P.remember)P.remember(PU.rows.filter(function(x){return x.id&&(x.use||x.rem)}).map(function(x){return {key:pkey(x.ing),id:x.id}}))}catch(e){}
+    try{if(P.mark&&r.date)P.mark(r.id,r.date)}catch(e){}
     if(S.fb)S.fb.pdone=n;S.pu=null;S.mode="fb";render();window.scrollTo(0,0)})};
   app.appendChild(go)}
 
@@ -410,6 +411,7 @@ window.CookTab={
   forDate:function(d){var f=null;S.recipes.forEach(function(r){if(r.date===d)f=r});return f},
   has:function(id){return !!byId(id)},
   idInHash:function(){var q="";try{q=location.hash+location.search}catch(e){}var f=null;S.recipes.forEach(function(r){if(q&&q.indexOf(r.id)>=0)f=r});return f?f.id:null},
+  pantry:function(id){var r=byId(id);if(r){S.auto=true;S.cur=r;S.fb=newFb(false);S.pu=null;S.mode="pantry";S.tms={};render();window.scrollTo(0,0);return true}return false},
   feedback:function(id){var r=byId(id);if(r){S.auto=true;S.cur=r;S.fb=newFb(false);S.mode="fb";S.tms={};render();window.scrollTo(0,0);return true}return false},
   refresh:function(){var a=document.activeElement;if((S.mode==="fb"||S.mode==="pantry")&&app&&a&&app.contains(a)&&/^(INPUT|TEXTAREA)$/.test(a.tagName))return;render()},
   active:function(){return !!app}
@@ -494,6 +496,13 @@ function renderWeek(v){
     nav.appendChild(pv);nav.appendChild(mid);nav.appendChild(nx);v.appendChild(nav);
     var bk=el("button","b p","Jump to today");bk.style.marginBottom="10px";bk.onclick=function(){S.wk=cur;S.jump=1;render()};v.appendChild(bk)
   }
+  if(!searching&&S.wk===cur&&S.db&&S.canWrite&&window.CookTab&&window.CookTab.pantry){var t0=localIso(),lo=addDays(t0,-3);
+    var owe=mealsIn(cur).filter(function(m){return m.kind==="dinner"&&m.status==="approved"&&m.date&&m.date<t0&&m.date>=lo}).map(function(m){return {m:m,rc:window.CookTab.forDate(m.date)}}).filter(function(o){return o.rc&&o.rc.pantryFor!==o.m.date});
+    if(owe.length){var oc=el("div","card");oc.appendChild(el("div","day","Pantry not updated yet"));oc.appendChild(el("div","note","Mark what these dinners used so the pantry stays right. It takes about a minute each."));
+      owe.forEach(function(o){var rw=el("div","prow");rw.appendChild(el("b",null,o.m.title));var ct=el("div","ctl");
+        var ub=el("button","b p","Update pantry");ub.onclick=function(){setTab("cook");window.CookTab.pantry(o.rc.id)};ct.appendChild(ub);
+        var sk=el("button","b","Didn't cook it");sk.disabled=S.busy;sk.onclick=function(){write(S.db.doc("recipes/"+o.rc.id).update({pantryFor:o.m.date}))};ct.appendChild(sk);rw.appendChild(ct);oc.appendChild(rw)});
+      v.appendChild(oc)}}
   if(searching)v.appendChild(el("div","note","Searching every week."));
   var ok=list.filter(function(m){return m.status==="approved"}).length;
   v.appendChild(el("p","sub",ok+" of "+list.length+" nights approved"));
@@ -1182,7 +1191,7 @@ function renderPantry(v){
   var used=S.pantry.filter(function(x){return x.state==="used"});
   var searching=!!(S.q.pantry||"").trim();
   if(searching){var pm=function(x){return qm([x.name,sizeOf(x),x.note,x.loc].join(" "))};have=have.filter(pm);used=used.filter(pm)}
-  var soon=have.filter(function(x){var d=soonest(x);return d!==null&&d<=7}).length;
+  var soon=have.filter(function(x){var d=soonest(x);return d!==null&&d>=0&&d<=7}).length;
   var gone=have.filter(function(x){var d=soonest(x);return d!==null&&d<0}).length;
   var nodate=have.filter(function(x){return soonest(x)===null}).length;
   var dis=!S.canWrite||!S.db||S.busy;
@@ -1264,7 +1273,7 @@ function renderPantry(v){
 
 
 var GSECS=["Produce","Meat & Seafood","Dairy","Pantry","Bakery","Other"];
-function putShop(x,patch){var d={};["name","buy","need","covers","leftover","section","kind","order","est","week"].forEach(function(k){if(x[k]!==undefined)d[k]=x[k]});d.have=!!x.have;for(var k in patch)d[k]=patch[k];return S.db.doc("shoplist/"+x.id).set(d)}
+function putShop(x,patch){var d={};["name","buy","need","covers","leftover","section","kind","order","est","week","store","priced"].forEach(function(k){if(x[k]!==undefined)d[k]=x[k]});d.have=!!x.have;for(var k in patch)d[k]=patch[k];return S.db.doc("shoplist/"+x.id).set(d)}
 function shopText(items,mode){
   var out=[];
   if(mode==="instacart"){items.forEach(function(x){out.push(x.buy)});return out.join("\n")}
@@ -1276,7 +1285,13 @@ function renderShop(v){
   var cw=curWk()||"2026-10-09";var sh=S.shop.filter(function(x){return (x.week||"2026-10-09")===cw});
   if(!sh.length){var e=el("div","card empty");e.appendChild(el("b",null,"No grocery list yet"));e.appendChild(document.createTextNode("Jake will load the week's list once the dinners are approved."));v.appendChild(e);return}
   var mode=S.mode||"store";
-  var buy=sh.filter(function(x){return x.kind!=="check"&&!x.have}).sort(function(a,b){return (a.order||0)-(b.order||0)});
+  var DAYN=["sun","mon","tue","wed","thu","fri","sat"],t0=localIso();
+  var pastOf=function(x){var ds=(String(x.covers||"").toLowerCase().match(/\b(sun|mon|tue|wed|thu|fri|sat)/g)||[]);if(!ds.length)return false;var w0=new Date(cw+"T12:00:00").getDay();return ds.every(function(d){return addDays(cw,(DAYN.indexOf(d)-w0+7)%7)<t0})};
+  var stores=[];sh.forEach(function(x){if(x.store&&!x.have&&stores.indexOf(x.store)<0)stores.push(x.store)});stores.sort();
+  if(S.shopStore&&stores.indexOf(S.shopStore)<0)S.shopStore="";
+  var inStore=function(x){return !S.shopStore||x.store===S.shopStore};
+  var past=sh.filter(function(x){return x.kind!=="check"&&!x.have&&pastOf(x)});
+  var buy=sh.filter(function(x){return x.kind!=="check"&&!x.have&&!pastOf(x)&&inStore(x)}).sort(function(a,b){return (a.order||0)-(b.order||0)});
   var chk=sh.filter(function(x){return x.kind==="check"&&!x.have});
   var haveIt=sh.filter(function(x){return x.have});
   var h=el("div","card");h.appendChild(el("div","day","How are we shopping this week?"));
@@ -1291,6 +1306,9 @@ function renderShop(v){
   h.appendChild(q2);
   h.appendChild(el("div","note",mode==="store"?"The list is organized by store section. Ask Claude to send it to the Skylight grocery list.":"The list is just the products and sizes to search for, one per line. Copy it into Instacart, or ask Claude to build the cart if the Instacart connection is on."));
   var sm=el("div","sum");sm.appendChild(el("span","chip",buy.length+" items to buy"));sm.appendChild(el("span","chip",chk.length+" to check at home"));var tot=0,np=0;buy.forEach(function(x){if(typeof x.est==="number")tot+=x.est;else np++});if(tot>0)sm.appendChild(el("span","chip","About $"+tot.toFixed(2)+" estimated"+(np?" ("+np+" unpriced)":"")));h.appendChild(sm);
+  if(stores.length>1){var sr=el("div","row");sr.style.marginTop="10px";var allB=sh.filter(function(x){return x.kind!=="check"&&!x.have&&!pastOf(x)});
+    [""].concat(stores).forEach(function(st){var its=allB.filter(function(x){return !st||x.store===st});var tt=its.reduce(function(a,x){return a+(typeof x.est==="number"?x.est:0)},0);
+      var b=el("button","b"+((S.shopStore||"")===st?" p":""),(st||"All stores")+" ("+its.length+(tt?", $"+tt.toFixed(2):"")+")");b.onclick=function(){S.shopStore=st;render()};sr.appendChild(b)});h.appendChild(sr)}
   v.appendChild(h);
   var rq=reqCard(["skylight-list","instacart-cart"]);if(rq)v.appendChild(rq);
   var cb=el("div","card");cb.appendChild(el("div","day","Copy this list"));
@@ -1302,20 +1320,23 @@ function renderShop(v){
     v.appendChild(el("div","grp",s));var c=el("div","card");
     g.forEach(function(x){c.appendChild(shopRow(x,"I have this"))});v.appendChild(c)});
   var chk2=chk.filter(sm2);if(chk2.length){v.appendChild(el("div","grp","Check what we have first"));var c2=el("div","card");chk2.forEach(function(x){c2.appendChild(shopRow(x,"We have it"))});v.appendChild(c2)}
+  var past2=past.filter(sm2);if(past2.length){v.appendChild(el("div","grp","For dinners already cooked"));var c4=el("div","card");c4.appendChild(el("div","note","These were for nights that have passed, so they are left out of the list and the total. Tap Still need it if one is still worth buying."));past2.forEach(function(x){c4.appendChild(shopRow(x,"I have this",true))});v.appendChild(c4)}
   var have2=haveIt.filter(sm2);if(have2.length){v.appendChild(el("div","grp","Already have"));var c3=el("div","card");have2.forEach(function(x){c3.appendChild(shopRow(x,"Need to buy"))});v.appendChild(c3)}
   var est=S.meals?planMeals().filter(function(m){return m.kind==="dinner"&&m.cost}).map(function(m){return m.title.split(" ").slice(0,3).join(" ")+": "+m.cost}):[];
   if(est.length){var ec=el("div","card");ec.appendChild(el("div","day","Estimated meal costs"));est.forEach(function(t){ec.appendChild(el("div","note",t))});ec.appendChild(el("div","note","Per-item prices will fill in from the receipt."));v.appendChild(ec)}
 }
-function shopRow(x,label){
+function shopRow(x,label,isPast){
   var row=el("div","prow");var top=el("div","top");
   var l=el("div");l.appendChild(el("b",null,x.buy));
   var det=[];if(x.need)det.push("need "+x.need);if(x.covers)det.push(x.covers);
   if(det.length)l.appendChild(el("div","note",det.join(" · ")));
   if(x.leftover)l.appendChild(el("div","note","Left over: "+x.leftover));
   top.appendChild(l);
+  if(x.store&&!x.have)l.appendChild(el("div","note","Buy at "+x.store));
   if(typeof x.est==="number")top.appendChild(el("span","chip","$"+x.est.toFixed(2)));
   row.appendChild(top);
   if(S.canWrite&&S.db){var ctl=el("div","ctl");var b=el("button","b",label);b.disabled=S.busy;b.onclick=function(){write(putShop(x,{have:!x.have}))};ctl.appendChild(b);
+    if(isPast){var sn=el("button","b","Still need it");sn.disabled=S.busy;sn.onclick=function(){write(putShop(x,{covers:String(x.covers||"").replace(/\b(sun|mon|tue|wed|thu|fri|sat)\w*\s*/ig,"").replace(/^[\s,]+|[\s,]+$/g,"")||"still needed"}))};ctl.appendChild(sn)}
     var eb=el("button","b","Edit");eb.onclick=function(){openEdit("shop:"+x.id)};ctl.appendChild(eb);row.appendChild(ctl);
     if(S.edit==="shop:"+x.id)row.appendChild(editForm([{k:"buy",label:"What to buy",val:x.buy},{k:"need",label:"Amount needed",val:x.need||""},{k:"section",label:"Section",val:x.section||"Other",opts:GSECS}],function(o){write(putShop(x,{buy:o.buy.trim()||x.buy,need:o.need.trim(),section:o.section}))}))}
   return row;
@@ -1397,6 +1418,7 @@ window.CookExt={photo:{get:function(rid){return (S.ph||{})[rid]||""},can:functio
   memory:function(){return S.pm||{}},
   remember:function(pairs){if(!S.db)return;var pm=S.pm||(S.pm={});pairs.forEach(function(p){if(p.key&&pm[p.key]!==p.id){pm[p.key]=p.id;S.db.doc("pmatch/"+p.key).set({id:p.id,ts:Date.now()})}})},
   items:function(){return (S.pantry||[]).filter(function(x){return x.state!=="used"&&!allExpired(x)}).map(function(x){var ex=(lotsOf(x)||[]).map(function(l){return l.exp}).filter(Boolean).sort()[0]||"";return {id:x.id,name:x.name,size:sizeOf(x),total:totalOf(x),exp:ex}})},
+  mark:function(rid,date){if(!S.db)return Promise.resolve();return S.db.doc("recipes/"+rid).update({pantryFor:date}).catch(function(){})},
   apply:function(uses){if(!S.db)return Promise.resolve(-1);var agg={};uses.forEach(function(u){if(u.id&&u.k>0)agg[u.id]=(agg[u.id]||0)+u.k});
     var jobs=[];Object.keys(agg).forEach(function(id){var x=(S.pantry||[]).filter(function(p){return p.id===id})[0];if(!x)return;var nx=useOne(lotsOf(x),agg[id]);jobs.push(putPantry(x,{lots:nx,state:nx.length?"have":"used"}))});
     return Promise.all(jobs).then(function(){return jobs.length}).catch(function(){return -1})}
