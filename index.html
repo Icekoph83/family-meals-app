@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-10c">
+<meta name="app-v" content="2026-11-10d">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -351,6 +351,9 @@ function renderRecipe(){
   var hp=pimg(r.id,180);if(hp)app.appendChild(hp);
   app.appendChild(el("h1",null,r.title));
   app.appendChild(el("div","mut",[r.day,r.time,r.servings,r.cost].filter(Boolean).join(" · ")));
+  var shs=(pantryApi()&&pantryApi().short)?pantryApi().short(r):[];
+  if(r.adapt&&r.adapt.date===r.date&&r.adapt.text){var ab=el("div","warnbox");ab.appendChild(el("b",null,"Adjusted for what arrived"));ab.appendChild(el("div",null,r.adapt.text));app.appendChild(ab)}
+  else if(shs.length){var sb=el("div","warnbox");sb.appendChild(el("b",null,"Short on ingredients"));sb.appendChild(el("div",null,shs.map(function(x){return x.name+" (got "+x.got+" of "+x.of+")"}).join(", ")+". Claude adjusts the recipe within the hour. Check back here before you cook."));app.appendChild(sb)}
   if(r.verdict||r.vp)app.appendChild(el("div","mut","Verdicts: "+vpLine(r)));
   if(r.intro)app.appendChild(el("p","mut",r.intro));
   if(r.ahead){var ab=el("div","warnbox");ab.appendChild(el("b",null,"Make ahead: "));ab.appendChild(document.createTextNode(r.ahead));app.appendChild(ab)}
@@ -1284,7 +1287,7 @@ function renderPantry(v){
 
 
 var GSECS=["Produce","Meat & Seafood","Dairy","Pantry","Bakery","Other"];
-function putShop(x,patch){var d={};["name","buy","need","covers","leftover","section","kind","order","est","week","store","priced","bought"].forEach(function(k){if(x[k]!==undefined)d[k]=x[k]});d.have=!!x.have;for(var k in patch)d[k]=patch[k];return S.db.doc("shoplist/"+x.id).set(d)}
+function putShop(x,patch){var d={};["name","buy","need","covers","leftover","section","kind","order","est","week","store","priced","bought","got","short"].forEach(function(k){if(x[k]!==undefined)d[k]=x[k]});d.have=!!x.have;for(var k in patch)d[k]=patch[k];return S.db.doc("shoplist/"+x.id).set(d)}
 function shopText(items,mode){
   var out=[];
   if(mode==="instacart"){items.forEach(function(x){out.push(x.buy)});return out.join("\n")}
@@ -1320,8 +1323,11 @@ function renderShop(v){
   if(stores.length>1){var sr=el("div","row");sr.style.marginTop="10px";var allB=sh.filter(function(x){return x.kind!=="check"&&!x.have&&!pastOf(x)});
     [""].concat(stores).forEach(function(st){var its=allB.filter(function(x){return !st||x.store===st});var tt=its.reduce(function(a,x){return a+(typeof x.est==="number"?x.est:0)},0);
       var b=el("button","b"+((S.shopStore||"")===st?" p":""),(st||"All stores")+" ("+its.length+(tt?", $"+tt.toFixed(2):"")+")");b.onclick=function(){S.shopStore=st;render()};sr.appendChild(b)});h.appendChild(sr)}
+  if(buy.length&&S.pantry&&S.canWrite&&S.db){var allb=el("button","b","Everything "+(S.shopStore?"from "+S.shopStore+" ":"")+"arrived ("+buy.length+")");allb.style.cssText="width:100%;margin-top:10px";allb.disabled=S.busy;
+    allb.onclick=function(){if(!confirm("Mark all "+buy.length+" items as bought and add them to the pantry? Use Got less first on anything that came up short."))return;write(buy.reduce(function(pr,x){return pr.then(function(){return boughtJob(x)})},Promise.resolve()))};h.appendChild(allb);
+    h.appendChild(el("div","note","After an order: tap Got less on anything the shopper shorted or skipped, then this button for the rest."))}
   v.appendChild(h);
-  var rq=reqCard(["skylight-list","instacart-cart"]);if(rq)v.appendChild(rq);
+  var rq=reqCard(["skylight-list","instacart-cart","shortage"]);if(rq)v.appendChild(rq);
   var cb=el("div","card");cb.appendChild(el("div","day","Copy this list"));
   var ta=el("textarea");ta.readOnly=true;ta.rows=6;ta.value=shopText(buy,mode);cb.appendChild(ta);
   var cr=el("div","row");var cp=el("button","b","Copy");cp.onclick=function(){ta.select();try{navigator.clipboard.writeText(ta.value).then(function(){cp.textContent="Copied"}).catch(function(){cp.textContent="Press and hold the text to copy"})}catch(e){cp.textContent="Press and hold the text to copy"}};cr.appendChild(cp);cb.appendChild(cr);v.appendChild(cb);
@@ -1336,12 +1342,15 @@ function renderShop(v){
   var est=S.meals?planMeals().filter(function(m){return m.kind==="dinner"&&m.cost}).map(function(m){return m.title.split(" ").slice(0,3).join(" ")+": "+m.cost}):[];
   if(est.length){var ec=el("div","card");ec.appendChild(el("div","day","Estimated meal costs"));est.forEach(function(t){ec.appendChild(el("div","note",t))});ec.appendChild(el("div","note","Per-item prices will fill in from the receipt."));v.appendChild(ec)}
 }
-function boughtIt(x){var norm=function(t){return String(t||"").toLowerCase().replace(/\s+/g," ").trim()};var nm=String(x.name||x.buy||"").trim();
-  var m=/^\s*(\d+)\s/.exec(String(x.buy||""));var cnt=m?Math.max(1,Math.min(12,+m[1])):1;var lot={n:cnt,exp:""};var day=localIso();
-  var ex=(S.pantry||[]).filter(function(p){return norm(p.name)===norm(nm)})[0];var job;
-  if(ex)job=putPantry(ex,{lots:cleanLots((ex.state==="used"?[]:lotsOf(ex)).concat([lot])),state:"have",note:"Bought "+fmtDate(day)});
-  else job=S.db.collection("pantry").add({name:nm.charAt(0).toUpperCase()+nm.slice(1),size:((/(\d+(?:\.\d+)?\s?(?:oz|lb|ct|count)\b)/i.exec(String(x.buy||""))||[])[1]||String(x.buy||"").replace(/^\s*\d+\s+/,"").replace(/\s*[\(,].*$/,"").trim()),lots:[lot],loc:/^(Produce|Dairy|Meat)/.test(x.section||"")?"Fridge":"Pantry",note:"Bought "+fmtDate(day),state:"have",restock:""});
-  return write(Promise.all([job,putShop(x,{have:true,bought:day})]))}
+function shopCount(x){var m=/^\s*(\d+)\s/.exec(String(x.buy||""));return m?Math.max(1,Math.min(12,+m[1])):1}
+function boughtJob(x,k){var norm=function(t){return String(t||"").toLowerCase().replace(/\s+/g," ").trim()};var nm=String(x.name||x.buy||"").trim();
+  var cnt=shopCount(x);if(k===undefined)k=cnt;var day=localIso();var jobs=[];
+  if(k>0){var lot={n:k,exp:""};var ex=(S.pantry||[]).filter(function(p){return norm(p.name)===norm(nm)})[0];
+    if(ex)jobs.push(putPantry(ex,{lots:cleanLots((ex.state==="used"?[]:lotsOf(ex)).concat([lot])),state:"have",note:"Bought "+fmtDate(day)}));
+    else jobs.push(S.db.collection("pantry").add({name:nm.charAt(0).toUpperCase()+nm.slice(1),size:((/(\d+(?:\.\d+)?\s?(?:oz|lb|ct|count)\b)/i.exec(String(x.buy||""))||[])[1]||String(x.buy||"").replace(/^\s*\d+\s+/,"").replace(/\s*[\(,].*$/,"").trim()),lots:[lot],loc:/^(Produce|Dairy|Meat)/.test(x.section||"")?"Fridge":"Pantry",note:"Bought "+fmtDate(day),state:"have",restock:""}))}
+  var patch={have:k>0,bought:day,got:k};if(k<cnt){patch.short=true;jobs.push(sendReq("shortage","Short on "+nm+": got "+k+" of "+cnt,{sid:x.id,name:nm,got:k,of:cnt,covers:x.covers||"",week:x.week||""}))}else patch.short=false;
+  jobs.push(putShop(x,patch));return Promise.all(jobs)}
+function boughtIt(x,k){return write(boughtJob(x,k))}
 function shopRow(x,label,isPast){
   var row=el("div","prow");var top=el("div","top");
   var l=el("div");l.appendChild(el("b",null,x.buy));
@@ -1350,13 +1359,17 @@ function shopRow(x,label,isPast){
   if(x.leftover)l.appendChild(el("div","note","Left over: "+x.leftover));
   top.appendChild(l);
   if(x.store&&!x.have)l.appendChild(el("div","note","Buy at "+x.store));
-  if(x.have&&x.bought)l.appendChild(el("div","note","Bought "+fmtDate(x.bought)+", added to the pantry"));
+  if(x.short)l.appendChild(el("div","note",x.got>0?"Short: got "+x.got+" of "+shopCount(x)+". The recipe will be adjusted.":"The shopper couldn't get this. The recipe will be adjusted, or buy it yourself."));
+  else if(x.have&&x.bought)l.appendChild(el("div","note","Bought "+fmtDate(x.bought)+", added to the pantry"));
   if(typeof x.est==="number")top.appendChild(el("span","chip","$"+x.est.toFixed(2)));
   row.appendChild(top);
-  if(S.canWrite&&S.db){var ctl=el("div","ctl");if(!x.have&&x.kind!=="check"&&S.pantry){var bb=el("button","b p","Bought it");bb.disabled=S.busy;bb.onclick=function(){boughtIt(x)};ctl.appendChild(bb)}
+  if(S.canWrite&&S.db){var ctl=el("div","ctl");if(!x.have&&x.kind!=="check"&&S.pantry){var bb=el("button","b p","Bought it");bb.disabled=S.busy;bb.onclick=function(){boughtIt(x)};ctl.appendChild(bb);
+      var gl=el("button","b"+(S.less===x.id?" p":""),"Got less");gl.disabled=S.busy;gl.onclick=function(){S.less=S.less===x.id?null:x.id;render()};ctl.appendChild(gl)}
     var b=el("button","b",label);b.disabled=S.busy;b.onclick=function(){write(putShop(x,{have:!x.have}))};ctl.appendChild(b);
     if(isPast){var sn=el("button","b","Still need it");sn.disabled=S.busy;sn.onclick=function(){write(putShop(x,{covers:String(x.covers||"").replace(/\b(sun|mon|tue|wed|thu|fri|sat)\w*\s*/ig,"").replace(/^[\s,]+|[\s,]+$/g,"")||"still needed"}))};ctl.appendChild(sn)}
     var eb=el("button","b","Edit");eb.onclick=function(){openEdit("shop:"+x.id)};ctl.appendChild(eb);row.appendChild(ctl);
+    if(S.less===x.id&&!x.have){var lr=el("div","ctl");var cn=shopCount(x);lr.appendChild(el("span","note","How many arrived"+(cn>1?" (asked for "+cn+")":"")+"?"));
+      for(var q=0;q<cn;q++)(function(q){var b=el("button","b",q===0?"None":String(q));b.disabled=S.busy;b.onclick=function(){S.less=null;boughtIt(x,q)};lr.appendChild(b)})(q);row.appendChild(lr)}
     if(S.edit==="shop:"+x.id)row.appendChild(editForm([{k:"buy",label:"What to buy",val:x.buy},{k:"need",label:"Amount needed",val:x.need||""},{k:"section",label:"Section",val:x.section||"Other",opts:GSECS}],function(o){write(putShop(x,{buy:o.buy.trim()||x.buy,need:o.need.trim(),section:o.section}))}))}
   return row;
 }
@@ -1437,6 +1450,8 @@ window.CookExt={photo:{get:function(rid){return (S.ph||{})[rid]||""},can:functio
   memory:function(){return S.pm||{}},
   remember:function(pairs){if(!S.db)return;var pm=S.pm||(S.pm={});pairs.forEach(function(p){if(p.key&&pm[p.key]!==p.id){pm[p.key]=p.id;S.db.doc("pmatch/"+p.key).set({id:p.id,ts:Date.now()})}})},
   items:function(){return (S.pantry||[]).filter(function(x){return x.state!=="used"&&!allExpired(x)}).map(function(x){var ex=(lotsOf(x)||[]).map(function(l){return l.exp}).filter(Boolean).sort()[0]||"";return {id:x.id,name:x.name,size:sizeOf(x),total:totalOf(x),exp:ex}})},
+  short:function(r){if(!r||!r.date||!S.shop)return [];var wk=satOf(r.date),dn=["sun","mon","tue","wed","thu","fri","sat"][new Date(r.date+"T12:00:00").getDay()];
+    return S.shop.filter(function(x){return x.short&&(x.week||"")===wk&&new RegExp("\\b"+dn,"i").test(x.covers||"")}).map(function(x){return {name:x.name,got:x.got||0,of:shopCount(x)}})},
   mark:function(rid,date){if(!S.db)return Promise.resolve();return S.db.doc("recipes/"+rid).update({pantryFor:date}).catch(function(){})},
   apply:function(uses){if(!S.db)return Promise.resolve(-1);var agg={};uses.forEach(function(u){if(u.id&&u.k>0)agg[u.id]=(agg[u.id]||0)+u.k});
     var jobs=[];Object.keys(agg).forEach(function(id){var x=(S.pantry||[]).filter(function(p){return p.id===id})[0];if(!x)return;var nx=useOne(lotsOf(x),agg[id]);jobs.push(putPantry(x,{lots:nx,state:nx.length?"have":"used"}))});
