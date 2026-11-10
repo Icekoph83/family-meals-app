@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-10a">
+<meta name="app-v" content="2026-11-10b">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -256,8 +256,9 @@ function buildPU(r){var P=pantryApi();var items=P?P.items():[];
 function onHand(it,k){if(!it)return "Not from the pantry, nothing to update.";var left=Math.max(0,it.total-(+k||0));return "Have "+it.total+" × "+(it.size||"container")+(it.total===1?"":"s")+". After: "+left+"."}
 function renderPantryConfirm(r){
   var PU=S.pu||(buildPU(r),S.pu),P=pantryApi();app.textContent="";
-  var back=el("button",null,"← Back");back.onclick=function(){S.mode="fb";render()};app.appendChild(back);
-  app.appendChild(el("h1",null,"Update the pantry"));app.appendChild(el("div","mut",r.title));
+  var pf1=!!(S.fb&&S.fb.pfirst);
+  var back=el("button",null,"← Back");back.onclick=function(){if(pf1){S.fb=null;S.pu=null;S.mode="cook"}else S.mode="fb";render()};app.appendChild(back);
+  app.appendChild(el("h1",null,pf1?"Dinner's done. What did it use?":"Update the pantry"));app.appendChild(el("div","mut",r.title));
   app.appendChild(el("p","mut","Tick what you used and adjust the counts. The pantry counts whole containers (cans, bags, bottles, blocks), so spices and oil are unticked by default. Nothing changes until you tap Update pantry."));
   var byId={};PU.items.forEach(function(it){byId[it.id]=it});
   PU.rows.forEach(function(row){
@@ -286,8 +287,9 @@ function renderPantryConfirm(r){
     if(n<0){PU.err="Could not update the pantry. Check your connection and try again.";render();return}
     try{if(P.remember)P.remember(PU.rows.filter(function(x){return x.id&&(x.use||x.rem)}).map(function(x){return {key:pkey(x.ing),id:x.id}}))}catch(e){}
     try{if(P.mark&&r.date)P.mark(r.id,r.date)}catch(e){}
-    if(S.fb)S.fb.pdone=n;S.pu=null;S.mode="fb";render();window.scrollTo(0,0)})};
-  app.appendChild(go)}
+    if(S.fb){S.fb.pdone=n;S.fb.pfirst=false}S.pu=null;S.mode="fb";render();window.scrollTo(0,0)})};
+  app.appendChild(go);
+  if(pf1){var skp=el("button",null,"Skip, nothing to update");skp.style.cssText="width:100%;padding:12px;margin:6px 0";skp.onclick=function(){try{if(P&&P.mark&&r.date)P.mark(r.id,r.date)}catch(e){}S.fb.pfirst=false;S.pu=null;S.mode="fb";render();window.scrollTo(0,0)};app.appendChild(skp)}}
 
 function ingRow(i,hl,r){
   var row=el("label","ing"+(S.done[i.id]?" done":"")+(hl?" hl":""));
@@ -390,8 +392,9 @@ function renderRecipe(){
   (r.ingredients||[]).forEach(function(i){ic.appendChild(ingRow(i,uses.indexOf(i.id)>=0,r))});app.appendChild(ic);
   var nav=el("div","nav"),in2=el("div");
   var p=el("button",null,"← Back");p.disabled=S.step===0;p.onclick=function(){S.step--;save();render();window.scrollTo(0,0)};
-  var last=S.step>=steps.length-1;var n=el("button","pri",last?"Done, how did it go?":"Next →");
-  n.onclick=function(){if(last){S.fb=newFb(true);S.mode="fb";save();render();window.scrollTo(0,0)}else{S.step++;save();render();window.scrollTo(0,0)}};
+  var last=S.step>=steps.length-1;var pFirst=last&&!!pantryApi()&&(r.ingredients||[]).length>0&&!(r.date&&r.pantryFor===r.date);
+  var n=el("button","pri",last?(pFirst?"Done, update the pantry →":"Done, how did it go?"):"Next →");
+  n.onclick=function(){if(last){S.fb=newFb(true);if(pFirst){S.fb.pfirst=true;S.pu=null;S.mode="pantry"}else S.mode="fb";save();render();window.scrollTo(0,0)}else{S.step++;save();render();window.scrollTo(0,0)}};
   in2.appendChild(p);in2.appendChild(n);nav.appendChild(in2);app.appendChild(nav)}
 
 function render(){if(!app)return;var y=window.scrollY;if(S.cur){wakeOn();renderRecipe()}else renderList();if(y)window.scrollTo(0,y)}
@@ -1273,7 +1276,7 @@ function renderPantry(v){
 
 
 var GSECS=["Produce","Meat & Seafood","Dairy","Pantry","Bakery","Other"];
-function putShop(x,patch){var d={};["name","buy","need","covers","leftover","section","kind","order","est","week","store","priced"].forEach(function(k){if(x[k]!==undefined)d[k]=x[k]});d.have=!!x.have;for(var k in patch)d[k]=patch[k];return S.db.doc("shoplist/"+x.id).set(d)}
+function putShop(x,patch){var d={};["name","buy","need","covers","leftover","section","kind","order","est","week","store","priced","bought"].forEach(function(k){if(x[k]!==undefined)d[k]=x[k]});d.have=!!x.have;for(var k in patch)d[k]=patch[k];return S.db.doc("shoplist/"+x.id).set(d)}
 function shopText(items,mode){
   var out=[];
   if(mode==="instacart"){items.forEach(function(x){out.push(x.buy)});return out.join("\n")}
@@ -1325,6 +1328,12 @@ function renderShop(v){
   var est=S.meals?planMeals().filter(function(m){return m.kind==="dinner"&&m.cost}).map(function(m){return m.title.split(" ").slice(0,3).join(" ")+": "+m.cost}):[];
   if(est.length){var ec=el("div","card");ec.appendChild(el("div","day","Estimated meal costs"));est.forEach(function(t){ec.appendChild(el("div","note",t))});ec.appendChild(el("div","note","Per-item prices will fill in from the receipt."));v.appendChild(ec)}
 }
+function boughtIt(x){var norm=function(t){return String(t||"").toLowerCase().replace(/\s+/g," ").trim()};var nm=String(x.name||x.buy||"").trim();
+  var m=/^\s*(\d+)\s/.exec(String(x.buy||""));var cnt=m?Math.max(1,Math.min(12,+m[1])):1;var lot={n:cnt,exp:""};var day=localIso();
+  var ex=(S.pantry||[]).filter(function(p){return norm(p.name)===norm(nm)})[0];var job;
+  if(ex)job=putPantry(ex,{lots:cleanLots((ex.state==="used"?[]:lotsOf(ex)).concat([lot])),state:"have",note:"Bought "+fmtDate(day)});
+  else job=S.db.collection("pantry").add({name:nm.charAt(0).toUpperCase()+nm.slice(1),size:((/(\d+(?:\.\d+)?\s?(?:oz|lb|ct|count)\b)/i.exec(String(x.buy||""))||[])[1]||String(x.buy||"").replace(/^\s*\d+\s+/,"").replace(/\s*[\(,].*$/,"").trim()),lots:[lot],loc:/^(Produce|Dairy|Meat)/.test(x.section||"")?"Fridge":"Pantry",note:"Bought "+fmtDate(day),state:"have",restock:""});
+  return write(Promise.all([job,putShop(x,{have:true,bought:day})]))}
 function shopRow(x,label,isPast){
   var row=el("div","prow");var top=el("div","top");
   var l=el("div");l.appendChild(el("b",null,x.buy));
@@ -1333,9 +1342,11 @@ function shopRow(x,label,isPast){
   if(x.leftover)l.appendChild(el("div","note","Left over: "+x.leftover));
   top.appendChild(l);
   if(x.store&&!x.have)l.appendChild(el("div","note","Buy at "+x.store));
+  if(x.have&&x.bought)l.appendChild(el("div","note","Bought "+fmtDate(x.bought)+", added to the pantry"));
   if(typeof x.est==="number")top.appendChild(el("span","chip","$"+x.est.toFixed(2)));
   row.appendChild(top);
-  if(S.canWrite&&S.db){var ctl=el("div","ctl");var b=el("button","b",label);b.disabled=S.busy;b.onclick=function(){write(putShop(x,{have:!x.have}))};ctl.appendChild(b);
+  if(S.canWrite&&S.db){var ctl=el("div","ctl");if(!x.have&&x.kind!=="check"&&S.pantry){var bb=el("button","b p","Bought it");bb.disabled=S.busy;bb.onclick=function(){boughtIt(x)};ctl.appendChild(bb)}
+    var b=el("button","b",label);b.disabled=S.busy;b.onclick=function(){write(putShop(x,{have:!x.have}))};ctl.appendChild(b);
     if(isPast){var sn=el("button","b","Still need it");sn.disabled=S.busy;sn.onclick=function(){write(putShop(x,{covers:String(x.covers||"").replace(/\b(sun|mon|tue|wed|thu|fri|sat)\w*\s*/ig,"").replace(/^[\s,]+|[\s,]+$/g,"")||"still needed"}))};ctl.appendChild(sn)}
     var eb=el("button","b","Edit");eb.onclick=function(){openEdit("shop:"+x.id)};ctl.appendChild(eb);row.appendChild(ctl);
     if(S.edit==="shop:"+x.id)row.appendChild(editForm([{k:"buy",label:"What to buy",val:x.buy},{k:"need",label:"Amount needed",val:x.need||""},{k:"section",label:"Section",val:x.section||"Other",opts:GSECS}],function(o){write(putShop(x,{buy:o.buy.trim()||x.buy,need:o.need.trim(),section:o.section}))}))}
