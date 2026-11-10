@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-10b">
+<meta name="app-v" content="2026-11-10c">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -253,13 +253,13 @@ function buildPU(r){var P=pantryApi();var items=P?P.items():[];
     var cand=c.map(function(x){return x.it.id});if(rem&&cand.indexOf(mid)<0)cand.unshift(mid);
     return {ing:i,id:best?best.id:"",use:!!(best&&cc),k:cc||1,cand:cand,rem:rem}});
   S.pu={rows:rows,items:items,err:"",busy:false}}
-function onHand(it,k){if(!it)return "Not from the pantry, nothing to update.";var left=Math.max(0,it.total-(+k||0));return "Have "+it.total+" × "+(it.size||"container")+(it.total===1?"":"s")+". After: "+left+"."}
+function onHand(it,k){if(!it)return "Not from the pantry, nothing to update.";var F=window.fmFr||String;var left=Math.max(0,it.total-(+k||0));return "Have "+F(it.total)+" × "+(it.size||"container")+(it.total===1?"":"s")+". After: "+F(left)+"."}
 function renderPantryConfirm(r){
   var PU=S.pu||(buildPU(r),S.pu),P=pantryApi();app.textContent="";
   var pf1=!!(S.fb&&S.fb.pfirst);
   var back=el("button",null,"← Back");back.onclick=function(){if(pf1){S.fb=null;S.pu=null;S.mode="cook"}else S.mode="fb";render()};app.appendChild(back);
   app.appendChild(el("h1",null,pf1?"Dinner's done. What did it use?":"Update the pantry"));app.appendChild(el("div","mut",r.title));
-  app.appendChild(el("p","mut","Tick what you used and adjust the counts. The pantry counts whole containers (cans, bags, bottles, blocks), so spices and oil are unticked by default. Nothing changes until you tap Update pantry."));
+  app.appendChild(el("p","mut","Tick what you used and adjust the counts. The pantry counts containers (cans, bags, bottles, blocks), and you can use part of one: enter 0.5 for half or 0.25 for a quarter. Spices and oil are unticked by default. Nothing changes until you tap Update pantry."));
   var byId={};PU.items.forEach(function(it){byId[it.id]=it});
   PU.rows.forEach(function(row){
     var c=el("div","card");var top=el("label","ing");var cb=el("input");cb.type="checkbox";cb.checked=row.use&&!!row.id;cb.disabled=!row.id;
@@ -271,9 +271,9 @@ function renderPantryConfirm(r){
     var og=el("optgroup");og.label="Other pantry items";PU.items.slice().sort(function(a,b){return a.name.localeCompare(b.name)}).forEach(function(it){if(!seen[it.id]){var o=el("option",null,it.name);o.value=it.id;og.appendChild(o)}});sel.appendChild(og);
     sel.value=row.id;sel.onchange=function(){row.id=sel.value;if(!row.id)row.use=false;render()};c.appendChild(sel);
     var it=byId[row.id];var ln=el("div","row");ln.style.marginTop="8px";
-    if(it){ln.appendChild(el("span","mut","Use"));var n=el("input");n.type="number";n.min="0";n.step="1";n.inputMode="numeric";n.style.width="80px";n.value=row.k;
+    if(it){ln.appendChild(el("span","mut","Use"));var n=el("input");n.type="number";n.min="0";n.step="0.25";n.inputMode="decimal";n.style.width="80px";n.value=row.k;
       var hand=el("div","mut",onHand(it,row.use?row.k:0));
-      n.oninput=function(){row.k=Math.max(0,Math.floor(+n.value||0));hand.textContent=onHand(it,row.use?row.k:0)};ln.appendChild(n);c.appendChild(ln);c.appendChild(hand);
+      n.oninput=function(){row.k=Math.max(0,Math.round((+n.value||0)*4)/4);hand.textContent=onHand(it,row.use?row.k:0)};ln.appendChild(n);c.appendChild(ln);c.appendChild(hand);
       var PHa=photoApi();if(PHa&&PHa.can()){var hasP=PHa.get("pantry:"+it.id);
         if(hasP){var tp=document.createElement("img");tp.src=hasP;tp.alt="";tp.style.cssText="width:44px;height:44px;object-fit:cover;border-radius:8px;margin-top:6px";c.appendChild(tp)}
         else{var pf=el("input");pf.type="file";pf.accept="image/*";pf.style.display="none";var pb=el("button",null,"Add a photo so it's easy to find");pb.style.marginTop="6px";pb.onclick=function(){pf.click()};
@@ -1062,15 +1062,18 @@ var LOCS=["Pantry","Fridge","Freezer"];
 function dleft(s){if(!s)return null;var t=new Date(s+"T12:00:00");var n=new Date();n.setHours(12,0,0,0);return Math.round((t-n)/864e5)}
 function sizeOf(x){return x.size!==undefined?x.size:(x.qty||"")}
 function lotsOf(x){if(Array.isArray(x.lots))return x.lots.map(function(l){return {n:Number(l.n)||0,exp:l.exp||""}});return [{n:1,exp:x.exp||""}]}
-function cleanLots(ls){var m={},out=[];ls.forEach(function(l){if(!(l.n>0))return;var k=l.exp||"";if(m[k]){m[k].n+=l.n}else{m[k]={n:l.n,exp:k};out.push(m[k])}});out.sort(function(a,b){if(!a.exp)return 1;if(!b.exp)return -1;return a.exp<b.exp?-1:1});return out}
+function cleanLots(ls){var m={},out=[];ls.forEach(function(l){l={n:q4(l.n),exp:l.exp};if(!(l.n>0))return;var k=l.exp||"";if(m[k]){m[k].n=q4(m[k].n+l.n)}else{m[k]={n:l.n,exp:k};out.push(m[k])}});out.sort(function(a,b){if(!a.exp)return 1;if(!b.exp)return -1;return a.exp<b.exp?-1:1});return out}
 function allExpired(x){var l=lotsOf(x).filter(function(l){return l.n>0});return l.length>0&&l.every(function(l){return l.exp&&dleft(l.exp)<0})}
-function totalOf(x){return lotsOf(x).reduce(function(s,l){return s+l.n},0)}
+function q4(n){return Math.round((Number(n)||0)*4)/4}
+function fr(n){n=q4(n);var w=Math.floor(n),f=n-w;var g=f===0.25?"¼":f===0.5?"½":f===0.75?"¾":"";return (w||!g?String(w):"")+g}
+window.fmFr=fr;
+function totalOf(x){return q4(lotsOf(x).reduce(function(s,l){return s+l.n},0))}
 function soonest(x){var best=null;lotsOf(x).forEach(function(l){if(l.n>0&&l.exp){var d=dleft(l.exp);if(best===null||d<best)best=d}});return best}
 function putPantry(x,patch){var d={name:x.name,size:sizeOf(x),lots:cleanLots(lotsOf(x)),loc:x.loc||"Pantry",note:x.note||"",state:x.state||"have",restock:x.restock||""};for(var k in patch)d[k]=patch[k];if(d.lots&&d.state!=="used"&&!d.lots.length&&!("state" in patch))d.state="used";return S.db.doc("pantry/"+x.id).set(d)}
-function useOne(lots,k){lots=cleanLots(lots);while(k>0&&lots.length){lots[0].n--;k--;if(lots[0].n<=0)lots.shift()}return lots}
+function useOne(lots,k){lots=cleanLots(lots);k=q4(k);while(k>0&&lots.length){var t=Math.min(k,lots[0].n);lots[0].n=q4(lots[0].n-t);k=q4(k-t);if(lots[0].n<=0)lots.shift()}return lots}
 function whenText(dl){if(dl===null)return "no date yet";if(dl<0)return "expired "+(-dl)+" day"+(dl===-1?"":"s")+" ago";if(dl===0)return "expires today";return "expires in "+dl+" day"+(dl===1?"":"s")}
 function fmtDate(s){if(!s)return "";var d=new Date(s+"T12:00:00");return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})}
-function countText(x){var t=totalOf(x),s=sizeOf(x);return t+" × "+(s||"container"+(t===1?"":"s"))}
+function countText(x){var t=totalOf(x),s=sizeOf(x);return fr(t)+" × "+(s||"container"+(t===1?"":"s"))}
 
 function pantryJson(){return JSON.stringify(S.pantry.filter(function(x){return x.state!=="used"}).map(function(x){return {id:x.id,name:x.name,size:sizeOf(x),loc:x.loc||"Pantry",lots:cleanLots(lotsOf(x)),note:x.note||""}}))}
 function askPantry(){
@@ -1158,9 +1161,9 @@ function rerenderHeld(){var h=S.hold;S.hold=false;render();S.hold=h}
 function lotRow(x,i,dis,bar){
   var d=draftOf(x);var lots=d||lotsOf(x);var l=lots[i];var row=el("div","ctl");
   function startDraft(){if(!S.dl[x.id])S.dl[x.id]=lotsOf(x).map(function(z){return {n:z.n,exp:z.exp}});S.hold=true;bar.show();return S.dl[x.id]}
-  var ct=el("b",null,String(l.n));ct.style.minWidth="1.4em";ct.style.textAlign="center";
+  var ct=el("b",null,fr(l.n));ct.style.minWidth="1.4em";ct.style.textAlign="center";
   function step(dn){
-    if(S.dl[x.id]){var dr=S.dl[x.id];dr[i].n=Math.max(0,dr[i].n+dn);ct.textContent=String(dr[i].n)}
+    if(S.dl[x.id]){var dr=S.dl[x.id];dr[i].n=Math.max(0,q4(dr[i].n+dn));ct.textContent=fr(dr[i].n)}
     else{var nx=lotsOf(x).map(function(z){return {n:z.n,exp:z.exp}});nx[i].n+=dn;write(putPantry(x,{lots:cleanLots(nx)}))}}
   var mn=el("button","b","−");mn.disabled=dis;mn.onclick=function(){step(-1)};
   var pl=el("button","b","+");pl.disabled=dis;pl.onclick=function(){step(1)};
@@ -1243,12 +1246,17 @@ function renderPantry(v){
       var ctl=el("div","ctl");
       var ad=el("button","b","Add another date");ad.disabled=dis;ad.onclick=function(){if(!S.dl[x.id])S.dl[x.id]=lotsOf(x).map(function(z){return {n:z.n,exp:z.exp}});var dr=S.dl[x.id],bi=-1;dr.forEach(function(z,k){if(z.n>1&&(bi<0||z.n>dr[bi].n))bi=k});if(bi>=0)dr[bi].n-=1;dr.push({n:1,exp:""});S.hold=true;rerenderHeld()};ctl.appendChild(ad);
       var u1=el("button","b","Use one");u1.disabled=dis||drafting;u1.onclick=function(){var nx=useOne(lots,1);write(putPantry(x,{lots:nx,state:nx.length?"have":"used"}))};ctl.appendChild(u1);
+      var us=el("button","b"+(S.part===x.id?" p":""),"Use part");us.disabled=dis||drafting;us.onclick=function(){S.part=S.part===x.id?null:x.id;render()};ctl.appendChild(us);
       var ub=el("button","b","Used up");ub.disabled=dis||drafting;ub.onclick=function(){write(putPantry(x,{lots:[],state:"used"}))};ctl.appendChild(ub);
       var eb=el("button","b","Edit");eb.disabled=drafting;eb.onclick=function(){openEdit("pantry:"+x.id)};ctl.appendChild(eb);
       var pf=el("input");pf.type="file";pf.accept="image/*";pf.style.display="none";var pbt=el("button","b",pimgd?"Replace photo":"Add photo");pbt.disabled=dis||drafting||!window.CookExt.photo.can();
       pbt.onclick=function(){pf.click()};pf.onchange=function(){var f=pf.files&&pf.files[0];if(!f)return;pbt.disabled=true;pbt.textContent="Saving…";window.CookExt.photo.add(pkey2,f,360).then(function(ok){if(ok!==true)S.err=ok==="full"?"Could not save that photo.":"Could not save that photo.";render()})};
       ctl.appendChild(pf);ctl.appendChild(pbt);
-      r.appendChild(ctl);if(S.edit==="pantry:"+x.id)r.appendChild(pantryEdit(x));c.appendChild(r)});
+      var mv=el("select");mv.disabled=dis||drafting;mv.setAttribute("aria-label","Move to");var m0=el("option",null,"Move to…");m0.value="";mv.appendChild(m0);LOCS.forEach(function(L){if(L!==(x.loc||"Pantry")){var o=el("option",null,L);o.value=L;mv.appendChild(o)}});
+      mv.onchange=function(){if(mv.value)write(putPantry(x,{loc:mv.value}))};ctl.appendChild(mv);
+      r.appendChild(ctl);
+      if(S.part===x.id&&!drafting){var pr=el("div","ctl");pr.appendChild(el("span","note","How much of one did you use?"));[[0.25,"¼"],[0.5,"½"],[0.75,"¾"]].forEach(function(o){var b=el("button","b",o[1]);b.disabled=dis;b.onclick=function(){S.part=null;var nx=useOne(lots,o[0]);write(putPantry(x,{lots:nx,state:nx.length?"have":"used"}))};pr.appendChild(b)});r.appendChild(pr)}
+      if(S.edit==="pantry:"+x.id)r.appendChild(pantryEdit(x));c.appendChild(r)});
     v.appendChild(c)});
   if(used.length){
     v.appendChild(el("div","grp","Used up: buy again?"));var uc=el("div","card");
