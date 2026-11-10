@@ -120,7 +120,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-10d">
+<meta name="app-v" content="2026-11-10e">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -1287,7 +1287,7 @@ function renderPantry(v){
 
 
 var GSECS=["Produce","Meat & Seafood","Dairy","Pantry","Bakery","Other"];
-function putShop(x,patch){var d={};["name","buy","need","covers","leftover","section","kind","order","est","week","store","priced","bought","got","short"].forEach(function(k){if(x[k]!==undefined)d[k]=x[k]});d.have=!!x.have;for(var k in patch)d[k]=patch[k];return S.db.doc("shoplist/"+x.id).set(d)}
+function putShop(x,patch){var d={};["name","buy","need","covers","leftover","section","kind","order","est","week","store","priced","bought","got","short","sub"].forEach(function(k){if(x[k]!==undefined)d[k]=x[k]});d.have=!!x.have;for(var k in patch)d[k]=patch[k];return S.db.doc("shoplist/"+x.id).set(d)}
 function shopText(items,mode){
   var out=[];
   if(mode==="instacart"){items.forEach(function(x){out.push(x.buy)});return out.join("\n")}
@@ -1327,7 +1327,8 @@ function renderShop(v){
     allb.onclick=function(){if(!confirm("Mark all "+buy.length+" items as bought and add them to the pantry? Use Got less first on anything that came up short."))return;write(buy.reduce(function(pr,x){return pr.then(function(){return boughtJob(x)})},Promise.resolve()))};h.appendChild(allb);
     h.appendChild(el("div","note","After an order: tap Got less on anything the shopper shorted or skipped, then this button for the rest."))}
   v.appendChild(h);
-  var rq=reqCard(["skylight-list","instacart-cart","shortage"]);if(rq)v.appendChild(rq);
+  if(S.canWrite&&S.db)v.appendChild(receiptCard(cw,mode));
+  var rq=reqCard(["skylight-list","instacart-cart","shortage","receipt"]);if(rq)v.appendChild(rq);
   var cb=el("div","card");cb.appendChild(el("div","day","Copy this list"));
   var ta=el("textarea");ta.readOnly=true;ta.rows=6;ta.value=shopText(buy,mode);cb.appendChild(ta);
   var cr=el("div","row");var cp=el("button","b","Copy");cp.onclick=function(){ta.select();try{navigator.clipboard.writeText(ta.value).then(function(){cp.textContent="Copied"}).catch(function(){cp.textContent="Press and hold the text to copy"})}catch(e){cp.textContent="Press and hold the text to copy"}};cr.appendChild(cp);cb.appendChild(cr);v.appendChild(cb);
@@ -1342,6 +1343,27 @@ function renderShop(v){
   var est=S.meals?planMeals().filter(function(m){return m.kind==="dinner"&&m.cost}).map(function(m){return m.title.split(" ").slice(0,3).join(" ")+": "+m.cost}):[];
   if(est.length){var ec=el("div","card");ec.appendChild(el("div","day","Estimated meal costs"));est.forEach(function(t){ec.appendChild(el("div","note",t))});ec.appendChild(el("div","note","Per-item prices will fill in from the receipt."));v.appendChild(ec)}
 }
+function receiptPut(key,file){return new Promise(function(res,rej){var rd=new FileReader();rd.onerror=function(){rej(new Error("read"))};rd.onload=function(){var im=new Image();im.onerror=function(){rej(new Error("image"))};im.onload=function(){
+  var sc=Math.min(1,1500/im.width),cv=document.createElement("canvas");cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
+  var b64=cv.toDataURL("image/jpeg",0.72).split(",")[1],path=phFile(key);
+  fetch("https://api.github.com/repos/"+PH_REPO+"/contents/"+path,{method:"PUT",headers:Object.assign({"Content-Type":"application/json"},phHdr(false)),body:JSON.stringify({message:"Receipt: "+key,content:b64})}).then(function(r){if(!r.ok)throw new Error("save "+r.status);res(path)}).catch(rej)};im.src=rd.result};rd.readAsDataURL(file)})}
+function receiptCard(cw,mode){var R=S.rc||(S.rc={text:"",files:[],busy:false,err:"",open:false});var c=el("div","card");c.appendChild(el("div","day","Receipt"));
+  var pend=(S.reqs||[]).some(function(x){return x.type==="receipt"&&x.status==="pending"});
+  c.appendChild(el("div","note",mode==="instacart"?"When the Instacart order arrives, send the receipt here. Claude checks it against this list, adds what arrived to the pantry, and adjusts recipes for anything short or swapped.":"Send a store or Instacart receipt and Claude checks it against this list, adds what you bought to the pantry, and flags anything missing."));
+  if(pend){c.appendChild(el("div","status","Receipt sent. Claude reads it at the next hourly check."));return c}
+  if(!R.open){var ob=el("button","b"+(mode==="instacart"?" p":""),"Add a receipt");ob.style.marginTop="8px";ob.disabled=!S.canWrite||!S.db;ob.onclick=function(){R.open=true;render()};c.appendChild(ob);return c}
+  var fi=el("input");fi.type="file";fi.accept="image/*";fi.multiple=true;fi.style.display="none";fi.onchange=function(){for(var i=0;i<fi.files.length&&R.files.length<6;i++)R.files.push(fi.files[i]);render()};c.appendChild(fi);
+  var pb=el("button","b","Add screenshots or photos"+(R.files.length?" ("+R.files.length+" added)":""));pb.style.marginTop="8px";pb.disabled=R.busy||R.files.length>=6;pb.onclick=function(){fi.click()};c.appendChild(pb);
+  if(R.files.length){var cl=el("button","b","Clear");cl.style.margin="8px 0 0 8px";cl.disabled=R.busy;cl.onclick=function(){R.files=[];render()};c.appendChild(cl)}
+  c.appendChild(el("div","note","In the Instacart app, open the order and screenshot the whole item list, including Refunded and Replaced. Up to 6 images. Or paste the text of the receipt email below."));
+  var ta=el("textarea");ta.rows=4;ta.placeholder="Paste receipt text (optional)";ta.value=R.text;ta.oninput=function(){R.text=ta.value};c.appendChild(ta);
+  if(R.err)c.appendChild(el("div","status",R.err));
+  var sb=el("button","b p",R.busy?"Sending…":"Send to Claude");sb.style.marginTop="8px";sb.disabled=R.busy;
+  sb.onclick=function(){if(!R.files.length&&!R.text.trim()){R.err="Add at least one image or paste the receipt text.";render();return}
+    R.busy=true;R.err="";render();var id=Date.now().toString(36);
+    R.files.reduce(function(pr,f,i){return pr.then(function(a){return receiptPut("receipt_"+id+"_"+(i+1),f).then(function(p){a.push(p);return a})})},Promise.resolve([])).then(function(paths){
+      return sendReq("receipt","Check the receipt against the list",{week:cw,files:paths,text:R.text.trim().slice(0,12000)})}).then(function(){S.rc=null;render()}).catch(function(e){R.busy=false;R.err="Could not send the receipt ("+((e&&e.message)||"error")+"). Check your connection and try again.";render()})};
+  c.appendChild(sb);return c}
 function shopCount(x){var m=/^\s*(\d+)\s/.exec(String(x.buy||""));return m?Math.max(1,Math.min(12,+m[1])):1}
 function boughtJob(x,k){var norm=function(t){return String(t||"").toLowerCase().replace(/\s+/g," ").trim()};var nm=String(x.name||x.buy||"").trim();
   var cnt=shopCount(x);if(k===undefined)k=cnt;var day=localIso();var jobs=[];
@@ -1359,6 +1381,7 @@ function shopRow(x,label,isPast){
   if(x.leftover)l.appendChild(el("div","note","Left over: "+x.leftover));
   top.appendChild(l);
   if(x.store&&!x.have)l.appendChild(el("div","note","Buy at "+x.store));
+  if(x.sub)l.appendChild(el("div","note","Swapped: got "+x.sub));
   if(x.short)l.appendChild(el("div","note",x.got>0?"Short: got "+x.got+" of "+shopCount(x)+". The recipe will be adjusted.":"The shopper couldn't get this. The recipe will be adjusted, or buy it yourself."));
   else if(x.have&&x.bought)l.appendChild(el("div","note","Bought "+fmtDate(x.bought)+", added to the pantry"));
   if(typeof x.est==="number")top.appendChild(el("span","chip","$"+x.est.toFixed(2)));
