@@ -122,7 +122,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-11a">
+<meta name="app-v" content="2026-11-11b">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -332,17 +332,19 @@ function prepCard(r,im,interactive){
     row.appendChild(sp);c.appendChild(row)});
   return c}
 
-var SAFE_T=[[/\b(chicken|turkey|duck|poultry)\b/i,"Poultry (any cut, ground too)","165°F"],[/\bground (beef|pork|lamb|veal)|\b(sausage|meatballs?|burgers?)\b/i,"Ground meat and sausage","160°F"],[/\b(pork|beef|lamb|veal|steak|tenderloin|chops?|roast)\b/i,"Whole cuts of pork, beef, lamb","145°F + 3 min rest"],[/\b(salmon|cod|tilapia|tuna|halibut|fish|trout)\b/i,"Fish","145°F or opaque and flakes"],[/\b(shrimp|scallops?|crab|lobster)\b/i,"Shrimp, crab, scallops","Pearly and opaque"],[/\beggs?\b/i,"Egg dishes","160°F; yolk and white firm for the baby"]];
+var SAFE_T=[[/\b(chicken|turkey|duck|poultry)\b/i,"Poultry (any cut, ground too)","165°F"],[/\bground (beef|pork|lamb|veal)|\b(sausage|meatballs?|burgers?)\b/i,"Ground meat and sausage","160°F"],[/\b(pork|beef|lamb|veal|steak|tenderloin|chops?|roast)\b/i,"Whole cuts of pork, beef, lamb","145°F + 3 min rest"],[/\b(salmon|cod|tilapia|tuna|halibut|fish|trout)\b/i,"Fish","145°F or opaque and flakes"],[/\b(shrimp|scallops?|crab|lobster)\b/i,"Shrimp, crab, scallops","Pearly and opaque"],[/\beggs?\b/i,"Egg dishes","160°F; yolk and white firm for the baby"],[/\brice\b/i,"Rice","Cool within 1 hour; reheat once, steaming hot"]];
 function safeTemps(r){var txt=(r.ingredients||[]).map(function(i){return i.name}).join(" | ");var out=[];SAFE_T.forEach(function(t){if(t[0].test(txt))out.push(t)});
   var has=function(lbl){return out.some(function(t){return t[1]===lbl})};
   if(has("Poultry (any cut, ground too)")&&!/ground (beef|pork|lamb|veal)|sausage/i.test(txt))out=out.filter(function(t){return t[1]!=="Ground meat and sausage"});
-  if(out.length>1)out=out.filter(function(t){return t[1]!=="Egg dishes"});return out}
+  if(out.filter(function(t){return t[1]!=="Rice"}).length>1)out=out.filter(function(t){return t[1]!=="Egg dishes"});return out}
 var LEFT_GEN={fridge:"3 to 4 days",freeze:"2 to 6 months for quality",store:"Cool and refrigerate within 2 hours of cooking (1 hour above 90°F). Use shallow containers; hot food can go straight into the fridge.",reheat:"Reheat to 165°F, checked with the thermometer. Bring soups and sauces to a rolling boil. In the microwave, cover, stir and rotate, then let it stand a minute before checking."};
+var RICE_NOTE="Rice: cool it within 1 hour, reheat only what you'll eat, once, until steaming hot all the way through.";
 function safetyCard(r){var tl=safeTemps(r),notes=r.safety||[];if(!tl.length&&!notes.length)return null;var c=el("div","card");c.appendChild(el("h2",null,"Food safety"));
   if(tl.length){var t=el("div");tl.forEach(function(x){t.appendChild(el("span","chip",x[1]+": "+x[2]))});c.appendChild(t)}
   notes.forEach(function(n){var d=el("div",null,"• "+n);d.style.padding="3px 0";c.appendChild(d)});
   if(tl.length)c.appendChild(el("div","mut","Check temperatures in the thickest part with the meat thermometer. Keep raw meat, poultry and eggs away from ready-to-eat food, and wash hands, boards and knives after touching them."));return c}
 function leftCard(r,act){var L=r.leftovers||LEFT_GEN;var c=el("div","card");c.appendChild(el("h2",null,"Leftovers"));
+  if(!r.leftovers&&/\brice\b/i.test((r.ingredients||[]).map(function(i){return i.name}).join(" ")))L=Object.assign({},L,{reheat:L.reheat+" "+RICE_NOTE});
   [["Store",L.store],["Fridge",L.fridge],["Freezer",L.freeze],["Reheat",L.reheat]].forEach(function(p){if(!p[1])return;var d=el("div");d.style.padding="4px 0";d.appendChild(el("b",null,p[0]+": "));d.appendChild(document.createTextNode(p[1]));c.appendChild(d)});
   if(act){var P=pantryApi();if(P&&P.leftover){var st=S.lo&&S.lo[r.id];if(st){c.appendChild(el("div","mut",st))}else{var row=el("div","row");
     [["Fridge","Leftovers in the fridge"],["Freezer","Some in the freezer"]].forEach(function(o){var b=el("button",o[0]==="Fridge"?"pri":"",o[1]);b.onclick=function(){b.disabled=true;P.leftover(r,o[0]).then(function(msg){S.lo=S.lo||{};S.lo[r.id]=msg;render()})};row.appendChild(b)});c.appendChild(row);
@@ -844,6 +846,7 @@ function safetyRef(){var c=el("div","card");var open=!!S.safeOpen;var hb=el("but
   sec("Cook to a safe internal temperature",["Poultry, including ground turkey and chicken: 165°F","Ground beef, pork and sausage: 160°F","Pork, beef and lamb steaks, chops and roasts: 145°F, then rest 3 minutes","Fish: 145°F, or until opaque and it flakes","Egg dishes: 160°F. Eggs for Lenora: yolk and white firm","Casseroles and leftovers: 165°F","Use the thermometer in the thickest part, away from bone."]);
   sec("Keep it out of the danger zone (40°F to 140°F)",["Refrigerate cooked food within 2 hours, or 1 hour if it's above 90°F (a hot car, a summer picnic).","Fridge at 40°F or colder; freezer at 0°F.","Cool big batches fast: divide into shallow containers. Hot food can go straight into the fridge."]);
   sec("Leftovers",["Fridge: 3 to 4 days. Freezer: safe indefinitely at 0°F, best quality within 2 to 6 months.","Reheat to 165°F. Bring soups, sauces and gravies to a rolling boil.","Microwave: cover, stir and rotate, then let it stand before checking the temperature.","When in doubt, throw it out. Smell and look don't tell you if it's safe."]);
+  sec("Rice",["Rice can carry spores that survive cooking. If cooked rice sits warm, they make a toxin that reheating does not destroy, so fast cooling is what keeps rice safe.","Cool it within 1 hour if you can (2 hours at most): spread it thin or portion it, then refrigerate or freeze. Never leave it in the rice cooker or pot.","Freezing in cubes (what you already do) is the safest way to keep batch rice.","Fridge rice: USDA says 3 to 4 days like other leftovers; the UK food agencies say eat within 24 hours. With Lenora eating it, sooner is better.","Reheat only what you'll eat, once, until steaming hot all the way through (165°F). Add a splash of water, cover, and stir halfway."]);
   sec("Thawing",["In the fridge (safest; plan a day ahead), in cold water in a sealed bag changed every 30 minutes, or in the microwave and cook right away.","Never thaw on the counter."]);
   sec("Clean and separate",["Wash hands for 20 seconds with soap before cooking and after touching raw meat, poultry or eggs.","Separate boards and knives for raw meat; wash them in hot soapy water before reuse.","Don't rinse raw chicken; it splashes germs around the sink.","Keep raw meat on the bottom shelf of the fridge in a container."]);
   sec("Higher-risk eaters",["Young children, older adults, pregnant people and anyone with a weakened immune system are more likely to get seriously sick. Cook eggs and meat fully for them and be strictest with leftovers."]);
