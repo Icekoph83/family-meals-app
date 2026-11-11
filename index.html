@@ -122,7 +122,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-11d">
+<meta name="app-v" content="2026-11-11g">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -243,18 +243,34 @@ function toks(t){t=String(t||"").toLowerCase().replace(/\(.*?\)/g," ").split(","
   return t.split(/[^a-z]+/).filter(function(w){return w.length>1&&!PSTOP[w]}).map(function(w){return w.replace(/ies$/,"y").replace(/oes$/,"o").replace(/([^s])s$/,"$1")})}
 var PDQ={powder:1,sauce:1,paste:1,extract:1,oil:1,juice:1,seasoning:1,salt:1,flake:1,soup:1,crushed:1,crumb:1,panko:1,couscou:1};
 var FRESHH={garlic:1,ginger:1,cilantro:1,basil:1,parsley:1,mint:1,dill:1,chive:1,scallion:1,thyme:1,rosemary:1,sage:1,lemon:1,lime:1,onion:1,spinach:1};
-function candList(ing,items){var I=toks(ing.name);if(!I.length)return [];var head=I[I.length-1];var out=[];
+var PWEAK={smoked:1,toasted:1,neutral:1,unsweetened:1,organic:1,natural:1,pure:1,sichuan:1,white:0};
+var PVAR={celery:1,sweet:1,garlic:1,onion:1,seasoned:1,cannellini:1,kidney:1,black:1,pinto:1,navy:1,green:1,red:1,brown:1,wild:1,jasmine:1,basmati:1,smoked:0};
+var PSYN={panko:["crumb","bread"],broth:["base","bouillon","stock"],stock:["base","bouillon","broth"]};
+function candList(ing,items){var alt=/\(or ([^)]+)\)/i.exec(String(ing.name||""));var a=candList1(ing,items);
+  if(alt){var b=candList1({name:alt[1],amt:ing.amt},items);var seen={};a.forEach(function(x){seen[x.it.id]=1});b.forEach(function(x){if(!seen[x.it.id]){x.alt=true;a.push(x)}});a.sort(function(p,q){return q.cov-p.cov||q.s-p.s})}
+  return a}
+function candList1(ing,items){var I=toks(ing.name);if(!I.length)return [];var head=I[I.length-1];var out=[];var syn=PSYN[head]||[];
   var wantFresh=!!FRESHH[head]&&!/\b(dried|dry|ground|powder|flake|freeze|jarred|minced jar)\b/i.test(String(ing.name)+" "+String(ing.amt||""));
-  items.forEach(function(it){if(wantFresh&&/\b(dried|freeze.?dried|ground|powder|flakes?|leaves|juice|jar)\b/i.test(String(it.name)+" "+String(it.size||"")))return;var P=toks(it.name);var m=I.filter(function(w){return P.indexOf(w)>=0}).length;if(!m||P.indexOf(head)<0)return;if(P.some(function(w){return PDQ[w]&&I.indexOf(w)<0}))return;out.push({it:it,s:m/(I.length+P.length-m)})});
-  out.sort(function(a,b){return b.s-a.s||a.it.name.localeCompare(b.it.name)});return out}
+  items.forEach(function(it){if(wantFresh&&/\b(dried|freeze.?dried|ground|powder|flakes?|leaves|juice|jar)\b/i.test(String(it.name)+" "+String(it.size||"")))return;var P=toks(it.name);var hd=P.indexOf(head)>=0||syn.some(function(w){return P.indexOf(w)>=0});var m=I.filter(function(w){return P.indexOf(w)>=0}).length+(P.indexOf(head)<0&&hd?1:0);if(!m||!hd)return;
+    if(P.some(function(w){return PDQ[w]&&I.indexOf(w)<0&&syn.indexOf(w)<0&&!(PSYN[w]&&I.indexOf(w)>=0)}))return;
+    if(/\bsupplement\b/i.test(it.name))return;
+    var core=I.filter(function(w){return !PWEAK[w]});var cm=core.filter(function(w){return P.indexOf(w)>=0||(w===head&&hd)}).length;var cov=core.length?cm/core.length:m/I.length;
+    var hi=P.indexOf(head);if(hi>0&&PVAR[P[hi-1]]&&I.indexOf(P[hi-1])<0)cov=Math.min(cov,0.5);
+    var fx=String(it.name)+" "+String(it.size||""),fi=String(ing.name)+" "+String(ing.amt||"");
+    if((/\bcans?\b/i.test(fi)&&/\bdried\b/i.test(fx))||(/\bdried\b|\bdry\b/i.test(fi)&&/\bcan(ned)?\b/i.test(fx))||(/90.?second|instant|microwav|ready.?rice/i.test(fx)&&!/90.?second|instant|microwav|ready/i.test(fi)))cov=Math.min(cov,0.5);
+    out.push({it:it,s:m/(I.length+P.length-m),cov:cov})});
+  out.sort(function(a,b){return b.cov-a.cov||b.s-a.s||a.it.name.localeCompare(b.it.name)});return out}
 function contCount(amt){var a=String(amt||"");if(!/\b(cans?|blocks?|jars?|bottles?|box(es)?|bags?|packages?|pkg|pints?|heads?|bunch(es)?|loaf|loaves|cartons?|containers?)\b/i.test(a))return 0;
   var m=a.match(/^\s*(\d+)?\s*(?:(\d+)\/(\d+))?/);var v=0;if(m){if(m[1])v+=+m[1];if(m[2]&&m[3])v+=(+m[2])/(+m[3])}return Math.max(1,Math.ceil(v||1))}
 function buildPU(r){var P=pantryApi();var items=P?P.items():[];
   var mem=(P&&P.memory&&P.memory())||{};
-  var rows=(r.ingredients||[]).map(function(i){var c=candList(i,items);var best=(c[0]&&c[0].s>=0.3)?c[0].it:null;var cc=contCount(i.amt);var mid=mem[pkey(i)];var rem=false;
+  var rows=(r.ingredients||[]).map(function(i){var c=candList(i,items);var best=(c[0]&&c[0].cov>=1)?c[0].it:null;var cc=contCount(i.amt);var mid=mem[pkey(i)];var rem=false;
     if(mid&&items.some(function(x){return x.id===mid})){best={id:mid};rem=true}
     var cand=c.map(function(x){return x.it.id});if(rem&&cand.indexOf(mid)<0)cand.unshift(mid);
-    return {ing:i,id:best?best.id:"",use:!!(best&&cc),k:cc||1,cand:cand,rem:rem}});
+    var small=/\b(tsp|teaspoons?|tbsp|tablespoons?|pinch|dash|sprinkle|to taste|cloves?|splash|drizzle)\b/i.test(String(i.amt||"")+" "+String(i.name||""));
+    var cups=/^\s*(?:(\d+)\s+)?(?:(\d+)\/(\d+)|(\d+(?:\.\d+)?))?\s*cups?\b/i.exec(String(i.amt||""));var cq=cups?((+cups[1]||0)+(cups[2]?(+cups[2])/(+cups[3]):(+cups[4]||0))):null;
+    var conc=best&&/\b(base|bouillon|concentrate|paste)\b/i.test((items.filter(function(x){return x.id===best.id})[0]||{}).name||"")&&!/\b(base|bouillon|concentrate|paste)\b/i.test(String(i.name).replace(/\(.*?\)/g,""));
+    var k=cc?cc:(small||conc||(c[0]&&c[0].alt))?0:(cq!==null&&cq<=0.5)?0.25:0.5;return {ing:i,id:best?best.id:"",use:!!best,k:best?k:0,low:false,small:small&&!cc,cand:cand,rem:rem}});
   S.pu={rows:rows,items:items,err:"",busy:false}}
 function onHand(it,k){if(!it)return "Not from the pantry, nothing to update.";var F=window.fmFr||String;var left=Math.max(0,it.total-(+k||0));return "Have "+F(it.total)+" × "+(it.size||"container")+(it.total===1?"":"s")+". After: "+F(left)+"."}
 function renderPantryConfirm(r){
@@ -262,37 +278,38 @@ function renderPantryConfirm(r){
   var pf1=!!(S.fb&&S.fb.pfirst);
   var back=el("button",null,"← Back");back.onclick=function(){if(pf1){S.fb=null;S.pu=null;S.mode="cook"}else S.mode="fb";render()};app.appendChild(back);
   app.appendChild(el("h1",null,pf1?"Dinner's done. What did it use?":"Update the pantry"));app.appendChild(el("div","mut",r.title));
-  app.appendChild(el("p","mut","Tick what you used and adjust the counts. The pantry counts containers (cans, bags, bottles, blocks), and you can use part of one: enter 0.5 for half or 0.25 for a quarter. Spices and oil are unticked by default. Nothing changes until you tap Update pantry."));
+  app.appendChild(el("p","mut","For each item, pick how much of the container you used. \"A little\" (the default for spices, oil and sauces) leaves the count alone; tap Running low if it's nearly gone and it goes on the next grocery check. Nothing changes until you tap the button at the bottom."));
   var byId={};PU.items.forEach(function(it){byId[it.id]=it});
-  PU.rows.forEach(function(row){
-    var c=el("div","card");var top=el("label","ing");var cb=el("input");cb.type="checkbox";cb.checked=row.use&&!!row.id;cb.disabled=!row.id;
-    cb.onchange=function(){row.use=cb.checked;render()};top.appendChild(cb);
-    var sp=el("span");sp.appendChild(el("b",null,(row.ing.amt?row.ing.amt+" ":"")+row.ing.name));top.appendChild(sp);c.appendChild(top);
-    var sel=el("select");sel.style.cssText="width:100%;margin-top:6px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit";
+  var linked=PU.rows.filter(function(x){return x.id&&byId[x.id]}),loose=PU.rows.filter(function(x){return !(x.id&&byId[x.id])});
+  if(!linked.length)app.appendChild(el("div","warnbox","None of this recipe's ingredients are in the pantry list, so there's nothing to take out. Tap Done below. Items you buy with Bought it on the grocery list get added to the pantry, so next time there will be more to track."));
+  var pickSel=function(row){var sel=el("select");sel.style.cssText="width:100%;margin-top:6px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit";
     var o0=el("option",null,"— Not in the pantry —");o0.value="";sel.appendChild(o0);
     var seen={};row.cand.forEach(function(id){if(byId[id]){seen[id]=1;var o=el("option",null,byId[id].name);o.value=id;sel.appendChild(o)}});
     var og=el("optgroup");og.label="Other pantry items";PU.items.slice().sort(function(a,b){return a.name.localeCompare(b.name)}).forEach(function(it){if(!seen[it.id]){var o=el("option",null,it.name);o.value=it.id;og.appendChild(o)}});sel.appendChild(og);
-    sel.value=row.id;sel.onchange=function(){row.id=sel.value;if(!row.id)row.use=false;render()};c.appendChild(sel);
-    var it=byId[row.id];var ln=el("div","row");ln.style.marginTop="8px";
-    if(it){ln.appendChild(el("span","mut","Use"));var n=el("input");n.type="number";n.min="0";n.step="0.25";n.inputMode="decimal";n.style.width="80px";n.value=row.k;
-      var hand=el("div","mut",onHand(it,row.use?row.k:0));
-      n.oninput=function(){row.k=Math.max(0,Math.round((+n.value||0)*4)/4);hand.textContent=onHand(it,row.use?row.k:0)};ln.appendChild(n);c.appendChild(ln);c.appendChild(hand);
-      var PHa=photoApi();if(PHa&&PHa.can()){var hasP=PHa.get("pantry:"+it.id);
-        if(hasP){var tp=document.createElement("img");tp.src=hasP;tp.alt="";tp.style.cssText="width:44px;height:44px;object-fit:cover;border-radius:8px;margin-top:6px";c.appendChild(tp)}
-        else{var pf=el("input");pf.type="file";pf.accept="image/*";pf.style.display="none";var pb=el("button",null,"Add a photo so it's easy to find");pb.style.marginTop="6px";pb.onclick=function(){pf.click()};
-          pf.onchange=function(){var f=pf.files&&pf.files[0];if(!f)return;pb.disabled=true;pb.textContent="Saving…";PHa.add("pantry:"+it.id,f,360).then(function(ok){PU.err=ok===true?"":"Could not save that photo.";render()})};c.appendChild(pf);c.appendChild(pb)}}}
-    else c.appendChild(el("div","mut","Not from the pantry, nothing to update."));
+    sel.value=row.id&&byId[row.id]?row.id:"";sel.onchange=function(){row.id=sel.value;row.use=!!row.id;if(row.id&&!row.k&&!row.small)row.k=0.5;render()};return sel};
+  linked.forEach(function(row){var it=byId[row.id];var c=el("div","card");
+    var h=el("div");h.appendChild(el("b",null,(row.ing.amt?row.ing.amt+" ":"")+row.ing.name));h.appendChild(el("div","mut","Pantry: "+it.name+" · have "+(window.fmFr||String)(it.total)+" × "+(it.size||"container")));c.appendChild(h);
+    var opts=[[-1,"Didn't use"],[0,"A little"],[0.25,"¼"],[0.5,"½"],[0.75,"¾"],[1,"1 whole"]];var cc=contCount(row.ing.amt);if(cc>1)opts.push([cc,String(cc)]);
+    var cur=row.use?row.k:-1;var bw=el("div");bw.style.cssText="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px";
+    opts.forEach(function(o){var b=el("button",cur===o[0]?"pri":null,o[1]);b.style.cssText="padding:8px 12px;min-width:44px";b.onclick=function(){if(o[0]<0){row.use=false;row.k=0}else{row.use=true;row.k=o[0]}render()};bw.appendChild(b)});
+    var more=el("input");more.type="number";more.min="0";more.step="0.25";more.inputMode="decimal";more.style.width="70px";more.setAttribute("aria-label","Other amount");more.placeholder="other";if(row.use&&opts.every(function(o){return o[0]!==row.k}))more.value=row.k;
+    more.onchange=function(){var v=Math.max(0,Math.round((+more.value||0)*4)/4);row.use=true;row.k=v;render()};bw.appendChild(more);c.appendChild(bw);
+    if(row.use){var lw=el("label","ing");lw.style.marginTop="6px";var lc=el("input");lc.type="checkbox";lc.checked=!!row.low;lc.onchange=function(){row.low=lc.checked};lw.appendChild(lc);lw.appendChild(el("span",null,"Running low"));c.appendChild(lw);
+      c.appendChild(el("div","mut",row.k>0?onHand(it,row.k):"Count stays at "+(window.fmFr||String)(it.total)+"."))}
+    var ch=el("details");var sm=el("summary",null,"Wrong pantry item?");sm.style.cssText="cursor:pointer;margin-top:6px;color:var(--mute)";ch.appendChild(sm);ch.appendChild(pickSel(row));c.appendChild(ch);
     app.appendChild(c)});
+  if(loose.length){var lc2=el("div","card");lc2.appendChild(el("h2",null,"Not in the pantry list ("+loose.length+")"));lc2.appendChild(el("div","mut","Nothing to update for these. If one is in the pantry under another name, link it."));
+    loose.forEach(function(row){var d=el("details");var sm=el("summary",null,(row.ing.amt?row.ing.amt+" ":"")+row.ing.name);sm.style.cssText="cursor:pointer;padding:6px 0";d.appendChild(sm);d.appendChild(pickSel(row));lc2.appendChild(d)});app.appendChild(lc2)}
   if(PU.err)app.appendChild(el("div","warnbox",PU.err));
-  var use=PU.rows.filter(function(x){return x.use&&x.id&&x.k>0});
-  var go=el("button","pri",use.length?"Update pantry ("+use.length+" item"+(use.length===1?"":"s")+")":"Tick what you used first");go.style.cssText="width:100%;padding:14px;margin:6px 0";go.disabled=!use.length||PU.busy||!P;
-  go.onclick=function(){PU.busy=true;PU.err="";render();P.apply(use.map(function(x){return {id:x.id,k:x.k}})).then(function(n){PU.busy=false;
+  var use=PU.rows.filter(function(x){return x.use&&x.id&&(x.k>0||x.low)});var nOut=use.filter(function(x){return x.k>0}).length;
+  var go=el("button","pri",PU.busy?"Saving…":use.length?"Update pantry ("+(nOut?nOut+" taken out":"")+(nOut&&use.length>nOut?", ":"")+(use.length>nOut?(use.length-nOut)+" running low":"")+")":"Done, nothing to take out");go.style.cssText="width:100%;padding:14px;margin:6px 0";go.disabled=PU.busy||!P;
+  go.onclick=function(){PU.busy=true;PU.err="";render();P.apply(use.map(function(x){return {id:x.id,k:x.k,low:x.low}})).then(function(n){PU.busy=false;
     if(n<0){PU.err="Could not update the pantry. Check your connection and try again.";render();return}
     try{if(P.remember)P.remember(PU.rows.filter(function(x){return x.id&&(x.use||x.rem)}).map(function(x){return {key:pkey(x.ing),id:x.id}}))}catch(e){}
     try{if(P.mark&&r.date)P.mark(r.id,r.date)}catch(e){}
     if(S.fb){S.fb.pdone=n;S.fb.pfirst=false}S.pu=null;S.mode="fb";render();window.scrollTo(0,0)})};
   app.appendChild(go);
-  if(pf1){var skp=el("button",null,"Skip, nothing to update");skp.style.cssText="width:100%;padding:12px;margin:6px 0";skp.onclick=function(){try{if(P&&P.mark&&r.date)P.mark(r.id,r.date)}catch(e){}S.fb.pfirst=false;S.pu=null;S.mode="fb";render();window.scrollTo(0,0)};app.appendChild(skp)}}
+  if(pf1){var skp=el("button",null,"Skip, I didn't cook it");skp.style.cssText="width:100%;padding:12px;margin:6px 0";skp.onclick=function(){try{if(P&&P.mark&&r.date)P.mark(r.id,r.date)}catch(e){}S.fb.pfirst=false;S.pu=null;S.mode="fb";render();window.scrollTo(0,0)};app.appendChild(skp)}}
 
 function ingRow(i,hl,r){
   var row=el("label","ing"+(S.done[i.id]?" done":"")+(hl?" hl":""));
@@ -1140,7 +1157,7 @@ function fr(n){n=q4(n);var w=Math.floor(n),f=n-w;var g=f===0.25?"¼":f===0.5?"½
 window.fmFr=fr;
 function totalOf(x){return q4(lotsOf(x).reduce(function(s,l){return s+l.n},0))}
 function soonest(x){var best=null;lotsOf(x).forEach(function(l){if(l.n>0&&l.exp){var d=dleft(l.exp);if(best===null||d<best)best=d}});return best}
-function putPantry(x,patch){var d={name:x.name,size:sizeOf(x),lots:cleanLots(lotsOf(x)),loc:x.loc||"Pantry",note:x.note||"",state:x.state||"have",restock:x.restock||""};for(var k in patch)d[k]=patch[k];if(d.lots&&d.state!=="used"&&!d.lots.length&&!("state" in patch))d.state="used";return S.db.doc("pantry/"+x.id).set(d)}
+function putPantry(x,patch){var d={name:x.name,size:sizeOf(x),lots:cleanLots(lotsOf(x)),loc:x.loc||"Pantry",note:x.note||"",state:x.state||"have",restock:x.restock||""};if(x.leftover)d.leftover=x.leftover;if(x.low)d.low=x.low;for(var k in patch)d[k]=patch[k];if(d.low===false||d.state==="used")delete d.low;if(d.lots&&d.state!=="used"&&!d.lots.length&&!("state" in patch))d.state="used";return S.db.doc("pantry/"+x.id).set(d)}
 function useOne(lots,k){lots=cleanLots(lots);k=q4(k);while(k>0&&lots.length){var t=Math.min(k,lots[0].n);lots[0].n=q4(lots[0].n-t);k=q4(k-t);if(lots[0].n<=0)lots.shift()}return lots}
 function whenText(dl){if(dl===null)return "no date yet";if(dl<0)return "expired "+(-dl)+" day"+(dl===-1?"":"s")+" ago";if(dl===0)return "expires today";return "expires in "+dl+" day"+(dl===1?"":"s")}
 function fmtDate(s){if(!s)return "";var d=new Date(s+"T12:00:00");return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})}
@@ -1299,7 +1316,7 @@ function renderPantry(v){
       if(pimgd){var th=document.createElement("img");th.src=pimgd;th.alt="";th.style.cssText="width:56px;height:56px;object-fit:cover;border-radius:8px;margin-right:10px;cursor:pointer;flex:none";th.onclick=function(){S.pz=S.pz===x.id?null:x.id;render()};top.style.alignItems="center";top.appendChild(th)}
       var t=el("div");t.style.flex="1";t.appendChild(el("div","nm",x.name));
       var lots=lotsOf(x);var dated=lots.filter(function(l){return l.exp});
-      var parts=[countText(x)];if(dl!==null)parts.push("soonest "+whenText(dl).replace("expires","expires").replace("expired","expired"));else parts.push("no date yet");
+      var parts=[countText(x)];if(x.low)parts.push("running low");if(dl!==null)parts.push("soonest "+whenText(dl).replace("expires","expires").replace("expired","expired"));else parts.push("no date yet");
       if(x.note)parts.push(x.note);t.appendChild(el("div","note",parts.join(" · ")));top.appendChild(t);
       if(dl!==null&&dl<0)top.appendChild(el("span","chip bad","Expired"));else if(dl!==null&&dl<=7)top.appendChild(el("span","chip warn","Use soon"));
       r.appendChild(top);
@@ -1436,7 +1453,7 @@ function shopCount(x){var m=/^\s*(\d+)\s/.exec(String(x.buy||""));return m?Math.
 function boughtJob(x,k){var norm=function(t){return String(t||"").toLowerCase().replace(/\s+/g," ").trim()};var nm=String(x.name||x.buy||"").trim();
   var cnt=shopCount(x);if(k===undefined)k=cnt;var day=localIso();var jobs=[];
   if(k>0){var lot={n:k,exp:""};var ex=(S.pantry||[]).filter(function(p){return norm(p.name)===norm(nm)})[0];
-    if(ex)jobs.push(putPantry(ex,{lots:cleanLots((ex.state==="used"?[]:lotsOf(ex)).concat([lot])),state:"have",note:"Bought "+fmtDate(day)}));
+    if(ex)jobs.push(putPantry(ex,{lots:cleanLots((ex.state==="used"?[]:lotsOf(ex)).concat([lot])),state:"have",low:false,note:"Bought "+fmtDate(day)}));
     else jobs.push(S.db.collection("pantry").add({name:nm.charAt(0).toUpperCase()+nm.slice(1),size:((/(\d+(?:\.\d+)?\s?(?:oz|lb|ct|count)\b)/i.exec(String(x.buy||""))||[])[1]||String(x.buy||"").replace(/^\s*\d+\s+/,"").replace(/\s*[\(,].*$/,"").trim()),lots:[lot],loc:/^(Produce|Dairy|Meat)/.test(x.section||"")?"Fridge":"Pantry",note:"Bought "+fmtDate(day),state:"have",restock:""}))}
   var patch={have:k>0,bought:day,got:k};if(k<cnt){patch.short=true;jobs.push(sendReq("shortage","Short on "+nm+": got "+k+" of "+cnt,{sid:x.id,name:nm,got:k,of:cnt,covers:x.covers||"",week:x.week||""}))}else patch.short=false;
   jobs.push(putShop(x,patch));return Promise.all(jobs)}
@@ -1550,8 +1567,8 @@ window.CookExt={photo:{get:function(rid){return (S.ph||{})[rid]||""},can:functio
       note:(loc==="Freezer"?"Frozen "+fmtDate(day)+". Best quality within "+(L.freeze||"2 to 3 months")+"; thaw in the fridge. ":"Cooked "+fmtDate(day)+". ")+"Reheat: "+(L.reheat||"to 165°F; soups and sauces to a rolling boil."),restock:""})
       .then(function(){return loc==="Freezer"?"In the freezer. Best by "+fmtDate(eat)+" for quality.":"In the fridge. Eat by "+fmtDate(eat)+"."+(lo.kidBy?" Lenora's portions by "+fmtDate(lo.kidBy)+" (rice).":"")}).catch(function(){return "Couldn't save the leftovers. Try again from the Pantry tab."})},
   mark:function(rid,date){if(!S.db)return Promise.resolve();return S.db.doc("recipes/"+rid).update({pantryFor:date}).catch(function(){})},
-  apply:function(uses){if(!S.db)return Promise.resolve(-1);var agg={};uses.forEach(function(u){if(u.id&&u.k>0)agg[u.id]=(agg[u.id]||0)+u.k});
-    var jobs=[];Object.keys(agg).forEach(function(id){var x=(S.pantry||[]).filter(function(p){return p.id===id})[0];if(!x)return;var nx=useOne(lotsOf(x),agg[id]);jobs.push(putPantry(x,{lots:nx,state:nx.length?"have":"used"}))});
+  apply:function(uses){if(!S.db)return Promise.resolve(-1);var agg={},low={};uses.forEach(function(u){if(!u.id)return;if(u.k>0)agg[u.id]=(agg[u.id]||0)+u.k;if(u.low)low[u.id]=1;if(!(u.id in agg))agg[u.id]=agg[u.id]||0});
+    var jobs=[];Object.keys(agg).forEach(function(id){var x=(S.pantry||[]).filter(function(p){return p.id===id})[0];if(!x)return;if(!agg[id]&&!low[id])return;var nx=agg[id]?useOne(lotsOf(x),agg[id]):lotsOf(x);var pt={lots:nx,state:nx.length?"have":"used"};if(low[id])pt.low=localIso();jobs.push(putPantry(x,pt))});
     return Promise.all(jobs).then(function(){return jobs.length}).catch(function(){return -1})}
 }};
 init();
