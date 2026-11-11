@@ -146,8 +146,55 @@ var S={kit:null,ext:null,recipes:[],cur:null,mode:"cook",step:0,done:{},pdone:{}
 var app=null;
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c.split(" ").map(function(k){return k?"ck-"+k:""}).join(" ");if(x!=null)e.textContent=x;return e}
 function ls(k,v){try{if(v===undefined){return JSON.parse(localStorage.getItem(k)||"null")}localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
-function save(){if(S.cur)ls("cook:"+S.cur.id,{step:S.step,done:S.done,prep:S.pdone})}
-function open(r){S.cur=r;var p=ls("cook:"+r.id)||{};S.step=p.step||0;S.done=p.done||{};S.pdone=p.prep||{};S.mode=(hasPrep(r)&&!(p.step>0))?"prep":"cook";S.tms={};render();window.scrollTo(0,0)}
+function save(){if(S.cur)ls("cook:"+S.cur.id,{step:S.step,done:S.done,prep:S.pdone,eat:S.eat})}
+function open(r){S.cur=r;var p=ls("cook:"+r.id)||{};S.step=p.step||0;S.done=p.done||{};S.pdone=p.prep||{};S.eat=p.eat||eatDefault();S.mode=(hasPrep(r)&&!(p.step>0))?"prep":"cook";S.tms={};render();window.scrollTo(0,0)}
+
+/* Who's eating: scale amounts for the people at the table. Usual household (Jake, Maggie, Lenora) = 2.5 portions = amounts as written. */
+function eatDefault(){return {j:true,m:true,l:true,xa:0,xk:0}}
+function eatPortions(e){e=e||eatDefault();return (e.j?1:0)+(e.m?1:0)+(e.l?0.5:0)+(e.xa||0)+(e.xk||0)*0.5}
+function eatFactor(e){return eatPortions(e)/2.5}
+var QN="(?:\\d+\\s+\\d\\/\\d|\\d+\\/\\d|\\d+(?:\\.\\d+)?)";
+var QU="(cups?|tbsp|tsp|tablespoons?|teaspoons?|lbs?|pounds?|oz|ounces?|cloves?|cubes?|pitas?|eggs?|tortillas?)";
+var QRE=new RegExp("(\\()?("+QN+")(?:(\\s*(?:-|to)\\s*)("+QN+"))?(\\s+(?:(?:frozen|fresh|large|small|medium|whole|ripe|rice|garlic)\\s+){0,2})"+QU+"\\b","gi");
+function qParse(t){t=t.trim();var m=/^(\d+)\s+(\d)\/(\d)$/.exec(t);if(m)return +m[1]+(+m[2])/(+m[3]);m=/^(\d+)\/(\d+)$/.exec(t);if(m)return (+m[1])/(+m[2]);return parseFloat(t)}
+function qFmt(v,unit){var u=String(unit).toLowerCase(),st;
+  if(/^(cloves?|pitas?|eggs?|tortillas?)$/.test(u))st=1;else if(/^cubes?$/.test(u))st=0.5;else if(/^(tsp|teaspoons?)$/.test(u))st=v<1?0.125:0.25;else if(/^(tbsp|tablespoons?)$/.test(u))st=0.25;else if(/^(oz|ounces?)$/.test(u))st=v>=4?1:0.5;else st=0.25;
+  var r=Math.max(st,Math.round(v/st)*st),w=Math.floor(r+1e-9),f=r-w,fs="";
+  var map={0.125:"1/8",0.25:"1/4",0.375:"3/8",0.5:"1/2",0.625:"5/8",0.75:"3/4",0.875:"7/8"};
+  if(f>1e-9){var k=Math.round(f*1000)/1000;fs=map[k]||String(k)}
+  return w>0?(fs?w+" "+fs:String(w)):fs}
+function scaleText(t,f){t=String(t||"");if(Math.abs(f-1)<0.01)return t;
+  return t.replace(QRE,function(all,par,a,sep,b,adj,unit,off){
+    var after=t.substr(off+all.length,6);if(/^\s*per\b/i.test(after))return all;
+    if(par&&/^(oz|ounces?|lbs?|pounds?)$/i.test(unit))return all;
+    var pa=qParse(a);if(!(pa>0))return all;
+    var out=(par||"")+qFmt(pa*f,unit);if(b){var pb=qParse(b);out+=sep+qFmt(pb*f,unit)}
+    return out+adj+unit})}
+function scaleAmt(amt,f){amt=String(amt==null?"":amt);if(Math.abs(f-1)<0.01||!amt)return amt;
+  if(/\b(cans?|jars?|packages?|pkgs?|bottles?|bunch(es)?)\b/i.test(amt)){var fr=f<=0.3?"1/4":f<=0.45?"1/3":f<=0.6?"1/2":f<=0.8?"3/4":"all";return amt+" (use about "+(fr==="all"?"all of it":fr+" of it")+")"}
+  var bare=new RegExp("^\\s*("+QN+")(?:(\\s*(?:-|to)\\s*)("+QN+"))?\\s*$").exec(amt);
+  if(bare){var o=qFmt0(qParse(bare[1])*f);if(bare[3])o+=bare[2]+qFmt0(qParse(bare[3])*f);return o}
+  return scaleText(amt,f)}
+function qFmt0(v){var r=Math.max(0.5,Math.round(v*2)/2),w=Math.floor(r);return w>0?(r-w?w+" 1/2":String(w)):"1/2"}
+function scaledView(r){var f=eatFactor(S.eat);if(Math.abs(f-1)<0.01)return r;
+  var c={};for(var k in r)c[k]=r[k];
+  c.ingredients=(r.ingredients||[]).map(function(i){var n={};for(var k in i)n[k]=i[k];n.amt=scaleAmt(i.amt,f);return n});
+  c.steps=(r.steps||[]).map(function(s){var n={};for(var k in s)n[k]=s[k];n.text=scaleText(s.text,f);return n});
+  c.prep=(r.prep||[]).map(function(s){var n={};for(var k in s)n[k]=s[k];n.text=scaleText(s.text,f);return n});
+  return c}
+function eatLabel(e){var n=[];if(e.j)n.push("Jake");if(e.m)n.push("Maggie");if(e.l)n.push("Lenora");if(e.xa)n.push(e.xa+" adult guest"+(e.xa>1?"s":""));if(e.xk)n.push(e.xk+" child guest"+(e.xk>1?"ren":""));return n.length?n.join(", "):"nobody"}
+function eatCard(){
+  var e=S.eat=S.eat||eatDefault(),c=el("div","card");c.appendChild(el("h2",null,"Who's eating?"));
+  var row=el("div");row.style.cssText="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0";
+  [["j","Jake"],["m","Maggie"],["l","Lenora"]].forEach(function(p){var b=el("button",e[p[0]]?"pri":"",(e[p[0]]?"✓ ":"")+p[1]);b.onclick=function(){e[p[0]]=!e[p[0]];save();render()};row.appendChild(b)});c.appendChild(row);
+  [["xa","Adult guests"],["xk","Child guests (half portion)"]].forEach(function(g){var r=el("div");r.style.cssText="display:flex;align-items:center;gap:10px;margin:6px 0";var l=el("span",null,g[1]);l.style.flex="1";r.appendChild(l);
+    var mi=el("button",null,"−");mi.disabled=!(e[g[0]]>0);mi.onclick=function(){e[g[0]]=Math.max(0,(e[g[0]]||0)-1);save();render()};var v=el("b",null,String(e[g[0]]||0));v.style.minWidth="1.5em";v.style.textAlign="center";var pl=el("button",null,"+");pl.onclick=function(){e[g[0]]=Math.min(12,(e[g[0]]||0)+1);save();render()};
+    r.appendChild(mi);r.appendChild(v);r.appendChild(pl);c.appendChild(r)});
+  var f=eatFactor(e);
+  if(eatPortions(e)<=0){c.appendChild(el("div","mut","Pick at least one person."))}
+  else if(Math.abs(f-1)<0.01){c.appendChild(el("div","mut","Usual household, so amounts are as written."))}
+  else{c.appendChild(el("div","mut","Cooking for "+eatLabel(e)+": amounts and quantities in the steps are scaled to about "+Math.round(f*100)+"% of the recipe. Cook times and temperatures are not scaled, so check doneness a little early with a smaller batch."))}
+  return c}
 function hasPrep(r){return (r.prep||[]).length||(r.equip||[]).length||(r.flow||[]).length}
 function norm(t){return String(t||"").toLowerCase().replace(/\s+/g," ").trim()}
 function eqState(n){var L=(window.CookExt&&window.CookExt.equip&&window.CookExt.equip())||[];var f=null;var en=function(t){return String(t||"").toLowerCase().replace(/\(.*?\)/g," ").replace(/&/g," and ").replace(/[^a-z0-9 ]+/g," ").replace(/\s+/g," ").trim()};L.forEach(function(x){if(en(x.name)===en(n))f=x});if(!f)return "unset";return f.have==="yes"?"yes":f.have==="no"?"no":"unset"}
@@ -162,7 +209,7 @@ setInterval(function(){Object.keys(S.tms).forEach(function(k){var t=S.tms[k];if(
 function fbx(){return window.CookExt&&window.CookExt.fb}
 function newFb(fin){return {v:"",note:"",prep:"",cook:"",fin:!!fin,err:""}}
 function verdictLabel(v){return v==="again"?"Make again":v==="changes"?"Make again with changes":v==="never"?"Don't make again":""}
-function finishCook(){S.step=0;S.done={};S.pdone={};S.fb=null;save();S.cur=null;render()}
+function finishCook(){S.eat=eatDefault();S.step=0;S.done={};S.pdone={};S.fb=null;save();S.cur=null;render()}
 function fmtDate(ts){try{return new Date(ts).toLocaleDateString(undefined,{month:"short",day:"numeric"})}catch(e){return""}}
 function renderFeedback(r){
   var F=fbx(),f=S.fb||(S.fb=newFb(false));app.textContent="";
@@ -384,9 +431,10 @@ function equipCard(r){
     r.flow.forEach(function(t,i){var d=el("div",null,(i+1)+". "+t);d.style.padding="4px 0";f.appendChild(d)});out.appendChild(f)}
   return out}
 function renderRecipe(){
-  var r=S.cur,steps=r.steps||[],im=ingMap(r);app.textContent="";
+  var r=S.cur;app.textContent="";
   if(S.mode==="fb"){renderFeedback(r);return}
   if(S.mode==="pantry"){renderPantryConfirm(r);return}
+  r=scaledView(S.cur);var steps=r.steps||[],im=ingMap(r);
   if(S.mode==="cook"&&r.ahead&&aheadApi()&&aheadApi().pending(r.date)&&!(S.gateOk&&S.gateOk[r.id])){renderGate(r);return}
   var back=el("button",null,"← All recipes");back.onclick=function(){S.cur=null;render()};app.appendChild(back);
   var hp=pimg(r.id,180);if(hp)app.appendChild(hp);
@@ -399,6 +447,7 @@ function renderRecipe(){
   if(r.intro)app.appendChild(el("p","mut",r.intro));
   if(r.ahead){var ab=el("div","warnbox");ab.appendChild(el("b",null,"Make ahead: "));ab.appendChild(document.createTextNode(r.ahead));app.appendChild(ab)}
   var tabs=el("div","tabs");((hasPrep(r)?[["prep","Prep"]]:[]).concat([["cook","Step by step"],["whole","Whole recipe"]])).forEach(function(t){var b=el("button",S.mode===t[0]?"on":"",t[1]);b.onclick=function(){S.mode=t[0];render()};tabs.appendChild(b)});app.appendChild(tabs);
+  if(!(S.mode==="cook"&&S.step>0))app.appendChild(eatCard());else if(Math.abs(eatFactor(S.eat)-1)>=0.01){app.appendChild(el("div","mut","Cooking for "+eatLabel(S.eat)+" (scaled to "+Math.round(eatFactor(S.eat)*100)+"%)"))}
   if(S.mode==="prep"&&hasPrep(r)){
     app.appendChild(equipCard(r));
     if((r.prep||[]).length)app.appendChild(prepCard(r,im,true));
