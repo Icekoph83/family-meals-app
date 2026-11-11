@@ -122,7 +122,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-11c">
+<meta name="app-v" content="2026-11-11d">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -485,6 +485,7 @@ $("sx").onclick=function(){S.q[S.tab]="";$("sq").value="";$("sq").blur();S.edit=
 function render(){
   try{renderPend()}catch(e){}
   try{renderAhead()}catch(e){console.error('AHEADERR '+e.message)}
+  try{renderPantryModal()}catch(e){console.error('PMODAL '+e.message)}
   if(S.hold&&(S.edit||Object.keys(S.dl).length)){S.stale=true;return}
   S.hold=false;
   syncSearch();
@@ -509,6 +510,26 @@ function planMeals(){return mealsIn(curWk())}
 function addDays(iso,n){var p=iso.split("-");var d=new Date(+p[0],+p[1]-1,+p[2]);d.setDate(d.getDate()+n);return isoD(d)}
 var MN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function shortD(iso){var p=iso.split("-");return MN[+p[1]-1]+" "+(+p[2])}
+function oweList(){if(!S.meals||!S.db||!S.canWrite||!window.CookTab||!window.CookTab.pantry)return [];var t0=localIso(),lo=addDays(t0,-3),late=new Date().getHours()>=20;
+  return (S.meals||[]).filter(function(m){return m.kind==="dinner"&&m.status==="approved"&&m.date&&m.date>=lo&&(m.date<t0||(late&&m.date===t0))}).sort(function(a,b){return a.date<b.date?-1:1})
+    .map(function(m){return {m:m,rc:window.CookTab.forDate(m.date)}}).filter(function(o){return o.rc&&o.rc.pantryFor!==o.m.date&&(o.rc.ingredients||[]).length})}
+function pmSnoozed(){try{return +(localStorage.getItem("fm:pmSnooze")||0)>Date.now()}catch(e){return !!S.pmLater}}
+function pmSnooze(h){S.pmLater=true;try{localStorage.setItem("fm:pmSnooze",String(Date.now()+h*3600e3))}catch(e){}}
+function renderPantryModal(){var old=document.getElementById("pmodal");if(old)old.remove();
+  if(S.tab==="cook"||S.edit||pmSnoozed())return;var owe=oweList();if(!owe.length)return;
+  var ov=document.createElement("div");ov.id="pmodal";ov.setAttribute("role","dialog");ov.setAttribute("aria-modal","true");ov.setAttribute("aria-label","Pantry not updated");
+  ov.style.cssText="position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px";
+  var bx=el("div","card");bx.style.cssText="max-width:520px;width:100%;margin:0;max-height:80vh;overflow:auto";
+  bx.appendChild(el("div","day","Pantry not updated"));
+  bx.appendChild(el("div","note",owe.length===1?"This dinner was cooked but its ingredients haven't been taken out of the pantry yet:":"These dinners were cooked but their ingredients haven't been taken out of the pantry yet:"));
+  owe.forEach(function(o){var rw=el("div","prow");var t=el("div");t.appendChild(el("b",null,o.m.title));t.appendChild(el("div","note",fmtDate(o.m.date)));rw.appendChild(t);var ct=el("div","ctl");
+    var ub=el("button","b p","Update pantry");ub.onclick=function(){ov.remove();setTab("cook");window.CookTab.pantry(o.rc.id)};ct.appendChild(ub);
+    var sk=el("button","b","Didn't cook it");sk.onclick=function(){sk.disabled=true;write(S.db.doc("recipes/"+o.rc.id).update({pantryFor:o.m.date}))};ct.appendChild(sk);rw.appendChild(ct);bx.appendChild(rw)});
+  var later=el("button","b","Remind me later");later.style.cssText="width:100%;margin-top:10px";later.onclick=function(){pmSnooze(3);ov.remove()};bx.appendChild(later);
+  bx.appendChild(el("div","note","Later hides this for 3 hours. The Week tab keeps the list until it's done."));
+  ov.onclick=function(e){if(e.target===ov){pmSnooze(3);ov.remove()}};
+  ov.appendChild(bx);document.body.appendChild(ov);if(!S.pmShown){S.pmShown=1;var f=bx.querySelector("button");if(f)f.focus()}}
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&document.getElementById("pmodal")){pmSnooze(3);document.getElementById("pmodal").remove()}});
 function renderWeek(v){
   if(S.meals===null){v.appendChild(el("div","empty","Loading the plan…"));return}
   if(!S.meals.length){var e=el("div","empty");e.appendChild(el("b",null,"No plan yet"));e.appendChild(document.createTextNode("Jake will load this week's draft. You'll see each night here and can approve it or ask for a swap."));v.appendChild(e);return}
@@ -528,7 +549,7 @@ function renderWeek(v){
     var bk=el("button","b p","Jump to today");bk.style.marginBottom="10px";bk.onclick=function(){S.wk=cur;S.jump=1;render()};v.appendChild(bk)
   }
   if(!searching&&S.wk===cur&&S.db&&S.canWrite&&window.CookTab&&window.CookTab.pantry){var t0=localIso(),lo=addDays(t0,-3);
-    var owe=mealsIn(cur).filter(function(m){return m.kind==="dinner"&&m.status==="approved"&&m.date&&m.date<t0&&m.date>=lo}).map(function(m){return {m:m,rc:window.CookTab.forDate(m.date)}}).filter(function(o){return o.rc&&o.rc.pantryFor!==o.m.date});
+    var owe=oweList();
     if(owe.length){var oc=el("div","card");oc.appendChild(el("div","day","Pantry not updated yet"));oc.appendChild(el("div","note","Mark what these dinners used so the pantry stays right. It takes about a minute each."));
       owe.forEach(function(o){var rw=el("div","prow");rw.appendChild(el("b",null,o.m.title));var ct=el("div","ctl");
         var ub=el("button","b p","Update pantry");ub.onclick=function(){setTab("cook");window.CookTab.pantry(o.rc.id)};ct.appendChild(ub);
