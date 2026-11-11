@@ -122,7 +122,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-11g">
+<meta name="app-v" content="2026-11-11h">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -150,7 +150,7 @@ function save(){if(S.cur)ls("cook:"+S.cur.id,{step:S.step,done:S.done,prep:S.pdo
 function open(r){S.cur=r;var p=ls("cook:"+r.id)||{};S.step=p.step||0;S.done=p.done||{};S.pdone=p.prep||{};S.mode=(hasPrep(r)&&!(p.step>0))?"prep":"cook";S.tms={};render();window.scrollTo(0,0)}
 function hasPrep(r){return (r.prep||[]).length||(r.equip||[]).length||(r.flow||[]).length}
 function norm(t){return String(t||"").toLowerCase().replace(/\s+/g," ").trim()}
-function eqState(n){var L=(window.CookExt&&window.CookExt.equip&&window.CookExt.equip())||[];var f=null;L.forEach(function(x){if(norm(x.name)===norm(n))f=x});if(!f)return "unset";return f.have==="yes"?"yes":f.have==="no"?"no":"unset"}
+function eqState(n){var L=(window.CookExt&&window.CookExt.equip&&window.CookExt.equip())||[];var f=null;var en=function(t){return String(t||"").toLowerCase().replace(/\(.*?\)/g," ").replace(/&/g," and ").replace(/[^a-z0-9 ]+/g," ").replace(/\s+/g," ").trim()};L.forEach(function(x){if(en(x.name)===en(n))f=x});if(!f)return "unset";return f.have==="yes"?"yes":f.have==="no"?"no":"unset"}
 function ingMap(r){var m={};(r.ingredients||[]).forEach(function(i){m[i.id]=i});return m}
 function wakeOn(){try{if(navigator.wakeLock&&!S.wake){navigator.wakeLock.request("screen").then(function(w){S.wake=w;w.addEventListener("release",function(){S.wake=null})}).catch(function(){})}}catch(e){}}
 document.addEventListener("visibilitychange",function(){if(!document.hidden&&S.cur)wakeOn()});
@@ -374,7 +374,9 @@ function equipCard(r){
   (r.watch||[]).forEach(function(t){out.appendChild(el("div","warnbox",t))});
   if(list.length){var c=el("div","card");c.appendChild(el("h2",null,"Equipment"));
     list.forEach(function(e){var st=eqState(e.n);var row=el("div","eq");var l=el("div");l.appendChild(el("b",null,e.n));if(e.use)l.appendChild(el("div","mut",e.use));if(st==="no"&&e.alt)l.appendChild(el("div","mut","Instead: "+e.alt));row.appendChild(l);
-      row.appendChild(el("span","tag "+(st==="yes"?"ok":st==="no"?"no":""),st==="yes"?"Have it":st==="no"?"Missing":"Not confirmed"));c.appendChild(row)});
+      var X=window.CookExt&&window.CookExt.eqSet;
+      if(st==="unset"&&X){var bw=el("div");bw.style.cssText="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end";var y=el("button",null,"Have it");y.onclick=function(){y.disabled=true;X(e.n,"yes").then(function(){render()})};var n=el("button",null,"Don't have");n.onclick=function(){n.disabled=true;X(e.n,"no").then(function(){render()})};bw.appendChild(y);bw.appendChild(n);row.appendChild(bw)}
+      else row.appendChild(el("span","tag "+(st==="yes"?"ok":st==="no"?"no":""),st==="yes"?"Have it":st==="no"?"Missing":"Not confirmed"));c.appendChild(row)});
     
     out.appendChild(c)}
   var sc0=safetyCard(r);if(sc0)out.appendChild(sc0);
@@ -805,8 +807,11 @@ function ask(){
 
 var EQG=["Appliances","Prep tools","Cookware","Baby & batch","Other"];
 var HEAT=["Oven","Air fryer","Grill","Slow cooker","Instant Pot / pressure cooker","Toaster oven"];
-function eqNorm(t){return String(t||"").toLowerCase().replace(/\s+/g," ").trim()}
+function eqNorm(t){return String(t||"").toLowerCase().replace(/\(.*?\)/g," ").replace(/&/g," and ").replace(/[^a-z0-9 ]+/g," ").replace(/\s+/g," ").trim()}
 function eqStatus(name){var f=(S.equip||[]).filter(function(x){return eqNorm(x.name)===eqNorm(name)})[0];if(!f)return "unset";return f.have==="yes"?"yes":f.have==="no"?"no":"unset"}
+function eqGroup(n){n=String(n||"").toLowerCase();return /instant pot|pressure|slow cooker|air fr|oven|blender|processor|microwave|mixer|toaster|rice cooker|kettle|grill|waffle/.test(n)?"Appliances":/pan|skillet|pot\b|dutch|wok|sheet|tray|dish|griddle|casserole|roasting/.test(n)?"Cookware":/knife|board|thermometer|grater|zester|peeler|whisk|spatula|tongs|colander|strainer|bowl|measuring|spoon|ladle|masher|press|scale|thermometer/.test(n)?"Prep tools":/souper|cube|baby|freezer|storage|container/.test(n)?"Baby & batch":"Other"}
+function eqSet(name,have){var ex=(S.equip||[]).filter(function(x){return eqNorm(x.name)===eqNorm(name)})[0];var nm=String(name).trim();
+  return ex?putEquip(ex,{have:have}):S.db.collection("equipment").add({name:nm.charAt(0).toUpperCase()+nm.slice(1),group:eqGroup(nm),have:have,note:""})}
 function putEquip(x,patch){var d={name:x.name,group:x.group||"Other",have:x.have||"",note:x.note||""};for(var k in patch)d[k]=patch[k];return S.db.doc("equipment/"+x.id).set(d)}
 
 function weekEquip(v,list){
@@ -818,7 +823,13 @@ function weekEquip(v,list){
   var sm=el("div","sum");Object.keys(cnt).forEach(function(k){sm.appendChild(el("span","chip"+(cnt[k].length>=3?" warn":""),k+": "+cnt[k].length+" night"+(cnt[k].length===1?"":"s")+" ("+cnt[k].map(function(d){return d.slice(0,3)}).join(", ")+")"))});
   if(sm.childNodes.length)c.appendChild(sm);
   miss.forEach(function(t){c.appendChild(el("div","status","Heads up: "+t))});
-  var un=Object.keys(unk);if(un.length)c.appendChild(el("div","note","Not confirmed yet: "+un.join(", ")+". Mark what you have on the Kitchen tab."));
+  var un=Object.keys(unk);var canEq=S.db&&S.canWrite;
+  if(un.length){c.appendChild(el("div","note","Do you have these? Tap once and the plan stops asking."));
+    un.forEach(function(nm){var rw=el("div","prow");var tp=el("div","top");tp.appendChild(el("b",null,nm));var ct=el("div","ctl");
+      var y=el("button","b p","Have it");y.disabled=!canEq||S.busy;y.onclick=function(){write(eqSet(nm,"yes"))};ct.appendChild(y);
+      var n=el("button","b","Don't have");n.disabled=!canEq||S.busy;n.onclick=function(){write(eqSet(nm,"no"))};ct.appendChild(n);tp.appendChild(ct);rw.appendChild(tp);c.appendChild(rw)})}
+  if(canEq){var qa=el("div","row");qa.style.marginTop="10px";var qi=el("input");qi.placeholder="Add equipment you have (e.g. Dutch oven)";qi.style.flex="1";qi.value=S.eqq||"";qi.oninput=function(){S.eqq=qi.value};
+    var qb=el("button","b","Add");qb.disabled=S.busy;qb.onclick=function(){var t=(S.eqq||"").trim();if(!t)return;S.eqq="";write(eqSet(t,"yes"))};qi.onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();qb.click()}};qa.appendChild(qi);qa.appendChild(qb);c.appendChild(qa)}
   if(!miss.length&&!un.length)c.appendChild(el("div","note","Everything planned this week fits your kitchen."));
   if(S.sample){var b=S.bal;var r=el("div","row");var go=el("button","b",b.busy?"Thinking…":"Balance the week");go.disabled=b.busy;go.onclick=balanceWeek;r.appendChild(go);
     if(b.out){var x=el("button","b","Clear");x.onclick=function(){b.out="";render()};r.appendChild(x)}c.appendChild(r);
@@ -1544,7 +1555,7 @@ window.CookExt={photo:{get:function(rid){return (S.ph||{})[rid]||""},can:functio
     fetch(url,{headers:phHdr(false),cache:"no-store"}).then(function(r){return r.ok?r.json().then(function(j){return j.sha}):null}).then(function(sha){
       var body={message:"Photo: "+rid,content:b64};if(sha)body.sha=sha;
       return fetch(url,{method:"PUT",headers:Object.assign({"Content-Type":"application/json"},phHdr(false)),body:JSON.stringify(body)})}).then(function(r){if(!r.ok)throw 0;
-      if(!S.phf)S.phf={};S.phf[rid]=d;S.phts=S.phts||{};S.phts[rid]=ts;phMerge();return S.db.doc("phx/"+rid).set({f:path,ts:ts,by:S.me||""})}).then(function(){res(true)}).catch(function(){res(false)})};im.src=rd.result};rd.readAsDataURL(file)})}},ahead:{pending:aheadPending,done:markAhead},equip:function(){return S.equip||[]},fb:{
+      if(!S.phf)S.phf={};S.phf[rid]=d;S.phts=S.phts||{};S.phts[rid]=ts;phMerge();return S.db.doc("phx/"+rid).set({f:path,ts:ts,by:S.me||""})}).then(function(){res(true)}).catch(function(){res(false)})};im.src=rd.result};rd.readAsDataURL(file)})}},ahead:{pending:aheadPending,done:markAhead},equip:function(){return S.equip||[]},eqSet:function(n,h){if(!S.db||!S.canWrite)return Promise.resolve();return eqSet(n,h).catch(function(){})},fb:{
   can:function(){return !!(S.db&&S.canWrite)},
   list:function(rid){return (S.fbs||[]).filter(function(e){return e.rid===rid}).slice().sort(function(a,b){return (b.ts||0)-(a.ts||0)})},
   who:function(id){return !id?"Someone":mine(id)?"You":(who(id)||"Someone")},
