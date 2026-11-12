@@ -118,11 +118,17 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 #ck .ck-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 </style>
 </head><body>
-<script src="fm-db.js"></script>
+<script>
+/* Pick the data backend. Phones already set up with the private GitHub key keep using it; everyone else gets
+   household sign-in on Supabase. ?backend=gh or ?backend=sb switches (remembered on this device). */
+(function(){var b="sb";try{b=localStorage.getItem("fm:backend")||(localStorage.getItem("fm:token")?"gh":"sb")}catch(e){}
+  var m=/[?&]backend=(gh|sb)\b/.exec(location.search);if(m)b=m[1];try{localStorage.setItem("fm:backend",b)}catch(e){}
+  window.FM_BACKEND=b;document.write('<script src="'+(b==="gh"?"fm-db.js":"fm-sb.js")+'"><\/script>')})();
+</script>
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-12a">
+<meta name="app-v" content="2026-11-12b">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -149,10 +155,17 @@ function ls(k,v){try{if(v===undefined){return JSON.parse(localStorage.getItem(k)
 function save(){if(S.cur)ls("cook:"+S.cur.id,{step:S.step,done:S.done,prep:S.pdone,eat:S.eat})}
 function open(r){S.cur=r;var p=ls("cook:"+r.id)||{};S.step=p.step||0;S.done=p.done||{};S.pdone=p.prep||{};S.eat=p.eat||eatDefault();S.mode=(hasPrep(r)&&!(p.step>0))?"prep":"cook";S.tms={};render();window.scrollTo(0,0)}
 
-/* Who's eating: scale amounts for the people at the table. Usual household (Jake, Maggie, Lenora) = 2.5 portions = amounts as written. */
-function eatDefault(){return {j:true,m:true,l:true,xa:0,xk:0}}
-function eatPortions(e){e=e||eatDefault();return (e.j?1:0)+(e.m?1:0)+(e.l?0.5:0)+(e.xa||0)+(e.xk||0)*0.5}
-function eatFactor(e){return eatPortions(e)/2.5}
+/* Who's eating: scale amounts for the people at the table. Recipes are written for the whole household
+   (adults 1 portion, babies and young children half), so the usual household = amounts as written. */
+function kidName(){var k=(window.CookExt&&window.CookExt.people&&window.CookExt.people()||[]).filter(function(p){return /baby|child|kid|toddler/i.test(p.role||"")});return k.length?k.map(function(p){return p.name}).join(" and "):""}
+function hhPeople(){var P=window.CookExt&&window.CookExt.people&&window.CookExt.people();return (P&&P.length)?P:[{id:"a1",name:"Adult 1",role:"adult"},{id:"a2",name:"Adult 2",role:"adult"}]}
+function pPortion(p){return /baby|child|kid|toddler/i.test(p.role||"")?0.5:1}
+var LEGACY_EAT={j:"jake",m:"maggie",l:"lenora"};
+function eatNorm(e){e=e||{};if(!e.p){e.p={};Object.keys(LEGACY_EAT).forEach(function(k){if(k in e)e.p[LEGACY_EAT[k]]=!!e[k]})}return e}
+function eatDefault(){return {p:{},xa:0,xk:0}}
+function eatOn(e,p){e=eatNorm(e);return e.p[p.id]!==false}
+function eatPortions(e){e=eatNorm(e||eatDefault());return hhPeople().reduce(function(a,p){return a+(eatOn(e,p)?pPortion(p):0)},0)+(e.xa||0)+(e.xk||0)*0.5}
+function eatFactor(e){var base=hhPeople().reduce(function(a,p){return a+pPortion(p)},0)||1;return eatPortions(e)/base}
 var QN="(?:\\d+\\s+\\d\\/\\d|\\d+\\/\\d|\\d+(?:\\.\\d+)?)";
 var QU="(cups?|tbsp|tsp|tablespoons?|teaspoons?|lbs?|pounds?|oz|ounces?|cloves?|cubes?|pitas?|eggs?|tortillas?)";
 var QRE=new RegExp("(\\()?("+QN+")(?:(\\s*(?:-|to)\\s*)("+QN+"))?(\\s+(?:(?:frozen|fresh|large|small|medium|whole|ripe|rice|garlic)\\s+){0,2})"+QU+"\\b","gi");
@@ -183,11 +196,11 @@ function scaledView(r){var f=eatFactor(S.eat),full=!!(S.eat&&S.eat.full);if(Math
   c.steps=(r.steps||[]).map(function(s){var n={};for(var k in s)n[k]=s[k];n.text=scaleText(s.text,f,full);return n});
   c.prep=(r.prep||[]).map(function(s){var n={};for(var k in s)n[k]=s[k];n.text=scaleText(s.text,f,full);return n});
   return c}
-function eatLabel(e){var n=[];if(e.j)n.push("Jake");if(e.m)n.push("Maggie");if(e.l)n.push("Lenora");if(e.xa)n.push(e.xa+" adult guest"+(e.xa>1?"s":""));if(e.xk)n.push(e.xk+" child guest"+(e.xk>1?"ren":""));return n.length?n.join(", "):"nobody"}
+function eatLabel(e){e=eatNorm(e);var n=hhPeople().filter(function(p){return eatOn(e,p)}).map(function(p){return p.name});if(e.xa)n.push(e.xa+" adult guest"+(e.xa>1?"s":""));if(e.xk)n.push(e.xk+" child guest"+(e.xk>1?"ren":""));return n.length?n.join(", "):"nobody"}
 function eatCard(){
   var e=S.eat=S.eat||eatDefault(),c=el("div","card");c.appendChild(el("h2",null,"Who's eating?"));
   var row=el("div");row.style.cssText="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0";
-  [["j","Jake"],["m","Maggie"],["l","Lenora"]].forEach(function(p){var b=el("button",e[p[0]]?"pri":"",(e[p[0]]?"✓ ":"")+p[1]);b.onclick=function(){e[p[0]]=!e[p[0]];save();render()};row.appendChild(b)});c.appendChild(row);
+  eatNorm(e);hhPeople().forEach(function(p){var on=eatOn(e,p);var b=el("button",on?"pri":"",(on?"✓ ":"")+p.name);b.onclick=function(){e.p[p.id]=!on;save();render()};row.appendChild(b)});c.appendChild(row);
   [["xa","Adult guests"],["xk","Child guests (half portion)"]].forEach(function(g){var r=el("div");r.style.cssText="display:flex;align-items:center;gap:10px;margin:6px 0";var l=el("span",null,g[1]);l.style.flex="1";r.appendChild(l);
     var mi=el("button",null,"−");mi.disabled=!(e[g[0]]>0);mi.onclick=function(){e[g[0]]=Math.max(0,(e[g[0]]||0)-1);save();render()};var v=el("b",null,String(e[g[0]]||0));v.style.minWidth="1.5em";v.style.textAlign="center";var pl=el("button",null,"+");pl.onclick=function(){e[g[0]]=Math.min(12,(e[g[0]]||0)+1);save();render()};
     r.appendChild(mi);r.appendChild(v);r.appendChild(pl);c.appendChild(r)});
@@ -226,7 +239,7 @@ function renderFeedback(r){
   var hint=f.v==="again"?"It goes in the favorites pool for future weeks.":f.v==="changes"?"Say what to change below. Claude rewrites the recipe before it comes back and tells you what changed.":f.v==="never"?"It moves to Archived right away and won't be suggested again. You can restore it later.":"";
   if(hint)c.appendChild(el("div","mut",hint));app.appendChild(c);
   var n=el("div","card");n.appendChild(el("h2",null,"Notes"));
-  var ta=el("textarea");ta.rows=4;ta.placeholder="e.g. too spicy for Lenora, needs more sauce, tofu didn't crisp";ta.value=f.note;ta.oninput=function(){f.note=ta.value};n.appendChild(ta);
+  var ta=el("textarea");ta.rows=4;ta.placeholder="e.g. too spicy for "+(kidName()||"the kids")+", needs more sauce, tofu didn't crisp";ta.value=f.note;ta.oninput=function(){f.note=ta.value};n.appendChild(ta);
   n.appendChild(el("div","mut","Real times, if they were off (minutes, optional). Planned: "+(r.time||"not set")));
   var tr=el("div","row");tr.style.marginTop="8px";
   [["prep","Real prep"],["cook","Real cook"]].forEach(function(t){var w=el("div");w.style.flex="1";w.appendChild(el("div","mut",t[1]));var i=el("input");i.type="number";i.min="0";i.inputMode="numeric";i.value=f[t[0]];i.oninput=function(){f[t[0]]=i.value};w.appendChild(i);tr.appendChild(w)});
@@ -405,13 +418,13 @@ function safeTemps(r){var txt=(r.ingredients||[]).map(function(i){return i.name}
   if(has("Poultry (any cut, ground too)")&&!/ground (beef|pork|lamb|veal)|sausage/i.test(txt))out=out.filter(function(t){return t[1]!=="Ground meat and sausage"});
   if(out.filter(function(t){return t[1]!=="Rice"}).length>1)out=out.filter(function(t){return t[1]!=="Egg dishes"});return out}
 var LEFT_GEN={fridge:"3 to 4 days",freeze:"2 to 6 months for quality",store:"Cool and refrigerate within 2 hours of cooking (1 hour above 90°F). Use shallow containers; hot food can go straight into the fridge.",reheat:"Reheat to 165°F, checked with the thermometer. Bring soups and sauces to a rolling boil. In the microwave, cover, stir and rotate, then let it stand a minute before checking."};
-var RICE_NOTE="Rice: cool it within 1 hour, reheat only what you'll eat, once, until steaming hot all the way through. Lenora's portions within 1 day.";
+function RICE_NOTE(){return "Rice: cool it within 1 hour, reheat only what you'll eat, once, until steaming hot all the way through."+(kidName()?" "+kidName()+"'s portions within 1 day.":"")}
 function safetyCard(r){var tl=safeTemps(r),notes=r.safety||[];if(!tl.length&&!notes.length)return null;var c=el("div","card");c.appendChild(el("h2",null,"Food safety"));
   if(tl.length){var t=el("div");tl.forEach(function(x){t.appendChild(el("span","chip",x[1]+": "+x[2]))});c.appendChild(t)}
   notes.forEach(function(n){var d=el("div",null,"• "+n);d.style.padding="3px 0";c.appendChild(d)});
   if(tl.length)c.appendChild(el("div","mut","Check temperatures in the thickest part with the meat thermometer. Keep raw meat, poultry and eggs away from ready-to-eat food, and wash hands, boards and knives after touching them."));return c}
 function leftCard(r,act){var L=r.leftovers||LEFT_GEN;var c=el("div","card");c.appendChild(el("h2",null,"Leftovers"));
-  if(!r.leftovers&&/\brice\b/i.test((r.ingredients||[]).map(function(i){return i.name}).join(" ")))L=Object.assign({},L,{reheat:L.reheat+" "+RICE_NOTE});
+  if(!r.leftovers&&/\brice\b/i.test((r.ingredients||[]).map(function(i){return i.name}).join(" ")))L=Object.assign({},L,{reheat:L.reheat+" "+RICE_NOTE()});
   [["Store",L.store],["Fridge",L.fridge],["Freezer",L.freeze],["Reheat",L.reheat]].forEach(function(p){if(!p[1])return;var d=el("div");d.style.padding="4px 0";d.appendChild(el("b",null,p[0]+": "));d.appendChild(document.createTextNode(p[1]));c.appendChild(d)});
   if(act){var P=pantryApi();if(P&&P.leftover){var st=S.lo&&S.lo[r.id];if(st){c.appendChild(el("div","mut",st))}else{var row=el("div","row");
     [["Fridge","Leftovers in the fridge"],["Freezer","Some in the freezer"]].forEach(function(o){var b=el("button",o[0]==="Fridge"?"pri":"",o[1]);b.onclick=function(){b.disabled=true;P.leftover(r,o[0]).then(function(msg){S.lo=S.lo||{};S.lo[r.id]=msg;render()})};row.appendChild(b)});c.appendChild(row);
@@ -526,7 +539,9 @@ var DAYS={mon:"Monday",tue:"Tuesday",wed:"Wednesday",thu:"Thursday",fri:"Friday"
 var S={tab:"week",wk:null,shop:null,mode:"store",meals:null,staples:null,pantry:null,pf:{name:"",qty:"",n:1,loc:"Pantry",exp:""},pp:{text:"",imgs:[],busy:false,err:"",proposal:null,ideas:"",ichk:"",ibusy:false,ierr:""},cv:{text:"",busy:false,out:"",err:"",chk:"",only:false},canImg:null,dl:{},equip:null,kp:{text:"",imgs:[],busy:false,err:"",proposal:null},eqf:{name:"",group:"Cookware"},rm:null,people:null,hh:{notes:""},hd:{text:"",busy:false,err:"",proposal:null},rf:{},np:{name:"",role:"adult"},ck:{text:"",busy:false,res:null,fixed:"",fixing:false,err:""},st:{busy:false,res:[],err:"",cur:""},bal:{busy:false,out:"",chk:"",err:""},q:{week:"",staples:"",pantry:"",kitchen:"",shop:""},edit:null,hold:false,stale:false,newName:"",newSec:"Pantry",chat:[],db:null,user:null,sample:null,canWrite:true,me:null,names:{},open:null,busy:false,draft:"",err:""};
 function $(id){return document.getElementById(id)}
 function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
-function who(id){return id?(S.names[id]||"Someone"):""}
+function who(id){if(!id)return "";var p=(S.people||[]).filter(function(x){return x.id===id||String(x.name||"").toLowerCase()===String(id).toLowerCase()})[0];return S.names[id]||(p&&p.name)||(id.length<20?id.charAt(0).toUpperCase()+id.slice(1):"Someone")}
+function kids(){return (S.people||[]).filter(function(p){return /baby|child|kid|toddler/i.test(p.role||"")})}
+function kidNm(){var k=kids();return k.length?k.map(function(p){return p.name}).join(" and "):""}
 function mine(id){return S.me&&id===S.me}
 
 function setTab(t){S.tab=t;S.ckFresh=true;S.rm=null;S.edit=null;S.dl={};S.hold=false;document.querySelectorAll(".tab").forEach(function(b){b.setAttribute("aria-selected",String(b.dataset.t===t))});render()}
@@ -566,7 +581,7 @@ function render(){
   v.textContent="";
   var bn=$("banner");bn.textContent="";
   if(!S.db){bn.appendChild(el("div","banner","Shared planning is not available in this view, so nothing will be saved."))}
-  else if(!S.canWrite){bn.appendChild(el("div","banner","You can read this plan but not change it. Ask Jake for edit access."))}
+  else if(!S.canWrite){bn.appendChild(el("div","banner","You can read this plan but not change it. Ask whoever set up the household for edit access."))}
   if(S.err){bn.appendChild(el("div","banner",S.err))}
   if(S.tab==="week")renderWeek(v);else if(S.tab==="ask")renderAsk(v);else if(S.tab==="staples")renderStaples(v);else if(S.tab==="pantry")renderPantry(v);else if(S.tab==="kitchen")renderKitchen(v);else if(S.tab==="house")renderHouse(v);else renderShop(v);
 }
@@ -603,7 +618,7 @@ function renderPantryModal(){var old=document.getElementById("pmodal");if(old)ol
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&document.getElementById("pmodal")){pmSnooze(3);document.getElementById("pmodal").remove()}});
 function renderWeek(v){
   if(S.meals===null){v.appendChild(el("div","empty","Loading the plan…"));return}
-  if(!S.meals.length){var e=el("div","empty");e.appendChild(el("b",null,"No plan yet"));e.appendChild(document.createTextNode("Jake will load this week's draft. You'll see each night here and can approve it or ask for a swap."));v.appendChild(e);return}
+  if(!S.meals.length){var e=el("div","empty");e.appendChild(el("b",null,"No plan yet"));e.appendChild(document.createTextNode("Claude will load this week's draft. You'll see each night here and can approve it or ask for a swap."));v.appendChild(e);return}
   var searching=!!(S.q.week||"").trim();
   var ks=weekKeys(),cur=curWk();
   if(!S.wk||(ks.indexOf(S.wk)<0&&S.wk!==cur))S.wk=cur;
@@ -630,7 +645,7 @@ function renderWeek(v){
     if(los.length){var lc=el("div","card");lc.appendChild(el("div","day","Leftovers in the fridge"));
       los.forEach(function(x){var d=soonest(x);var rw=el("div","prow");var tp=el("div","top");var t=el("div");t.style.flex="1";t.appendChild(el("b",null,x.name.replace(/^Leftovers:\s*/,"")));
         t.appendChild(el("div","note",d===null?"No eat-by date":d<0?"Past its eat-by date. Throw it out.":d===0?"Eat today, or throw it out tonight.":"Eat by "+fmtDate(addDays(localIso(),d))+" ("+d+" day"+(d===1?"":"s")+")"));tp.appendChild(t);
-        if(x.leftover&&x.leftover.kidBy){var kd=dleft(x.leftover.kidBy);t.appendChild(el("div","note",kd<0?"Not for Lenora anymore (rice over 1 day old). Adults only.":"Lenora: by "+(kd===0?"today":fmtDate(x.leftover.kidBy))+" (rice)"))}
+        if(x.leftover&&x.leftover.kidBy){var kd=dleft(x.leftover.kidBy);var kn=kidNm()||"the kids";t.appendChild(el("div","note",kd<0?"Not for "+kn+" anymore (rice over 1 day old). Adults only.":kn+": by "+(kd===0?"today":fmtDate(x.leftover.kidBy))+" (rice)"))}
         if(d!==null&&d<=0)tp.appendChild(el("span","chip bad",d<0?"Toss":"Today"));
         var eb=el("button","b","Finished");eb.disabled=S.busy||!S.canWrite;eb.onclick=function(){write(putPantry(x,{lots:[],state:"used"}))};tp.appendChild(eb);rw.appendChild(tp);
         if(x.note&&/Reheat:/.test(x.note))rw.appendChild(el("div","note",x.note.slice(x.note.indexOf("Reheat:"))));lc.appendChild(rw)});
@@ -675,7 +690,7 @@ function mealCard(m){
     ah.appendChild(el("div","note",m.ahead));
     if(!ahd&&m.date&&dd>=0){var ac2=el("div","acts"),d2=el("button",null,"Mark done");d2.onclick=function(){markAhead(m,"done")};ac2.appendChild(d2);var c2=el("button",null,"Remind me on iPhone");c2.onclick=function(){remindPhone(m)};ac2.appendChild(c2);if(!scDone())ah.appendChild(scSetup());ah.appendChild(ac2)}
     c.appendChild(ah)}
-  if(m.baby)c.appendChild(el("div","note","Lenora: "+m.baby));
+  if(m.baby)c.appendChild(el("div","note",(kidNm()||"Kids")+": "+m.baby));
   if(m.decidedBy&&m.status!=="draft")c.appendChild(el("div","status",(mine(m.decidedBy)?"You":who(m.decidedBy))+(m.status==="approved"?" approved this":" asked for a swap")+(m.comment?": “"+m.comment+"”":"")));
   if(S.canWrite&&S.db){
     var r=el("div","row");
@@ -740,7 +755,7 @@ function phIput(k,v){return phIdb().then(function(db){if(!db)return;try{db.trans
 var phBusy=false;
 function phLoad(){if(phBusy)return;S.phts=S.phts||{};var need=Object.keys(S.phx||{}).filter(function(k){return S.phts[k]!==S.phx[k].ts});if(!need.length)return;phBusy=true;
   var i=0,done=0;function one(){var k=need[i++];if(!k)return Promise.resolve();var x=S.phx[k],ck=k+"@"+x.ts;
-    return phIget(ck).then(function(b){if(b)return b;return fetch("https://api.github.com/repos/"+PH_REPO+"/contents/"+x.f,{headers:phHdr(true),cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){phIput(ck,b);return b})})
+    return phIget(ck).then(function(b){if(b)return b;return (window.FMPH?window.FMPH.get(x.f):fetch("https://api.github.com/repos/"+PH_REPO+"/contents/"+x.f,{headers:phHdr(true),cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.blob()})).then(function(b){phIput(ck,b);return b})})
       .then(function(b){S.phf[k]=URL.createObjectURL(b);S.phts[k]=x.ts;done++;if(done%4===0){phMerge();render()}}).catch(function(){}).then(one)}
   Promise.all([one(),one(),one()]).then(function(){phBusy=false;phMerge();render()})}
 function sendReq(type,label,payload){return S.db.collection("requests").add({type:type,label:label,payload:payload||{},status:"pending",by:S.me||"",ts:Date.now()})}
@@ -751,7 +766,7 @@ function reqCard(types){
   list.forEach(function(r){var row=el("div","prow");var t=el("div","top");t.appendChild(el("span",null,r.label||r.type));
     t.appendChild(el("span","chip"+(r.status==="done"?" ok":r.status==="failed"?" bad":" warn"),r.status==="done"?"Done":r.status==="failed"?"Problem":"Waiting for Claude"));row.appendChild(t);
     if(r.result)row.appendChild(el("div","note",r.result));
-    var d=new Date(r.ts||0);row.appendChild(el("div","note","Asked "+d.toLocaleString([], {weekday:"short",hour:"numeric",minute:"2-digit"})+(r.by?" by "+(r.by==="jake"?"Jake":r.by==="maggie"?"Maggie":r.by):"")));c.appendChild(row)});
+    var d=new Date(r.ts||0);row.appendChild(el("div","note","Asked "+d.toLocaleString([], {weekday:"short",hour:"numeric",minute:"2-digit"})+(r.by?" by "+who(r.by):"")));c.appendChild(row)});
   return c}
 function localIso(){var n=new Date();return n.getFullYear()+"-"+("0"+(n.getMonth()+1)).slice(-2)+"-"+("0"+n.getDate()).slice(-2)}
 function dayDiff(d){if(!d)return 99;var a=new Date(d+"T12:00:00"),n=new Date(localIso()+"T12:00:00");return Math.round((a-n)/864e5)}
@@ -772,7 +787,7 @@ function addAheadFile(m){var blob=new Blob([icsFor(m)],{type:"text/calendar"}),f
   openBlob()}
 function renderPend(){var h=$("pend");if(!h)return;h.textContent="";
   var pn=(S.reqs||[]).filter(function(r){return r.status==="pending"});
-  if(pn.length){var b=el("div","banner");b.appendChild(el("b",null,"Waiting for Claude ("+pn.length+"): "));b.appendChild(document.createTextNode(pn.map(function(r){return r.label||r.type}).join("; ")+". Skylight and Instacart jobs run when Jake's computer is on (checked about every 2 hours) or when Jake chats with Claude."));h.appendChild(b)}
+  if(pn.length){var b=el("div","banner");b.appendChild(el("b",null,"Waiting for Claude ("+pn.length+"): "));b.appendChild(document.createTextNode(pn.map(function(r){return r.label||r.type}).join("; ")+". Skylight and Instacart jobs run about every 2 hours while the computer that runs the Skylight connection is on."));h.appendChild(b)}
   var sr=S.sync;if(sr&&sr.items&&sr.items.length){var c=el("div","aheadbar");c.appendChild(el("b","h","Skylight and the plan don't match"));sr.items.forEach(function(t){c.appendChild(el("div","note",t))});
     c.appendChild(el("div","note","Checked "+new Date(sr.ts||0).toLocaleString([],{weekday:"short",hour:"numeric",minute:"2-digit"})+". Tell Claude which one is right."));h.appendChild(c)}}
 function renderAhead(){var h=$("ahead");if(!h)return;h.textContent="";
@@ -843,12 +858,12 @@ function equipText(){
   var y=eqBy("yes").map(eqLabel),n=eqBy("no").map(eqLabel),u=eqBy("").map(function(x){return x.name});
   return "Kitchen equipment. HAS: "+(y.join(", ")||"nothing confirmed yet")+". DOES NOT HAVE: "+(n.join(", ")||"nothing listed")+". NOT CONFIRMED YET, so do not rely on these: "+(u.join(", ")||"none")+". Assume a working stovetop and basic pots and pans unless listed as missing. Only suggest dishes that can be made with equipment they HAVE. When a dish would normally use something they lack, adapt it to what they do have (for example oven to air fryer, pressure cooker to stovetop or slow cooker) and state the adjusted time and temperature plainly, or say it will not work. Mention the equipment each idea needs.";
 }
-var RULES0="Household: Jake, Maggie, baby Lenora (turning 1). Hard exclusions: seafood and shellfish, mayo, blue cheese and similar. Jake avoids raw, large-cut or fried onion; cooked-down onion is fine. Both adults are watching cholesterol, so lean toward lower saturated fat. About 40-50% of dinners meatless. They like spicy, warm spices, citrus, and sweet against savory. Weeknight dinners under 60 minutes in real time. Maggie cares about waste, cost per serving, and fiber.";
+var RULES0="No household profiles yet. Plan for two adults, avoid nothing in particular, keep weeknight dinners under 45 minutes, and ask the household about allergies and dislikes before relying on a plan.";
 function ask(){
   var q=S.draft.trim();if(!q)return;
   if(!S.sample){S.draft="";write(S.db.collection("chat").add({q:q,a:"",by:S.me||"",ts:Date.now()}));return}
   S.busy=true;render();
-  var prompt="You are helping a family with their weekly dinner plan. "+R()+"\n\nThis week's plan:\n"+planText()+"\n\nAnswer the question briefly and practically in plain text, no markdown. If you suggest a replacement, say it is a suggestion that needs Jake to run a search to add it to the shortlist. Do not invent ingredient quantities.\n\n"+equipText()+"\n\nQuestion: "+q;
+  var prompt="You are helping a family with their weekly dinner plan. "+R()+"\n\nThis week's plan:\n"+planText()+"\n\nAnswer the question briefly and practically in plain text, no markdown. If you suggest a replacement, say it is a suggestion that needs a new search to add it to the shortlist. Do not invent ingredient quantities.\n\n"+equipText()+"\n\nQuestion: "+q;
   S.sample(prompt,{cache:false}).then(function(res){
     return guardText(res.text||"").then(function(g){
       S.draft="";
@@ -945,13 +960,13 @@ function safetyRef(){var c=el("div","card");var open=!!S.safeOpen;var hb=el("but
   var hd=el("div","top");hd.appendChild(el("div","day","Food safety basics"));hd.appendChild(hb);c.appendChild(hd);
   if(!open){c.appendChild(el("div","note","Safe cooking temperatures, the 2-hour rule, cooling, reheating and thawing, from USDA and FDA guidance (the same rules ServSafe teaches)."));return c}
   var sec=function(t,items){c.appendChild(el("h3",null,t));items.forEach(function(x){var d=el("div",null,"• "+x);d.style.padding="2px 0";c.appendChild(d)})};
-  sec("Cook to a safe internal temperature",["Poultry, including ground turkey and chicken: 165°F","Ground beef, pork and sausage: 160°F","Pork, beef and lamb steaks, chops and roasts: 145°F, then rest 3 minutes","Fish: 145°F, or until opaque and it flakes","Egg dishes: 160°F. Eggs for Lenora: yolk and white firm","Casseroles and leftovers: 165°F","Use the thermometer in the thickest part, away from bone."]);
+  sec("Cook to a safe internal temperature",["Poultry, including ground turkey and chicken: 165°F","Ground beef, pork and sausage: 160°F","Pork, beef and lamb steaks, chops and roasts: 145°F, then rest 3 minutes","Fish: 145°F, or until opaque and it flakes","Egg dishes: 160°F. Eggs for young children: yolk and white firm","Casseroles and leftovers: 165°F","Use the thermometer in the thickest part, away from bone."]);
   sec("Keep it out of the danger zone (40°F to 140°F)",["Refrigerate cooked food within 2 hours, or 1 hour if it's above 90°F (a hot car, a summer picnic).","Fridge at 40°F or colder; freezer at 0°F.","Cool big batches fast: divide into shallow containers. Hot food can go straight into the fridge."]);
   sec("Leftovers",["Fridge: 3 to 4 days. Freezer: safe indefinitely at 0°F, best quality within 2 to 6 months.","Reheat to 165°F. Bring soups, sauces and gravies to a rolling boil.","Microwave: cover, stir and rotate, then let it stand before checking the temperature.","When in doubt, throw it out. Smell and look don't tell you if it's safe."]);
-  sec("Rice",["Rice can carry spores that survive cooking. If cooked rice sits warm, they make a toxin that reheating does not destroy, so fast cooling is what keeps rice safe.","Cool it within 1 hour if you can (2 hours at most): spread it thin or portion it, then refrigerate or freeze. Never leave it in the rice cooker or pot.","Freezing in cubes (what you already do) is the safest way to keep batch rice.","Fridge rice: USDA allows 3 to 4 days like other leftovers; the UK food agencies say eat within 24 hours. The app uses 1 day for Lenora and 3 days for adults.","Reheat only what you'll eat, once, until steaming hot all the way through (165°F). Add a splash of water, cover, and stir halfway."]);
+  sec("Rice",["Rice can carry spores that survive cooking. If cooked rice sits warm, they make a toxin that reheating does not destroy, so fast cooling is what keeps rice safe.","Cool it within 1 hour if you can (2 hours at most): spread it thin or portion it, then refrigerate or freeze. Never leave it in the rice cooker or pot.","Freezing in cubes (what you already do) is the safest way to keep batch rice.","Fridge rice: USDA allows 3 to 4 days like other leftovers; the UK food agencies say eat within 24 hours. The app uses 1 day for young children's portions and 3 days for adults.","Reheat only what you'll eat, once, until steaming hot all the way through (165°F). Add a splash of water, cover, and stir halfway."]);
   sec("Thawing",["In the fridge (safest; plan a day ahead), in cold water in a sealed bag changed every 30 minutes, or in the microwave and cook right away.","Never thaw on the counter."]);
   sec("Clean and separate",["Wash hands for 20 seconds with soap before cooking and after touching raw meat, poultry or eggs.","Separate boards and knives for raw meat; wash them in hot soapy water before reuse.","Don't rinse raw chicken; it splashes germs around the sink.","Keep raw meat on the bottom shelf of the fridge in a container."]);
-  sec("Higher-risk eaters",["Young children, older adults, pregnant people and anyone with a weakened immune system are more likely to get seriously sick.","House rule: Lenora's food always follows the strictest guidance (fully firm eggs, rice leftovers within 1 day). Adults can make their own calls on things like runny yolks."]);
+  sec("Higher-risk eaters",["Young children, older adults, pregnant people and anyone with a weakened immune system are more likely to get seriously sick.",(kidNm()?"House rule: "+kidNm()+"'s food always follows the strictest guidance (fully firm eggs, rice leftovers within 1 day). Adults can make their own calls on things like runny yolks.":"With young children at the table, follow the strictest guidance for their portions (fully firm eggs, rice leftovers within 1 day).")]);
   c.appendChild(el("div","note","Home guidance from USDA FSIS and FoodSafety.gov. Restaurant rules under the FDA Food Code (what ServSafe certifies) are slightly stricter, such as cold food at 41°F and cooling from 135°F to 70°F within 2 hours, then to 41°F within 4 more."));return c}
 function renderKitchen(v){
   if(S.equip===null){v.appendChild(el("div","empty","Loading your kitchen…"));return}
@@ -1134,10 +1149,21 @@ function stressCard(v){
     b.appendChild(el("div","note",o.ideas.join(" · ")));c.appendChild(b)});
   v.appendChild(c)}
 
+function skyCard(){var k=S.sky||{},dis=!S.canWrite||!S.db||S.busy,c=el("div","card");c.appendChild(el("div","day","Skylight sync (beta)"));
+  if(!k.enabled){
+    c.appendChild(el("div","note","Put this household's dinners, make-ahead reminders and grocery list on your Skylight calendar. It's a test feature that runs through Jake's Skylight connection, so it works for a few invited households only."));
+    var st=el("ol");st.style.cssText="margin:8px 0 8px 18px;padding:0";["In the Skylight app, invite the Skylight email Jake gives you to your frame. You can remove it anytime.","Type your Skylight frame's name below exactly as it shows in Skylight, and turn sync on."].forEach(function(t){st.appendChild(el("li",null,t))});c.appendChild(st);
+    c.appendChild(el("div","note","Jake's account will be able to see what's on that Skylight frame, not just meals. Only turn this on if you're comfortable with that."));
+    var row=el("div","row");row.style.marginTop="8px";var fi=el("input");fi.placeholder="Skylight frame name, e.g. The Smiths";fi.style.flex="1";fi.value=S.skyf||k.frameName||"";fi.oninput=function(){S.skyf=fi.value};row.appendChild(fi);
+    var on=el("button","b p","Turn on");on.disabled=dis;on.onclick=function(){var n=(S.skyf||k.frameName||"").trim();if(!n){S.err="Type your Skylight frame's name first.";render();return}write(S.db.doc("settings/skylight").set({enabled:true,frameName:n,frameId:"",status:"Waiting for the first sync (within about 2 hours, while Jake's computer is on).",asked:Date.now()}))};row.appendChild(on);c.appendChild(row);return c}
+  var sm=el("div","sum");sm.appendChild(el("span","chip ok","On"));sm.appendChild(el("span","chip","Frame: "+(k.frameName||"?")));if(k.last)sm.appendChild(el("span","chip","Last sync "+new Date(k.last).toLocaleString([],{weekday:"short",hour:"numeric",minute:"2-digit"})));c.appendChild(sm);
+  if(k.status)c.appendChild(el("div",k.error?"status":"note",k.status));
+  var off=el("button","b","Turn off");off.disabled=dis;off.onclick=function(){write(S.db.doc("settings/skylight").update({enabled:false,status:"Turned off. Remove Jake's Skylight account from your frame too if you're done testing."}))};var r2=el("div","row");r2.style.marginTop="8px";r2.appendChild(off);c.appendChild(r2);return c}
 function renderHouse(v){
   if(S.people===null){v.appendChild(el("div","empty","Loading the household…"));return}
   var dis=!S.canWrite||!S.db||S.busy;
   var intro=el("div","card");intro.appendChild(el("div","note","Everyone's food rules live here. Every suggestion, craving swap and answer follows them, and each suggestion is checked against them again before you see it. Rules come in four levels: never (allergy or hard no), won't eat, rather avoid, and fine if cooked down or hidden."));
+  if(window.FM_BACKEND==="sb"&&S.db)v.appendChild(skyCard());
   var sm=el("div","sum");sm.appendChild(el("span","chip",(S.people.length)+" people"));var nr=allRules().length;sm.appendChild(el("span","chip",nr+" rules"));intro.appendChild(sm);
   intro.appendChild(el("div","note","For true allergies, always check labels yourself too. Hidden ingredients and cross-contact can slip past any app."));
   v.appendChild(intro);
@@ -1445,7 +1471,7 @@ function shopText(items,mode){
 function renderShop(v){
   if(S.shop===null){v.appendChild(el("div","empty","Loading the list…"));return}
   var cw=curWk()||"2026-10-09";var sh=S.shop.filter(function(x){return (x.week||"2026-10-09")===cw});
-  if(!sh.length){var e=el("div","card empty");e.appendChild(el("b",null,"No grocery list yet"));e.appendChild(document.createTextNode("Jake will load the week's list once the dinners are approved."));v.appendChild(e);return}
+  if(!sh.length){var e=el("div","card empty");e.appendChild(el("b",null,"No grocery list yet"));e.appendChild(document.createTextNode("The week's list appears once the dinners are approved."));v.appendChild(e);return}
   var mode=S.mode||"store";
   var DAYN=["sun","mon","tue","wed","thu","fri","sat"],t0=localIso();
   var pastOf=function(x){var ds=(String(x.covers||"").toLowerCase().match(/\b(sun|mon|tue|wed|thu|fri|sat)/g)||[]);if(!ds.length)return false;var w0=new Date(cw+"T12:00:00").getDay();return ds.every(function(d){return addDays(cw,(DAYN.indexOf(d)-w0+7)%7)<t0})};
@@ -1494,6 +1520,7 @@ function renderShop(v){
 function receiptPut(key,file){return new Promise(function(res,rej){var rd=new FileReader();rd.onerror=function(){rej(new Error("read"))};rd.onload=function(){var im=new Image();im.onerror=function(){rej(new Error("image"))};im.onload=function(){
   var sc=Math.min(1,1500/im.width),cv=document.createElement("canvas");cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
   var b64=cv.toDataURL("image/jpeg",0.72).split(",")[1],path=phFile(key);
+  if(window.FMPH){window.FMPH.put(key,b64).then(res).catch(rej);return}
   fetch("https://api.github.com/repos/"+PH_REPO+"/contents/"+path,{method:"PUT",headers:Object.assign({"Content-Type":"application/json"},phHdr(false)),body:JSON.stringify({message:"Receipt: "+key,content:b64})}).then(function(r){if(!r.ok)throw new Error("save "+r.status);res(path)}).catch(rej)};im.src=rd.result};rd.readAsDataURL(file)})}
 function receiptCard(cw,mode){var R=S.rc||(S.rc={text:"",files:[],busy:false,err:"",open:false});var c=el("div","card");c.appendChild(el("div","day","Receipt"));
   var pend=(S.reqs||[]).some(function(x){return x.type==="receipt"&&x.status==="pending"});
@@ -1573,6 +1600,7 @@ function init(){
     },function(){S.people=[];render()});
     S.db.doc("settings/household").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.hh={notes:(x&&x.notes)||""};render()},function(){});
     S.db.doc("settings/reminder").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.scUrl=(x&&x.url)||"";render()},function(){});
+    S.db.doc("settings/skylight").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.sky=x||null;render()},function(){});
     S.db.doc("settings/syncreport").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.sync=x||null;render()},function(){});
     S.db.collection("quick").onSnapshot(function(s){S.quick=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render()},function(){S.quick=[]});
     S.phx={};S.phf={};S.db.collection("phx").onSnapshot(function(s){S.phx={};s.docs.forEach(function(d){var x=d.data();if(x&&x.f)S.phx[d.id]=x});phLoad()},function(){});
@@ -1617,13 +1645,13 @@ function photoView(rid){var src=(S.ph||{})[rid];if(!src)return;var old=document.
   cl.onclick=function(){ov.remove()};ov.onclick=function(e){if(e.target===ov)ov.remove()};
   if(can)row.appendChild(ab);row.appendChild(cl);ov.appendChild(wrap);ov.appendChild(msg);ov.appendChild(row);document.body.appendChild(ov);cl.focus()}
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&document.getElementById("phview"))document.getElementById("phview").remove()});
-window.CookExt={photo:{get:function(rid){return (S.ph||{})[rid]||""},pos:phPos,view:photoView,can:function(){return !!(S.db&&S.canWrite)},
+window.CookExt={people:function(){return (S.people||[]).map(function(p){return {id:p.id,name:p.name,role:p.role||"adult"}})},photo:{get:function(rid){return (S.ph||{})[rid]||""},pos:phPos,view:photoView,can:function(){return !!(S.db&&S.canWrite)},
   add:function(rid,file,W){W=W||560;return new Promise(function(res){var rd=new FileReader();rd.onerror=function(){res(false)};rd.onload=function(){var im=new Image();im.onerror=function(){res(false)};im.onload=function(){
     var sc=Math.min(1,W/im.width),cv=document.createElement("canvas");cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
     var d=cv.toDataURL("image/jpeg",0.65),b64=d.split(",")[1],path=phFile(rid),url="https://api.github.com/repos/"+PH_REPO+"/contents/"+path,ts=Date.now();
-    fetch(url,{headers:phHdr(false),cache:"no-store"}).then(function(r){return r.ok?r.json().then(function(j){return j.sha}):null}).then(function(sha){
+    (window.FMPH?window.FMPH.put(rid,b64).then(function(pp){path=pp;return {ok:true}}):fetch(url,{headers:phHdr(false),cache:"no-store"}).then(function(r){return r.ok?r.json().then(function(j){return j.sha}):null}).then(function(sha){
       var body={message:"Photo: "+rid,content:b64};if(sha)body.sha=sha;
-      return fetch(url,{method:"PUT",headers:Object.assign({"Content-Type":"application/json"},phHdr(false)),body:JSON.stringify(body)})}).then(function(r){if(!r.ok)throw 0;
+      return fetch(url,{method:"PUT",headers:Object.assign({"Content-Type":"application/json"},phHdr(false)),body:JSON.stringify(body)})})).then(function(r){if(!r.ok)throw 0;
       if(!S.phf)S.phf={};S.phf[rid]=d;S.phts=S.phts||{};S.phts[rid]=ts;phMerge();return S.db.doc("phx/"+rid).set({f:path,ts:ts,by:S.me||""})}).then(function(){res(true)}).catch(function(){res(false)})};im.src=rd.result};rd.readAsDataURL(file)})}},ahead:{pending:aheadPending,done:markAhead},equip:function(){return S.equip||[]},eqSet:function(n,h){if(!S.db||!S.canWrite)return Promise.resolve();return eqSet(n,h).catch(function(){})},fb:{
   can:function(){return !!(S.db&&S.canWrite)},
   list:function(rid){return (S.fbs||[]).filter(function(e){return e.rid===rid}).slice().sort(function(a,b){return (b.ts||0)-(a.ts||0)})},
@@ -1642,10 +1670,10 @@ window.CookExt={photo:{get:function(rid){return (S.ph||{})[rid]||""},pos:phPos,v
     return S.shop.filter(function(x){return x.short&&(x.week||"")===wk&&new RegExp("\\b"+dn,"i").test(x.covers||"")}).map(function(x){return {name:x.name,got:x.got||0,of:shopCount(x)}})},
   leftover:function(r,loc){if(!S.db)return Promise.resolve("Couldn't save: not signed in.");var day=(r.date&&r.date<localIso())?r.date:localIso(),eat=addDays(day,loc==="Freezer"?90:3);
     var L=r.leftovers||{};var nm="Leftovers: "+String(r.title||"dinner").replace(/\s+with\s.*$/i,"");
-    var rice=/\brice\b/i.test((r.ingredients||[]).map(function(i){return i.name}).join(" "));var lo={rid:r.id,cooked:day};if(rice&&loc!=="Freezer")lo.kidBy=addDays(day,1);
+    var rice=/\brice\b/i.test((r.ingredients||[]).map(function(i){return i.name}).join(" "));var lo={rid:r.id,cooked:day};if(rice&&loc!=="Freezer"&&kids().length)lo.kidBy=addDays(day,1);
     return S.db.collection("pantry").add({name:nm,size:"container",lots:[{n:1,exp:eat}],loc:loc,state:"have",leftover:lo,
       note:(loc==="Freezer"?"Frozen "+fmtDate(day)+". Best quality within "+(L.freeze||"2 to 3 months")+"; thaw in the fridge. ":"Cooked "+fmtDate(day)+". ")+"Reheat: "+(L.reheat||"to 165°F; soups and sauces to a rolling boil."),restock:""})
-      .then(function(){return loc==="Freezer"?"In the freezer. Best by "+fmtDate(eat)+" for quality.":"In the fridge. Eat by "+fmtDate(eat)+"."+(lo.kidBy?" Lenora's portions by "+fmtDate(lo.kidBy)+" (rice).":"")}).catch(function(){return "Couldn't save the leftovers. Try again from the Pantry tab."})},
+      .then(function(){return loc==="Freezer"?"In the freezer. Best by "+fmtDate(eat)+" for quality.":"In the fridge. Eat by "+fmtDate(eat)+"."+(lo.kidBy?" "+(kidNm()||"Kids")+"'s portions by "+fmtDate(lo.kidBy)+" (rice).":"")}).catch(function(){return "Couldn't save the leftovers. Try again from the Pantry tab."})},
   mark:function(rid,date){if(!S.db)return Promise.resolve();return S.db.doc("recipes/"+rid).update({pantryFor:date}).catch(function(){})},
   apply:function(uses){if(!S.db)return Promise.resolve(-1);var agg={},low={};uses.forEach(function(u){if(!u.id)return;if(u.k>0)agg[u.id]=(agg[u.id]||0)+u.k;if(u.low)low[u.id]=1;if(!(u.id in agg))agg[u.id]=agg[u.id]||0});
     var jobs=[];Object.keys(agg).forEach(function(id){var x=(S.pantry||[]).filter(function(p){return p.id===id})[0];if(!x)return;if(!agg[id]&&!low[id])return;var nx=agg[id]?useOne(lotsOf(x),agg[id]):lotsOf(x);var pt={lots:nx,state:nx.length?"have":"used"};if(low[id])pt.low=localIso();jobs.push(putPantry(x,pt))});
@@ -1658,4 +1686,9 @@ init();
 <script>(function(){var cur=(document.querySelector('meta[name="app-v"]')||{}).content;function chk(){fetch("index.html?v="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var m=t.match(/name="app-v" content="([^"]+)"/);if(m&&cur&&m[1]!==cur){var u=document.getElementById("upd");if(u&&!u.firstChild){u.className="aheadbar";u.appendChild(document.createTextNode("A new version of the app is ready. "));var b=document.createElement("button");b.textContent="Update now";b.style.cssText="padding:8px 12px;border-radius:10px;border:1px solid var(--line);font:inherit;font-weight:600";b.onclick=function(){(window.caches?caches.delete("fm-shell-v1"):Promise.resolve()).then(function(){location.reload()})};u.appendChild(b)}}}).catch(function(){})}
 window.addEventListener("load",function(){setTimeout(chk,3000)});document.addEventListener("visibilitychange",function(){if(!document.hidden)chk()})})()</script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}</script>
+<script>
+(function(){function go(){if(!window.FM||!FM.info)return;FM.info().then(function(i){var d=document.createElement("div");d.style.cssText="margin:28px auto 90px;max-width:640px;padding:0 16px;font:13px system-ui,sans-serif;color:var(--mute,#6f665a);text-align:center";
+  d.textContent=i.household+" \u00b7 "+i.email+" \u00b7 Invite code: "+i.code+" \u00b7 ";var b=document.createElement("button");b.textContent="Sign out";b.style.cssText="font:inherit;background:none;border:0;color:var(--accent,#b4491f);text-decoration:underline;cursor:pointer;padding:0";b.onclick=function(){FM.signOut()};d.appendChild(b);document.body.appendChild(d)}).catch(function(){})}
+if(document.readyState==="complete")go();else addEventListener("load",go)})();
+</script>
 </body></html>
