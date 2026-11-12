@@ -122,7 +122,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-11h">
+<meta name="app-v" content="2026-11-12a">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -283,7 +283,7 @@ function coverage(rec,sources){var have=[],miss=[];(rec.ingredients||[]).forEach
     var txt=(x.it.name+" "+(x.it.size||"")).toLowerCase();if(wantCan&&!/\bcans?\b|canned|\bfl\b|carton|tetra/.test(txt))return false;if(wantJar&&!/\bjar/.test(txt))return false;return true});if(c[0])have.push(i.name.split(",")[0].replace(/\(.*?\)/g,"").trim()+" → "+c[0].it.name);else miss.push(i.name.split(",")[0].replace(/\(.*?\)/g,"").trim())});return {have:have,miss:miss}}
 function pkey(ing){return toks(ing.name).join("-")}
 function photoApi(){return window.CookExt&&window.CookExt.photo}
-function pimg(rid,h){var P=photoApi(),d=P&&P.get(rid);if(!d)return null;var i=document.createElement("img");i.src=d;i.alt="";i.style.cssText="display:block;width:100%;height:"+h+"px;object-fit:cover;border-radius:10px;margin:0 0 8px";return i}
+function pimg(rid,h){var P=photoApi(),d=P&&P.get(rid);if(!d)return null;var i=document.createElement("img");i.src=d;i.alt="Meal photo, tap to see all of it";i.style.cssText="display:block;width:100%;height:"+h+"px;object-fit:cover;object-position:"+(P.pos?P.pos(rid):"50% 50%")+";border-radius:10px;margin:0 0 8px;cursor:zoom-in";if(P.view)i.onclick=function(e){e.stopPropagation();P.view(rid)};return i}
 function ingThumb(i){var P=pantryApi(),PH=photoApi();if(!P||!PH)return null;var items=P.items();var t=toks(i.name);if(!t.length)return null;
   var c=candList(i,items).filter(function(x){if(!PH.get("pantry:"+x.it.id))return false;var Q=toks(x.it.name).concat(toks(x.it.size));return t.filter(function(w){return Q.indexOf(w)>=0}).length/t.length>=0.5});
   if(!c[0])return null;var d=PH.get("pantry:"+c[0].it.id);var im=document.createElement("img");im.src=d;im.alt=c[0].it.name;im.title=c[0].it.name;im.style.cssText="width:44px;height:44px;object-fit:cover;border-radius:8px;flex:none;margin-left:8px";return im}
@@ -663,7 +663,7 @@ function mealCard(m){
   if(m.cuisine)mt.appendChild(el("span","chip",m.cuisine));
   if(m.veg)mt.appendChild(el("span","chip ok","Meatless"));
   var rcv=(window.CookTab&&m.date)?window.CookTab.forDate(m.date):null;
-  if(rcv&&S.ph&&S.ph[rcv.id]){var mi=document.createElement("img");mi.src=S.ph[rcv.id];mi.alt="";mi.style.cssText="display:block;width:100%;height:150px;object-fit:cover;border-radius:10px;margin:0 0 8px";c.insertBefore(mi,c.firstChild)}
+  if(rcv&&S.ph&&S.ph[rcv.id]){var mi=document.createElement("img");mi.src=S.ph[rcv.id];mi.alt="";mi.style.cssText="display:block;width:100%;height:150px;object-fit:cover;object-position:"+phPos(rcv.id)+";border-radius:10px;margin:0 0 8px;cursor:zoom-in";mi.alt="Meal photo, tap to see all of it";(function(id){mi.onclick=function(){photoView(id)}})(rcv.id);c.insertBefore(mi,c.firstChild)}
   if(rcv&&rcv.verdict)mt.appendChild(el("span","chip"+(rcv.verdict==="never"?" bad":rcv.verdict==="again"?" ok":" warn"),rcv.verdict==="again"?"Make again":rcv.verdict==="changes"?"Needs changes":"Retired"));
   var exs=(window.CookTab&&window.CookTab.expiring&&m.date&&m.date>=localIso())?window.CookTab.expiring(m.date):[];
   exs.forEach(function(x){mt.appendChild(el("span","chip warn","Uses up "+x.name.replace(/\s*\(.*\)/,"")+" (expires "+x.exp.slice(5).replace("-","/")+")"))});
@@ -1600,7 +1600,24 @@ function resolve(ids){
   if(!S.user)return;var list=Object.keys(ids);if(!list.length)return;
   Promise.resolve(S.user.profiles(list)).then(function(ps){list.forEach(function(i){S.names[i]=(ps&&ps[i]&&ps[i].name)||""});render()}).catch(function(){});
 }
-window.CookExt={photo:{get:function(rid){return (S.ph||{})[rid]||""},can:function(){return !!(S.db&&S.canWrite)},
+function phPos(rid){var x=(S.phx||{})[rid];return (x&&x.pos)||"50% 50%"}
+function photoView(rid){var src=(S.ph||{})[rid];if(!src)return;var old=document.getElementById("phview");if(old)old.remove();var can=!!(S.db&&S.canWrite&&(S.phx||{})[rid]);var adj=false;
+  var ov=document.createElement("div");ov.id="phview";ov.setAttribute("role","dialog");ov.setAttribute("aria-modal","true");ov.setAttribute("aria-label","Photo");
+  ov.style.cssText="position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:12px";
+  var wrap=document.createElement("div");wrap.style.cssText="position:relative;max-width:100%;max-height:70vh";var im=document.createElement("img");im.src=src;im.alt="Meal photo";im.style.cssText="display:block;max-width:100%;max-height:70vh;border-radius:10px";wrap.appendChild(im);
+  var dot=document.createElement("div");dot.style.cssText="position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 2px rgba(0,0,0,.5);pointer-events:none;display:none";wrap.appendChild(dot);
+  var p0=phPos(rid).split(" ");var setDot=function(x,y){dot.style.left=x;dot.style.top=y;dot.style.display="block"};
+  var msg=document.createElement("div");msg.style.cssText="color:#fff;text-align:center;font-size:15px;max-width:420px";msg.textContent="This is the whole photo. The cards show a cropped strip of it.";
+  var row=document.createElement("div");row.style.cssText="display:flex;gap:8px;flex-wrap:wrap;justify-content:center";
+  var mk=function(t,p){var b=el("button","b"+(p?" p":""),t);return b};
+  var ab=mk("Choose what shows",true),cl=mk("Close");
+  ab.onclick=function(){adj=true;msg.textContent="Tap the part of the photo to keep in the middle of the cards.";setDot(p0[0],p0[1]);ab.style.display="none"};
+  im.onclick=function(e){if(!adj)return;var r=im.getBoundingClientRect();var x=Math.round(Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))*100)+"%",y=Math.round(Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))*100)+"%";setDot(x,y);msg.textContent="Saving…";
+    S.db.doc("phx/"+rid).update({pos:x+" "+y}).then(function(){if(S.phx[rid])S.phx[rid].pos=x+" "+y;msg.textContent="Saved. Tap again to change it, or Close.";render()}).catch(function(){msg.textContent="Couldn't save that. Try again."})};
+  cl.onclick=function(){ov.remove()};ov.onclick=function(e){if(e.target===ov)ov.remove()};
+  if(can)row.appendChild(ab);row.appendChild(cl);ov.appendChild(wrap);ov.appendChild(msg);ov.appendChild(row);document.body.appendChild(ov);cl.focus()}
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&document.getElementById("phview"))document.getElementById("phview").remove()});
+window.CookExt={photo:{get:function(rid){return (S.ph||{})[rid]||""},pos:phPos,view:photoView,can:function(){return !!(S.db&&S.canWrite)},
   add:function(rid,file,W){W=W||560;return new Promise(function(res){var rd=new FileReader();rd.onerror=function(){res(false)};rd.onload=function(){var im=new Image();im.onerror=function(){res(false)};im.onload=function(){
     var sc=Math.min(1,W/im.width),cv=document.createElement("canvas");cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
     var d=cv.toDataURL("image/jpeg",0.65),b64=d.split(",")[1],path=phFile(rid),url="https://api.github.com/repos/"+PH_REPO+"/contents/"+path,ts=Date.now();
