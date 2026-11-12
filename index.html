@@ -133,7 +133,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-12g">
+<meta name="app-v" content="2026-11-12h">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -635,7 +635,7 @@ function renderWeek(v){
   var searching=!!(S.q.week||"").trim();
   var ks=weekKeys(),cur=curWk();
   if(!S.wk||(ks.indexOf(S.wk)<0&&S.wk!==cur))S.wk=cur;
-  var list=searching?S.meals.slice():mealsIn(S.wk);
+  var list=searching?S.meals.slice():mealsIn(S.wk);var navShown=false;
   if(!searching&&ks.length){
     var nav=el("div","row");nav.style.cssText="align-items:center;justify-content:space-between;flex-wrap:nowrap;margin:0 0 10px";
     var i=ks.indexOf(S.wk);
@@ -643,9 +643,13 @@ function renderWeek(v){
     var nx=el("button","b","Later ›");nx.disabled=i<0||i>=ks.length-1;nx.onclick=function(){S.wk=ks[i+1];render()};
     var mid=el("div");mid.style.cssText="text-align:center;flex:1;min-width:0";
     mid.appendChild(el("div","title",shortD(S.wk)+" to "+shortD(addDays(S.wk,6))));
-    mid.appendChild(el("div","note",S.wk===cur?"This week":(S.wk<cur?"Past week":"Coming up")));
-    nav.appendChild(pv);nav.appendChild(mid);nav.appendChild(nx);v.appendChild(nav);
-    var bk=el("button","b p","Jump to today");bk.style.marginBottom="10px";bk.onclick=function(){S.wk=cur;S.jump=1;render()};v.appendChild(bk)
+    var ok0=list.filter(function(m){return m.status==="approved"}).length;
+    mid.appendChild(el("div","note",(S.wk===cur?"This week":(S.wk<cur?"Past week":"Coming up"))+(list.length?" · "+ok0+" of "+list.length+" approved":"")));
+    nav.appendChild(pv);nav.appendChild(mid);nav.appendChild(nx);v.appendChild(nav);var navShown=true;
+    var acts=el("div","row");acts.style.cssText="gap:8px;flex-wrap:wrap;margin:0 0 12px";
+    var bk=el("button","b p","Jump to today");bk.onclick=function(){S.wk=cur;S.jump=1;render()};acts.appendChild(bk);
+    if(S.db&&S.canWrite&&(window.FM_BACKEND!=="sb"||(S.sky&&S.sky.enabled))){var syp=(S.reqs||[]).some(function(x){return x.type==="skylight-sync"&&x.status==="pending"});var syb=el("button","b",syp?"Sync asked, waiting":"Sync with Skylight");syb.disabled=S.busy||syp;syb.onclick=function(){write(sendReq("skylight-sync","Sync the plan and Skylight",{}))};acts.appendChild(syb)}
+    v.appendChild(acts)
   }
   if(!searching&&S.wk===cur&&S.db&&S.canWrite&&window.CookTab&&window.CookTab.pantry){var t0=localIso(),lo=addDays(t0,-3);
     var owe=oweList();
@@ -664,9 +668,7 @@ function renderWeek(v){
         if(x.note&&/Reheat:/.test(x.note))rw.appendChild(el("div","note",x.note.slice(x.note.indexOf("Reheat:"))));lc.appendChild(rw)});
       lc.appendChild(el("div","note","Leftovers keep 3 to 4 days in the fridge. Reheat to 165°F; bring soups and sauces to a rolling boil."));v.appendChild(lc)}}
   if(searching)v.appendChild(el("div","note","Searching every week."));
-  var ok=list.filter(function(m){return m.status==="approved"}).length;
-  v.appendChild(el("p","sub",ok+" of "+list.length+" nights approved"));
-  if(!searching&&S.db&&S.canWrite){var syp=(S.reqs||[]).some(function(x){return x.type==="skylight-sync"&&x.status==="pending"});var syb=el("button","b",syp?"Sync asked, waiting":"Sync with Skylight");syb.style.marginBottom="10px";syb.disabled=S.busy||syp;syb.onclick=function(){write(sendReq("skylight-sync","Sync the plan and Skylight",{}))};v.appendChild(syb)}
+  if(!searching&&!navShown&&list.length){var ok=list.filter(function(m){return m.status==="approved"}).length;v.appendChild(el("p","sub",ok+" of "+list.length+" nights approved"))}
   if(!searching)weekEquip(v,list);
   var shown=list.filter(function(m){return qm([m.title,m.note,m.cuisine,m.day].join(" "))});
   if(!shown.length)v.appendChild(el("div","empty","Nothing matches your search."));
