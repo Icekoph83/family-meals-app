@@ -128,7 +128,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-12b">
+<meta name="app-v" content="2026-11-12c">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -591,7 +591,7 @@ function satOf(iso){var p=String(iso||"").split("-");if(p.length<3)return "";var
 function wkOf(m){return m.week||satOf(m.date)||""}
 function weekKeys(){var o={};(S.meals||[]).forEach(function(m){var k=wkOf(m);if(k)o[k]=1});return Object.keys(o).sort()}
 function curWk(){var ks=weekKeys();if(!ks.length)return "";var t=satOf(isoD(new Date()));if(ks.indexOf(t)>=0)return t;var past=ks.filter(function(k){return k<=t});return past.length?past[past.length-1]:ks[0]}
-function mealsIn(k){return (S.meals||[]).filter(function(m){return wkOf(m)===k||(!wkOf(m)&&k===curWk())})}
+function mealsIn(k){return (S.meals||[]).filter(function(m){return wkOf(m)===k||(!wkOf(m)&&k===curWk())}).sort(function(a,b){var x=a.date||"",y=b.date||"";return x<y?-1:x>y?1:(a.order||0)-(b.order||0)})}
 function planMeals(){return mealsIn(curWk())}
 function addDays(iso,n){var p=iso.split("-");var d=new Date(+p[0],+p[1]-1,+p[2]);d.setDate(d.getDate()+n);return isoD(d)}
 var MN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
