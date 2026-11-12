@@ -19,6 +19,11 @@ h1{font:700 26px/1.15 Georgia,"Times New Roman",serif;margin:4px 0 2px}
 .sub{color:var(--mute);font-size:14px;margin:0 0 14px}
 .tabs{display:flex;gap:6px;margin:0 0 14px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
+.tabwrap{position:relative;margin:0 0 14px}.tabwrap .tabs{margin:0}
+.tabmore{position:absolute;top:0;bottom:0;width:44px;display:none;align-items:center;border:0;padding:0;cursor:pointer;color:var(--ink);font:700 20px/1 system-ui,sans-serif;z-index:2}
+.tabmore.l{left:0;justify-content:flex-start;padding-left:4px;background:linear-gradient(to right,var(--bg) 55%,transparent)}
+.tabmore.r{right:0;justify-content:flex-end;padding-right:4px;background:linear-gradient(to left,var(--bg) 55%,transparent)}
+.tabmore.on{display:flex}
 .tab{flex:1 0 auto;min-width:0;padding:10px 12px;white-space:nowrap;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;font:inherit;font-size:13px;cursor:pointer}
 .tab[aria-selected=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 12px}
@@ -128,12 +133,12 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-12c">
+<meta name="app-v" content="2026-11-12d">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
 <div id="banner"></div>
-<div class="tabs" role="tablist">
+<div class="tabwrap"><button class="tabmore l" type="button" aria-label="More tabs to the left">‹</button><div class="tabs" role="tablist">
 <button class="tab" role="tab" data-t="week" aria-selected="true">Week</button>
 <button class="tab" role="tab" data-t="cook" aria-selected="false">Cook</button>
 <button class="tab" role="tab" data-t="ask" aria-selected="false">Ask</button>
@@ -142,7 +147,15 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <button class="tab" role="tab" data-t="kitchen" aria-selected="false">Kitchen</button>
 <button class="tab" role="tab" data-t="house" aria-selected="false">Household</button>
 <button class="tab" role="tab" data-t="shop" aria-selected="false">Groceries</button>
-</div>
+</div><button class="tabmore r" type="button" aria-label="More tabs to the right">›</button></div>
+<script>
+(function(){var w=document.querySelector(".tabwrap"),t=w.querySelector(".tabs"),l=w.querySelector(".tabmore.l"),r=w.querySelector(".tabmore.r");
+  function upd(){var max=t.scrollWidth-t.clientWidth;l.classList.toggle("on",t.scrollLeft>4);r.classList.toggle("on",t.scrollLeft<max-4)}
+  l.onclick=function(){t.scrollBy({left:-t.clientWidth*0.7,behavior:"smooth"})};r.onclick=function(){t.scrollBy({left:t.clientWidth*0.7,behavior:"smooth"})};
+  t.addEventListener("scroll",upd,{passive:true});window.addEventListener("resize",upd);
+  t.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest(".tab");if(b&&b.scrollIntoView)b.scrollIntoView({behavior:"smooth",block:"nearest",inline:"nearest"})});
+  upd();setTimeout(upd,300);window.addEventListener("load",upd)})();
+</script>
 <div id="sb"><input id="sq" type="search" placeholder="Search" autocomplete="off"><button id="sx" type="button" aria-label="Clear search" style="display:none">Clear</button></div>
 <div id="view"></div>
 </div>
