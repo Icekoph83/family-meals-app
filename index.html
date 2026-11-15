@@ -133,7 +133,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-12h">
+<meta name="app-v" content="2026-11-15a">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -400,12 +400,15 @@ function renderList(){
   if(S.toast){app.appendChild(el("div","warnbox",S.toast));S.toast=""}
   if(!S.recipes.length){var c=el("div","card");c.appendChild(el("p",null,"No recipes loaded yet."));c.appendChild(el("p","mut","Ask Claude to add this week's recipes."));app.appendChild(c);return}
   var live=S.recipes.filter(function(r){return !r.retired}),gone=S.recipes.filter(function(r){return r.retired});
-  live.forEach(function(r){var b=el("button","card rc");var pi=pimg(r.id,120);if(pi)b.appendChild(pi);b.appendChild(el("h2",null,r.title));
+  var groups={};live=live.filter(function(r){if(r.group){(groups[r.group]=groups[r.group]||[]).push(r);return false}return true});
+  var card=function(r){var b=el("button","card rc");var pi=pimg(r.id,120);if(pi)b.appendChild(pi);b.appendChild(el("h2",null,r.title));
     b.appendChild(el("div","mut",[r.day,r.time,r.servings,r.cost].filter(Boolean).join(" · ")));
     if((r.equip||[]).some(function(e){return eqState(e.n)==="no"}))b.appendChild(el("div","mut","Missing equipment, tap for the swap"));
     var p=ls("cook:"+r.id);if(p&&p.step>0)b.appendChild(el("div","mut","In progress: step "+(p.step+1)+" of "+(r.steps||[]).length));
     if(r.verdict||r.vp)b.appendChild(el("div","mut",vpLine(r)));
-    b.onclick=function(){open(r)};app.appendChild(b)});
+    b.onclick=function(){open(r)};app.appendChild(b)};
+  live.forEach(card);
+  Object.keys(groups).sort().forEach(function(g){app.appendChild(el("h2",null,g));groups[g].forEach(card)});
   if(gone.length){var ar=el("div","card");ar.appendChild(el("h2",null,"Archived ("+gone.length+")"));ar.appendChild(el("div","mut","Marked don't make again. Not suggested when planning."));
     gone.forEach(function(r){var row=el("div","eq");var l=el("div");l.appendChild(el("b",null,r.title));row.appendChild(l);
       var F=fbx();if(F&&F.can()){var rb=el("button",null,"Restore");rb.onclick=function(){F.restore(r).then(function(){S.toast="Restored: "+r.title;render()})};row.appendChild(rb)}ar.appendChild(row)});
