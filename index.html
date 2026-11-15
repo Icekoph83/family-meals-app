@@ -133,7 +133,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-15a">
+<meta name="app-v" content="2026-11-15b">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -407,8 +407,8 @@ function renderList(){
     var p=ls("cook:"+r.id);if(p&&p.step>0)b.appendChild(el("div","mut","In progress: step "+(p.step+1)+" of "+(r.steps||[]).length));
     if(r.verdict||r.vp)b.appendChild(el("div","mut",vpLine(r)));
     b.onclick=function(){open(r)};app.appendChild(b)};
+  Object.keys(groups).sort().forEach(function(g){var gc=el("div","card");gc.appendChild(el("h2",null,g));groups[g].forEach(function(r){var b=el("button",null,r.title.replace(/\s*\((?:[^)]*breakfast)\)\s*$/i,""));b.style.cssText="display:block;width:100%;text-align:left;margin:6px 0";b.onclick=function(){open(r)};gc.appendChild(b)});app.appendChild(gc)});
   live.forEach(card);
-  Object.keys(groups).sort().forEach(function(g){app.appendChild(el("h2",null,g));groups[g].forEach(card)});
   if(gone.length){var ar=el("div","card");ar.appendChild(el("h2",null,"Archived ("+gone.length+")"));ar.appendChild(el("div","mut","Marked don't make again. Not suggested when planning."));
     gone.forEach(function(r){var row=el("div","eq");var l=el("div");l.appendChild(el("b",null,r.title));row.appendChild(l);
       var F=fbx();if(F&&F.can()){var rb=el("button",null,"Restore");rb.onclick=function(){F.restore(r).then(function(){S.toast="Restored: "+r.title;render()})};row.appendChild(rb)}ar.appendChild(row)});
@@ -670,6 +670,9 @@ function renderWeek(v){
         var eb=el("button","b","Finished");eb.disabled=S.busy||!S.canWrite;eb.onclick=function(){write(putPantry(x,{lots:[],state:"used"}))};tp.appendChild(eb);rw.appendChild(tp);
         if(x.note&&/Reheat:/.test(x.note))rw.appendChild(el("div","note",x.note.slice(x.note.indexOf("Reheat:"))));lc.appendChild(rw)});
       lc.appendChild(el("div","note","Leftovers keep 3 to 4 days in the fridge. Reheat to 165°F; bring soups and sauces to a rolling boil."));v.appendChild(lc)}}
+  if(!searching&&S.wk===cur){var grp={};(S.recipes||[]).forEach(function(r){if(r.group&&!r.retired)(grp[r.group]=grp[r.group]||[]).push(r)});
+    Object.keys(grp).sort().forEach(function(g){var gc=el("div","card");gc.appendChild(el("div","day",g));gc.appendChild(el("div","note","Make-ahead recipes. Bake a batch on the weekend and reheat each morning."));
+      var row=el("div","row");row.style.marginTop="8px";grp[g].forEach(function(r){var b=el("button","b",r.title.replace(/\s*\((?:[^)]*breakfast)\)\s*$/i,""));b.onclick=function(){setTab("cook");if(window.CookTab&&window.CookTab.open)window.CookTab.open(r.id)};row.appendChild(b)});gc.appendChild(row);v.appendChild(gc)})}
   if(searching)v.appendChild(el("div","note","Searching every week."));
   if(!searching&&!navShown&&list.length){var ok=list.filter(function(m){return m.status==="approved"}).length;v.appendChild(el("p","sub",ok+" of "+list.length+" nights approved"))}
   if(!searching)weekEquip(v,list);
