@@ -133,7 +133,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-15b">
+<meta name="app-v" content="2026-11-15c">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -429,7 +429,7 @@ function prepCard(r,im,interactive){
   return c}
 
 var SAFE_T=[[/\b(chicken|turkey|duck|poultry)\b/i,"Poultry (any cut, ground too)","165°F"],[/\bground (beef|pork|lamb|veal)|\b(sausage|meatballs?|burgers?)\b/i,"Ground meat and sausage","160°F"],[/\b(pork|beef|lamb|veal|steak|tenderloin|chops?|roast)\b/i,"Whole cuts of pork, beef, lamb","145°F + 3 min rest"],[/\b(salmon|cod|tilapia|tuna|halibut|fish|trout)\b/i,"Fish","145°F or opaque and flakes"],[/\b(shrimp|scallops?|crab|lobster)\b/i,"Shrimp, crab, scallops","Pearly and opaque"],[/\beggs?\b/i,"Egg dishes","160°F; yolk and white firm for the baby"],[/\brice\b/i,"Rice","Cool within 1 hour; reheat once, steaming hot"]];
-function safeTemps(r){var txt=(r.ingredients||[]).map(function(i){return i.name}).join(" | ");var out=[];SAFE_T.forEach(function(t){if(t[0].test(txt))out.push(t)});
+function safeTemps(r){var txt=(r.ingredients||[]).map(function(i){return i.name}).join(" | ").replace(/\b(chicken|turkey|beef|pork|vegetable|veggie|fish)\s+(base|broth|stock|bouillon|paste)\b/gi,"").replace(/\b(bouillon|chicken-flavou?red|vegan chicken|plant-based|beyond|impossible)\b[^|]*/gi,"");var out=[];SAFE_T.forEach(function(t){if(t[0].test(txt))out.push(t)});
   var has=function(lbl){return out.some(function(t){return t[1]===lbl})};
   if(has("Poultry (any cut, ground too)")&&!/ground (beef|pork|lamb|veal)|sausage/i.test(txt))out=out.filter(function(t){return t[1]!=="Ground meat and sausage"});
   if(out.filter(function(t){return t[1]!=="Rice"}).length>1)out=out.filter(function(t){return t[1]!=="Egg dishes"});return out}
@@ -438,7 +438,10 @@ function RICE_NOTE(){return "Rice: cool it within 1 hour, reheat only what you'l
 function safetyCard(r){var tl=safeTemps(r),notes=r.safety||[];if(!tl.length&&!notes.length)return null;var c=el("div","card");c.appendChild(el("h2",null,"Food safety"));
   if(tl.length){var t=el("div");tl.forEach(function(x){t.appendChild(el("span","chip",x[1]+": "+x[2]))});c.appendChild(t)}
   notes.forEach(function(n){var d=el("div",null,"• "+n);d.style.padding="3px 0";c.appendChild(d)});
-  if(tl.length)c.appendChild(el("div","mut","Check temperatures in the thickest part with the meat thermometer. Keep raw meat, poultry and eggs away from ready-to-eat food, and wash hands, boards and knives after touching them."));return c}
+  var meat=tl.some(function(x){return !/^(Egg dishes|Rice)$/.test(x[1])}),egg=tl.some(function(x){return x[1]==="Egg dishes"});
+  var tip=meat?"Check temperatures in the thickest part with the meat thermometer. Keep raw meat"+(egg?", poultry and eggs":" and poultry")+" away from ready-to-eat food, and wash hands, boards and knives after touching them."
+    :egg?"Cook eggs until the whites are set (yolks firm for "+(kidName()||"little ones")+"). Wash your hands after cracking raw eggs.":"";
+  if(tip)c.appendChild(el("div","mut",tip));return c}
 function leftCard(r,act){var L=r.leftovers||LEFT_GEN;var c=el("div","card");c.appendChild(el("h2",null,"Leftovers"));
   if(!r.leftovers&&/\brice\b/i.test((r.ingredients||[]).map(function(i){return i.name}).join(" ")))L=Object.assign({},L,{reheat:L.reheat+" "+RICE_NOTE()});
   [["Store",L.store],["Fridge",L.fridge],["Freezer",L.freeze],["Reheat",L.reheat]].forEach(function(p){if(!p[1])return;var d=el("div");d.style.padding="4px 0";d.appendChild(el("b",null,p[0]+": "));d.appendChild(document.createTextNode(p[1]));c.appendChild(d)});
