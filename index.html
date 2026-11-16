@@ -133,7 +133,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-15d">
+<meta name="app-v" content="2026-11-16a">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -335,8 +335,16 @@ var FRESHH={garlic:1,ginger:1,cilantro:1,basil:1,parsley:1,mint:1,dill:1,chive:1
 var PWEAK={smoked:1,toasted:1,neutral:1,unsweetened:1,organic:1,natural:1,pure:1,sichuan:1,white:0};
 var PVAR={celery:1,sweet:1,garlic:1,onion:1,seasoned:1,cannellini:1,kidney:1,black:1,pinto:1,navy:1,green:1,red:1,brown:1,wild:1,jasmine:1,basmati:1,smoked:0};
 var PSYN={panko:["crumb","bread"],broth:["base","bouillon","stock"],stock:["base","bouillon","broth"]};
-function candList(ing,items){var alt=/\(or ([^)]+)\)/i.exec(String(ing.name||""));var a=candList1(ing,items);
-  if(alt){var b=candList1({name:alt[1],amt:ing.amt},items);var seen={};a.forEach(function(x){seen[x.it.id]=1});b.forEach(function(x){if(!seen[x.it.id]){x.alt=true;a.push(x)}});a.sort(function(p,q){return q.cov-p.cov||q.s-p.s})}
+/* Water is always assumed, so it never matches the pantry; "water plus 1 tsp chicken base" matches the base;
+   "vegetable or chicken base" tries both kinds. */
+function ingClean(n){n=String(n||"");if(/^\s*(cold |hot |warm |boiling |filtered )?water\b/i.test(n)&&!/\b(plus|with|and)\b/i.test(n.split(",")[0]))return "";
+  return n.replace(/\bbouillon (paste|concentrate)\b/i,"bouillon base").replace(/^\s*(cold |hot |warm )?water\s+(plus|with|and)\s+(about\s+)?[\d\/\.\s]*(tsp|teaspoons?|tbsp|tablespoons?|cups?|oz)?\.?\s*(of\s+)?/i,"")}
+function candList(ing,items){var nm=ingClean(ing.name);if(!nm)return [];if(nm!==ing.name)ing=Object.assign({},ing,{name:nm});
+  var alt=/\(or ([^)]+)\)/i.exec(String(ing.name||""));
+  if(!alt){var seg=String(ing.name).split(",")[0],om=/^(.*?)\b([a-z-]+) or ([a-z-]+) ((?:[a-z-]+ )?(?:broth|stock|base|bouillon|beans|rice|pasta|tomatoes|milk|flour|vinegar|oil))\s*$/i.exec(seg);
+    if(om){var rest=String(ing.name).slice(seg.length);ing=Object.assign({},ing,{name:om[1]+om[2]+" "+om[4]+rest});alt=[null,om[1]+om[3]+" "+om[4]]}}
+  var a=candList1(ing,items);
+  if(alt){var b=candList1({name:alt[1],amt:ing.amt},items);var seen={};a.forEach(function(x){seen[x.it.id]=x});b.forEach(function(x){var o=seen[x.it.id];if(!o){x.alt=true;a.push(x)}else if(x.cov>o.cov){o.cov=x.cov;o.s=Math.max(o.s,x.s)}});a.sort(function(p,q){return q.cov-p.cov||q.s-p.s})}
   return a}
 function candList1(ing,items){var I=toks(ing.name);if(!I.length)return [];var head=I[I.length-1];var out=[];var syn=PSYN[head]||[];
   var wantFresh=!!FRESHH[head]&&!/\b(dried|dry|ground|powder|flake|freeze|jarred|minced jar)\b/i.test(String(ing.name)+" "+String(ing.amt||""));
@@ -353,7 +361,7 @@ function contCount(amt){var a=String(amt||"");if(!/\b(cans?|blocks?|jars?|bottle
   var m=a.match(/^\s*(\d+)?\s*(?:(\d+)\/(\d+))?/);var v=0;if(m){if(m[1])v+=+m[1];if(m[2]&&m[3])v+=(+m[2])/(+m[3])}return Math.max(1,Math.ceil(v||1))}
 function buildPU(r){var P=pantryApi();var items=P?P.items():[];
   var mem=(P&&P.memory&&P.memory())||{};
-  var rows=(r.ingredients||[]).map(function(i){var c=candList(i,items);var best=(c[0]&&c[0].cov>=1)?c[0].it:null;var cc=contCount(i.amt);var mid=mem[pkey(i)];var rem=false;
+  var rows=(r.ingredients||[]).filter(function(i){return ingClean(i.name)!==""}).map(function(i){var c=candList(i,items);var best=(c[0]&&c[0].cov>=1)?c[0].it:null;var cc=contCount(i.amt);var mid=mem[pkey(i)];var rem=false;
     if(mid&&items.some(function(x){return x.id===mid})){best={id:mid};rem=true}
     var cand=c.map(function(x){return x.it.id});if(rem&&cand.indexOf(mid)<0)cand.unshift(mid);
     var small=/\b(tsp|teaspoons?|tbsp|tablespoons?|pinch|dash|sprinkle|to taste|cloves?|splash|drizzle)\b/i.test(String(i.amt||"")+" "+String(i.name||""));
