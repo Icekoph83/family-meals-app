@@ -131,9 +131,9 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
   window.FM_BACKEND=b;document.write('<script src="'+(b==="gh"?"fm-db.js":"fm-sb.js")+'"><\/script>')})();
 </script>
 <div class="wrap">
-<h1>This week's dinners</h1>
+<h1 id="ttl">This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-16c">
+<meta name="app-v" content="2026-11-16d">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -602,7 +602,9 @@ function kids(){return (S.people||[]).filter(function(p){return /baby|child|kid|
 function kidNm(){var k=kids();return k.length?k.map(function(p){return p.name}).join(" and "):""}
 function mine(id){return S.me&&id===S.me}
 
-function setTab(t){S.tab=t;S.ckFresh=true;S.rm=null;S.edit=null;S.dl={};S.hold=false;document.querySelectorAll(".tab").forEach(function(b){b.setAttribute("aria-selected",String(b.dataset.t===t))});render()}
+var HEADS={week:["This week's dinners","Planned from your favorites. Approve a night or ask for a swap."],cook:["Cook","Step-by-step recipes with timers."],shop:["Groceries","What to buy for this week's dinners."],pantry:["Pantry","What you have, and what's close to its date."],ask:["Ask Claude","Questions about the plan, swaps and cravings."],staples:["Staples","Things you buy as a habit."],kitchen:["Kitchen","Your equipment and food safety basics."],house:["Household","Everyone's food rules and notes."]};
+function tabHead(t){var h=HEADS[t]||HEADS.week,a=document.getElementById("ttl"),b=document.getElementById("sub");if(a)a.textContent=h[0];if(b)b.textContent=h[1]}
+function setTab(t){S.tab=t;tabHead(t);S.ckFresh=true;S.rm=null;S.edit=null;S.dl={};S.hold=false;document.querySelectorAll(".tab").forEach(function(b){b.setAttribute("aria-selected",String(b.dataset.t===t))});render()}
 document.querySelectorAll(".tab").forEach(function(b){b.onclick=function(){setTab(b.dataset.t)}});
 
 function qm(t){var q=(S.q[S.tab]||"").trim().toLowerCase();if(!q)return true;var tx=" "+String(t).toLowerCase().replace(/[^a-z0-9]+/g," ");
@@ -1570,7 +1572,7 @@ function renderShop(v){
     var b=el("button","b",pend?"Already asked, waiting":m[1]);b.disabled=S.busy||!S.canWrite||!S.db||pend;
     b.onclick=function(){write(sendReq(m[0],m[2],{week:cw}))};q2.appendChild(b)});
   h.appendChild(q2);
-  h.appendChild(el("div","note",mode==="store"?"The list is organized by store section. Ask Claude to send it to the Skylight grocery list.":"The list is just the products and sizes to search for, one per line. Copy it into Instacart, or ask Claude to build the cart if the Instacart connection is on."));
+  h.appendChild(el("div","note",mode==="store"?"The list is organized by store section. Send list to Skylight puts it on the Skylight grocery list.":"The list is just the products and sizes to search for, one per line. Copy it into Instacart, or ask Claude to build the cart if the Instacart connection is on."));
   var sm=el("div","sum");sm.appendChild(el("span","chip",buy.length+" items to buy"));sm.appendChild(el("span","chip",chk.length+" to check at home"));var tot=0,np=0;buy.forEach(function(x){if(typeof x.est==="number")tot+=x.est;else np++});if(tot>0)sm.appendChild(el("span","chip","About $"+tot.toFixed(2)+" estimated"+(np?" ("+np+" unpriced)":"")));h.appendChild(sm);
   if(stores.length>1){var sr=el("div","row");sr.style.marginTop="10px";var allB=sh.filter(function(x){return x.kind!=="check"&&!x.have&&!pastOf(x)});
     [""].concat(stores).forEach(function(st){var its=allB.filter(function(x){return !st||x.store===st});var tt=its.reduce(function(a,x){return a+(typeof x.est==="number"?x.est:0)},0);
@@ -1581,9 +1583,9 @@ function renderShop(v){
   v.appendChild(h);
   if(S.canWrite&&S.db)v.appendChild(receiptCard(cw,mode));
   var rq=reqCard(["skylight-list","instacart-cart","shortage","receipt"]);if(rq)v.appendChild(rq);
-  var cb=el("div","card");cb.appendChild(el("div","day","Copy this list"));
+  if(buy.length){var cb=el("div","card");cb.appendChild(el("div","day","Copy this list"));
   var ta=el("textarea");ta.readOnly=true;ta.rows=6;ta.value=shopText(buy,mode);cb.appendChild(ta);
-  var cr=el("div","row");var cp=el("button","b","Copy");cp.onclick=function(){ta.select();try{navigator.clipboard.writeText(ta.value).then(function(){cp.textContent="Copied"}).catch(function(){cp.textContent="Press and hold the text to copy"})}catch(e){cp.textContent="Press and hold the text to copy"}};cr.appendChild(cp);cb.appendChild(cr);v.appendChild(cb);
+  var cr=el("div","row");var cp=el("button","b","Copy");cp.onclick=function(){ta.select();try{navigator.clipboard.writeText(ta.value).then(function(){cp.textContent="Copied"}).catch(function(){cp.textContent="Press and hold the text to copy"})}catch(e){cp.textContent="Press and hold the text to copy"}};cr.appendChild(cp);cb.appendChild(cr);v.appendChild(cb)}
   var sm2=function(x){return qm([x.buy,x.name,x.need,x.covers,x.section].join(" "))};
   GSECS.forEach(function(s){
     var g=buy.filter(function(x){return x.section===s&&sm2(x)});if(!g.length)return;
