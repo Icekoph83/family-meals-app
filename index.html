@@ -133,7 +133,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-16b">
+<meta name="app-v" content="2026-11-16c">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -428,7 +428,7 @@ function ingRow(i,hl,r){
   var row=el("label","ing"+(S.done[i.id]?" done":"")+(hl?" hl":""));
   var cb=el("input");cb.type="checkbox";cb.checked=!!S.done[i.id];
   cb.onchange=function(){S.done[i.id]=cb.checked;save();render()};
-  var sp=el("span");var a=el("span","amt",i.amt?i.amt+" ":"");sp.appendChild(a);sp.appendChild(document.createTextNode(i.name));
+  var sp=el("span");var post=/^(to taste|optional|as needed|for serving|a pinch|pinch)$/i.test(String(i.amt||"").trim());var a=el("span","amt",i.amt&&!post?i.amt+" ":"");sp.appendChild(a);sp.appendChild(document.createTextNode(i.name+(post?", "+String(i.amt).trim():"")));
   row.appendChild(cb);row.appendChild(sp);var th2=ingThumb(i);if(th2){row.style.display="flex";row.style.alignItems="center";sp.style.flex="1";row.appendChild(th2)}return row}
 
 function renderList(){
@@ -884,10 +884,19 @@ function craveAsk(txt){
   var prompt="A family member says: \""+q+"\"\n\nGive them a way to satisfy this craving that is more nutritious. "+R()+"\n\nOffer exactly two options, each with a short name, then a few plain sentences:\nOPTION 1, SAME VIBE, MORE NUTRIENTS: a different dish that scratches the same itch (salt, crunch, creamy, cheesy, sweet, etc.) and is nutrient dense.\nOPTION 2, STILL INDULGENT, SMALL TWEAKS: the real thing they asked for with 2 to 4 specific small swaps or add-ins that raise protein, fiber and vegetables without ruining it (for example blended cauliflower or butternut in the cheese sauce, whole-wheat or chickpea pasta, extra spinach, Greek yogurt in place of cream).\n"+(c.only?"STRICT: use ONLY items from the pantry JSON below plus basic staples (salt, pepper, oil, common spices, water). Do not require anything else to buy. If the pantry cannot support a good version, say so plainly and give the closest option that works, then name the single cheapest item that would unlock a better one. For each, say roughly how long it takes and which pantry items it uses,":"For each, say roughly how long it takes, which of these pantry items it uses (JSON below) and what it would still need,")+" and keep any baby portion safe for a 1-year-old (low sodium, no honey, soft textures). Plain text, no markdown symbols, under 220 words total. Do not invent exact nutrition numbers.\n\n"+equipText()+"\n\nPantry:\n"+inv;
   S.sample(prompt,{cache:false}).then(function(r){var t=(r&&r.text)||"";c.out=t;c.chk="Checking against your household's rules…";render();return guardText(t).then(function(g){c.busy=false;c.out=g.text;c.chk=g.note;render()})}).catch(function(){c.busy=false;c.err="Could not get ideas right now. Try again in a moment.";render()});
 }
+/* Where Claude can't answer live (the web app), these cards send the message to the Ask queue instead of being dead ends.
+   Claude reads the queue about hourly, answers in Ask, and makes the change when the message asks for one. */
+function queueCard(c,v,tag,ph,extra){
+  if(window.FM_BACKEND==="sb"||!S.db||!S.canWrite){c.appendChild(el("div","status","Talking to Claude is not available in this view yet."));v.appendChild(c);return}
+  [].forEach.call(c.querySelectorAll(".note"),function(n){n.textContent=n.textContent.replace(/,? or send (a )?photos?[^.]*\./i,".").replace(/\s*(Claude suggests the changes and )?[Nn]othing is saved until you confirm\./,"").replace(/Tell Claude what you want/,"Tell Claude what you want").trim()});
+  S.qd=S.qd||{};var ta=el("textarea");ta.rows=3;ta.placeholder=ph;ta.value=S.qd[tag]||"";ta.oninput=function(){S.qd[tag]=ta.value};ta.style.marginTop="10px";c.appendChild(ta);
+  var r=el("div","row");var b=el("button","b p","Send to Claude");b.onclick=function(){var q=(S.qd[tag]||"").trim();if(!q)return;b.disabled=true;
+    write(S.db.collection("chat").add({q:"["+tag+"] "+q,a:"",by:S.me||"",ts:Date.now()})).then(function(){S.qd[tag]="";S.qsent=tag;render()})};r.appendChild(b);c.appendChild(r);
+  c.appendChild(el("div","status",S.qsent===tag?"Sent. Claude answers in the Ask tab, usually within the hour, and makes the change if you asked for one.":"Claude answers in the Ask tab, usually within the hour."+(extra||"")));v.appendChild(c)}
 function renderCrave(v){
   var c=S.cv;var card=el("div","card");card.appendChild(el("div","day","Craving something?"));
   card.appendChild(el("div","note","Tell Claude what you want, like salty snacks or mac and cheese. You get a nutrient-dense version that scratches the same itch, and a still-indulgent version with a few small tweaks."));
-  if(!S.sample){card.appendChild(el("div","status","Asking Claude is not available in this view."));v.appendChild(card);return}
+  if(!S.sample){queueCard(card,v,"Craving","e.g. something like mac and cheese");return}
   var ta=el("input");ta.placeholder="e.g. I want mac and cheese";ta.value=c.text;ta.oninput=function(){c.text=ta.value};ta.style.marginTop="10px";
   ta.onkeydown=function(e){if(e.key==="Enter")craveAsk()};card.appendChild(ta);
   var lb=el("label","note");lb.style.cssText="display:flex;gap:8px;align-items:center;margin-top:10px;cursor:pointer";var cb=el("input");cb.type="checkbox";cb.checked=c.only;cb.style.cssText="width:20px;height:20px;flex:none;padding:0";cb.onchange=function(){c.only=cb.checked};lb.appendChild(cb);lb.appendChild(document.createTextNode("Only use what's in the pantry (no shopping)"));card.appendChild(lb);
@@ -997,7 +1006,7 @@ function applyEqOps(ops){
 function renderTellKitchen(v,dis){
   var p=S.kp;var c=el("div","card");c.appendChild(el("div","day","Tell Claude"));
   c.appendChild(el("div","note","Say what you have, like \"we have a 6 qt Instant Pot and a cast iron skillet, no stand mixer\", or send photos of your counters and cabinets. Nothing is saved until you confirm."));
-  if(!S.sample||!S.db||!S.canWrite){c.appendChild(el("div","status","Talking to Claude is not available in this view."));v.appendChild(c);return}
+  if(!S.sample||!S.db||!S.canWrite){queueCard(c,v,"Kitchen","e.g. we have a 6 qt Instant Pot, no stand mixer");return}
   var ta=el("textarea");ta.rows=2;ta.placeholder="e.g. We have an air fryer, a slow cooker and a grill";ta.value=p.text;ta.oninput=function(){p.text=ta.value};c.appendChild(ta);
   var row=el("div","row");
   if(S.canImg){var fi=el("input");fi.type="file";fi.accept="image/*";fi.multiple=true;fi.style.display="none";
@@ -1132,7 +1141,7 @@ function applyHouseOps(ops){
 function renderTellHouse(v,dis){
   var p=S.hd;var c=el("div","card");c.appendChild(el("div","day","Tell Claude"));
   c.appendChild(el("div","note","Describe anyone in the household: what they can't or won't eat, textures they dislike, how spicy they like things, what they love. Nothing is saved until you confirm."));
-  if(!S.sample||!S.db||!S.canWrite){c.appendChild(el("div","status","Talking to Claude is not available in this view."));v.appendChild(c);return}
+  if(!S.sample||!S.db||!S.canWrite){queueCard(c,v,"Household","e.g. Maggie does not like mayo-based slaws");return}
   var ta=el("textarea");ta.rows=2;ta.placeholder="e.g. Sam is allergic to tomatoes and hates mushy textures. He loves spicy food.";ta.value=p.text;ta.oninput=function(){p.text=ta.value};c.appendChild(ta);
   var row=el("div","row");var go=el("button","b p",p.busy?"Thinking…":"Send");go.disabled=p.busy||dis;go.onclick=askHouse;row.appendChild(go);
   var clr=el("button","b","Clear");clr.onclick=function(){p.text="";p.proposal=null;p.err="";render()};row.appendChild(clr);c.appendChild(row);
@@ -1167,7 +1176,7 @@ function personCard(p,dis){
 function checkCard(v){
   var k=S.ck;var c=el("div","card");c.appendChild(el("div","day","Check a recipe"));
   c.appendChild(el("div","note","Paste a recipe or ingredient list. Claude checks every ingredient, including hidden ones like sauces and stocks, against everyone's rules, and can rewrite it to fit."));
-  if(!S.sample){c.appendChild(el("div","status","Asking Claude is not available in this view."));v.appendChild(c);return}
+  if(!S.sample){queueCard(c,v,"Check a recipe","Paste a recipe or ingredient list");return}
   var ta=el("textarea");ta.rows=4;ta.placeholder="Paste a recipe here";ta.value=k.text;ta.oninput=function(){k.text=ta.value};c.appendChild(ta);
   var r=el("div","row");var go=el("button","b p",k.busy?"Checking…":"Check");go.disabled=k.busy||!(S.people||[]).length;go.onclick=function(){var t=k.text.trim();if(!t)return;k.busy=true;k.res=null;k.fixed="";render();vetText(t).then(function(vs){k.busy=false;k.res=vs;render()}).catch(function(){k.busy=false;k.res=[];k.err="Could not run the check.";render()})};r.appendChild(go);
   var cl=el("button","b","Clear");cl.onclick=function(){k.text="";k.res=null;k.fixed="";k.err="";render()};r.appendChild(cl);c.appendChild(r);
@@ -1205,7 +1214,7 @@ function runStress(){
 function stressCard(v){
   var st=S.st;var c=el("div","card");c.appendChild(el("div","day","Stress test"));
   c.appendChild(el("div","note","Tries three made-up households (no tomatoes; hates mushy textures and mushrooms; vegetarian with no nuts). For each, Claude suggests 5 dinners, then the checker flags any that break a rule, and variety is counted. This uses about 6 Claude requests and nothing is saved."));
-  if(!S.sample){c.appendChild(el("div","status","Asking Claude is not available in this view."));v.appendChild(c);return}
+  if(!S.sample)return;
   var r=el("div","row");var go=el("button","b p",st.busy?"Testing "+(st.cur||"")+"…":"Run the test");go.disabled=st.busy;go.onclick=runStress;r.appendChild(go);if(st.res.length&&!st.busy){var x=el("button","b","Clear");x.onclick=function(){st.res=[];render()};r.appendChild(x)}c.appendChild(r);
   if(st.err)c.appendChild(el("div","status",st.err));
   st.res.forEach(function(o){var b=el("div","alts");b.appendChild(el("div","nm",o.name));
@@ -1313,7 +1322,8 @@ function totalOf(x){return q4(lotsOf(x).reduce(function(s,l){return s+l.n},0))}
 function soonest(x){var best=null;lotsOf(x).forEach(function(l){if(l.n>0&&l.exp){var d=dleft(l.exp);if(best===null||d<best)best=d}});return best}
 function putPantry(x,patch){var d={name:x.name,size:sizeOf(x),lots:cleanLots(lotsOf(x)),loc:x.loc||"Pantry",note:x.note||"",state:x.state||"have",restock:x.restock||""};if(x.leftover)d.leftover=x.leftover;if(x.low)d.low=x.low;for(var k in patch)d[k]=patch[k];if(d.low===false||d.state==="used")delete d.low;if(d.lots&&d.state!=="used"&&!d.lots.length&&!("state" in patch))d.state="used";return S.db.doc("pantry/"+x.id).set(d)}
 function useOne(lots,k){lots=cleanLots(lots);k=q4(k);while(k>0&&lots.length){var t=Math.min(k,lots[0].n);lots[0].n=q4(lots[0].n-t);k=q4(k-t);if(lots[0].n<=0)lots.shift()}return lots}
-function whenText(dl){if(dl===null)return "no date yet";if(dl<0)return "expired "+(-dl)+" day"+(dl===-1?"":"s")+" ago";if(dl===0)return "expires today";return "expires in "+dl+" day"+(dl===1?"":"s")}
+function spanTxt(d){if(d<60)return d+" day"+(d===1?"":"s");if(d<730)return "about "+Math.round(d/30.4)+" months";var y=Math.round(d/365*2)/2;return "about "+(y%1?Math.floor(y)+" ½":y)+" years"}
+function whenText(dl){if(dl===null)return "no date yet";if(dl<0)return "expired "+spanTxt(-dl)+" ago";if(dl===0)return "expires today";return "expires in "+spanTxt(dl)}
 function fmtDate(s){if(!s)return "";var d=new Date(s+"T12:00:00");return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})}
 function countText(x){var t=totalOf(x),s=sizeOf(x);return fr(t)+" × "+(s||"container"+(t===1?"":"s"))}
 
@@ -1356,7 +1366,7 @@ function applyOps(ops){
 function renderTell(v,dis){
   var p=S.pp;var c=el("div","card");c.appendChild(el("div","day","Tell Claude"));
   c.appendChild(el("div","note","Say what changed, or send a photo of a receipt, a shelf, or a label. Claude suggests the changes and nothing is saved until you confirm."));
-  if(!S.sample||!S.db||!S.canWrite){c.appendChild(el("div","status","Talking to Claude is not available in this view."));v.appendChild(c);return}
+  if(!S.sample||!S.db||!S.canWrite){queueCard(c,v,"Pantry","e.g. we finished the feta and opened a new jar of pesto"," For a receipt photo, use Add a receipt on Groceries.");return}
   var ta=el("textarea");ta.rows=2;ta.placeholder="e.g. We used 1 can of chickpeas, and bought 2 more bags of farro";ta.value=p.text;ta.oninput=function(){p.text=ta.value};c.appendChild(ta);
   var row=el("div","row");
   if(S.canImg){
@@ -1388,7 +1398,10 @@ function ideasPantry(){
 function renderIdeas(v,dis){
   var p=S.pp;var c=el("div","card");c.appendChild(el("div","day","Cook from what we have"));
   c.appendChild(el("div","note","Dinner ideas using only the pantry, with soonest-expiring items first. No shopping trip."));
-  if(!S.sample||!S.db){v.appendChild(c);return}
+  if(!S.sample||!S.db){if(S.db&&S.canWrite&&window.FM_BACKEND!=="sb"){var qr=el("div","row");var qb=el("button","b p",S.qsent==="ideas"?"Asked":"What can we make?");qb.disabled=S.qsent==="ideas";
+      qb.onclick=function(){qb.disabled=true;write(S.db.collection("chat").add({q:"[Pantry ideas] What dinners can we make tonight using only what's in the pantry? Use the soonest-expiring items first and list anything we'd be missing.",a:"",by:S.me||"",ts:Date.now()})).then(function(){S.qsent="ideas";render()})};qr.appendChild(qb);c.appendChild(qr);
+      c.appendChild(el("div","status",S.qsent==="ideas"?"Sent. The ideas show up in the Ask tab, usually within the hour.":"Claude answers in the Ask tab, usually within the hour."))}
+    v.appendChild(c);return}
   var r=el("div","row");var b=el("button","b p",p.ibusy?"Thinking…":"What can we make?");b.disabled=p.ibusy;b.onclick=ideasPantry;r.appendChild(b);
   if(p.ideas){var x=el("button","b","Clear");x.onclick=function(){p.ideas="";render()};r.appendChild(x)}
   c.appendChild(r);
@@ -1578,8 +1591,8 @@ function renderShop(v){
     g.forEach(function(x){c.appendChild(shopRow(x,"I have this"))});v.appendChild(c)});
   var chk2=chk.filter(sm2);if(chk2.length){v.appendChild(el("div","grp","Check what we have first"));var c2=el("div","card");chk2.forEach(function(x){c2.appendChild(shopRow(x,"We have it"))});v.appendChild(c2)}
   var past2=past.filter(sm2);if(past2.length){v.appendChild(el("div","grp","For dinners already cooked"));var c4=el("div","card");c4.appendChild(el("div","note","These were for nights that have passed, so they are left out of the list and the total. Tap Still need it if one is still worth buying."));past2.forEach(function(x){c4.appendChild(shopRow(x,"I have this",true))});v.appendChild(c4)}
-  var have2=haveIt.filter(sm2);if(have2.length){v.appendChild(el("div","grp","Already have"));var c3=el("div","card");have2.forEach(function(x){c3.appendChild(shopRow(x,"Need to buy"))});v.appendChild(c3)}
-  var est=S.meals?planMeals().filter(function(m){return m.kind==="dinner"&&m.cost}).map(function(m){return m.title.split(" ").slice(0,3).join(" ")+": "+m.cost}):[];
+  var have2=haveIt.filter(sm2);if(have2.length){v.appendChild(el("div","grp","Already have"));var c3=el("div","card");have2.forEach(function(x){c3.appendChild(shopRow(x,"Still need it"))});v.appendChild(c3)}
+  var est=S.meals?planMeals().filter(function(m){return m.kind==="dinner"&&m.cost}).map(function(m){var t=m.title.length>44?m.title.slice(0,42).replace(/\s+\S*$/,"")+"…":m.title;return (DAYS[m.day]||m.day||"").slice(0,3)+" · "+t+": "+m.cost}):[];
   if(est.length){var ec=el("div","card");ec.appendChild(el("div","day","Estimated meal costs"));est.forEach(function(t){ec.appendChild(el("div","note",t))});ec.appendChild(el("div","note","Per-item prices will fill in from the receipt."));v.appendChild(ec)}
 }
 function receiptPut(key,file){return new Promise(function(res,rej){var rd=new FileReader();rd.onerror=function(){rej(new Error("read"))};rd.onload=function(){var im=new Image();im.onerror=function(){rej(new Error("image"))};im.onload=function(){
