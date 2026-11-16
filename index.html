@@ -133,7 +133,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1 id="ttl">This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-16d">
+<meta name="app-v" content="2026-11-16e">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -487,7 +487,7 @@ function leftCard(r,act){var L=r.leftovers||LEFT_GEN;var c=el("div","card");c.ap
     [["Fridge","Leftovers in the fridge"],["Freezer","Some in the freezer"]].forEach(function(o){var b=el("button",o[0]==="Fridge"?"pri":"",o[1]);b.onclick=function(){b.disabled=true;P.leftover(r,o[0]).then(function(msg){S.lo=S.lo||{};S.lo[r.id]=msg;render()})};row.appendChild(b)});c.appendChild(row);
     c.appendChild(el("div","mut","This adds the leftovers to the pantry with an eat-by date, so they show on the Week tab and in Toss these when time's up."))}}}
   return c}
-function equipCard(r){
+function equipCard(r,ingc){
   var list=r.equip||[];var out=el("div");
   var miss=list.filter(function(e){return eqState(e.n)==="no"});
   if(miss.length){var w=el("div","warnbox");w.appendChild(el("b",null,"You don't have everything for this one"));miss.forEach(function(e){w.appendChild(el("div",null,e.n+(e.alt?": "+e.alt:": no swap listed, ask Claude for one")))});out.appendChild(w)}
@@ -499,10 +499,12 @@ function equipCard(r){
       else row.appendChild(el("span","tag "+(st==="yes"?"ok":st==="no"?"no":""),st==="yes"?"Have it":st==="no"?"Missing":"Not confirmed"));c.appendChild(row)});
     
     out.appendChild(c)}
-  var sc0=safetyCard(r);if(sc0)out.appendChild(sc0);
+  if(ingc)out.appendChild(ingc);
   if((r.flow||[]).length){var f=el("div","card");f.appendChild(el("h2",null,"Order of work"));
     r.flow.forEach(function(t,i){var d=el("div",null,(i+1)+". "+t);d.style.padding="4px 0";f.appendChild(d)});out.appendChild(f)}
+  var sc0=safetyCard(r);if(sc0)out.appendChild(sc0);
   return out}
+function allIngCard(r){var c=el("div","card");c.appendChild(el("h2",null,"All ingredients"));(r.ingredients||[]).forEach(function(i){c.appendChild(ingRow(i,false,r))});return c}
 function renderRecipe(){
   var r=S.cur;app.textContent="";
   if(S.mode==="fb"){renderFeedback(r);return}
@@ -523,15 +525,13 @@ function renderRecipe(){
   var tabs=el("div","tabs");((hasPrep(r)?[["prep","Prep"]]:[]).concat([["cook","Step by step"],["whole","Whole recipe"]])).forEach(function(t){var b=el("button",S.mode===t[0]?"on":"",t[1]);b.onclick=function(){S.mode=t[0];render()};tabs.appendChild(b)});app.appendChild(tabs);
   if(!(S.mode==="cook"&&S.step>0))app.appendChild(eatCard());else if(Math.abs(eatFactor(S.eat)-1)>=0.01){app.appendChild(el("div","mut","Cooking for "+eatLabel(S.eat)+" (scaled to "+Math.round(eatFactor(S.eat)*100)+"%"+(S.eat.full?", full batch, only frozen cubes scaled":"")+")"))}
   if(S.mode==="prep"&&hasPrep(r)){
-    app.appendChild(equipCard(r));
+    app.appendChild(equipCard(r,allIngCard(r)));
     if((r.prep||[]).length)app.appendChild(prepCard(r,im,true));
     var go=el("button","pri","Start cooking →");go.style.cssText="width:100%;padding:14px;margin:6px 0";go.onclick=function(){S.mode="cook";save();render();window.scrollTo(0,0)};app.appendChild(go);
-    var ic0=el("div","card");ic0.appendChild(el("h2",null,"All ingredients"));(r.ingredients||[]).forEach(function(i){ic0.appendChild(ingRow(i,false,r))});app.appendChild(ic0);
     if(r.baby){app.appendChild(el("div","baby","Baby: "+r.baby))}
     return}
   if(S.mode==="whole"){
-    var c=el("div","card");c.appendChild(el("h2",null,"Ingredients"));(r.ingredients||[]).forEach(function(i){c.appendChild(ingRow(i,false,r))});app.appendChild(c);
-    app.appendChild(equipCard(r));
+    app.appendChild(equipCard(r,allIngCard(r)));
     if((r.prep||[]).length)app.appendChild(prepCard(r,im,false));
     var d=el("div","card");d.appendChild(el("h2",null,"Steps"));
     steps.forEach(function(s,n){var st=el("div","step"+(n===S.step?" cur":""));st.appendChild(el("b",null,(n+1)+". "+(s.title||"")));st.appendChild(el("div",null,s.text||""));if(s.check){var sk=el("div","safe");sk.appendChild(el("b",null,"Safety check: "));sk.appendChild(document.createTextNode(s.check));st.appendChild(sk)}
@@ -558,8 +558,6 @@ function renderRecipe(){
   if(r.baby&&S.step===steps.length-1){c.appendChild(el("div","baby","Baby: "+r.baby))}
   app.appendChild(c);
   if(S.step===steps.length-1)app.appendChild(leftCard(r,false));
-  var ic=el("div","card");ic.appendChild(el("h2",null,"All ingredients"));var uses=s.uses||[];
-  (r.ingredients||[]).forEach(function(i){ic.appendChild(ingRow(i,uses.indexOf(i.id)>=0,r))});app.appendChild(ic);
   var nav=el("div","nav"),in2=el("div");
   var p=el("button",null,"← Back");p.disabled=S.step===0;p.onclick=function(){S.step--;save();render();window.scrollTo(0,0)};
   var last=S.step>=steps.length-1;var pFirst=last&&!!pantryApi()&&(r.ingredients||[]).length>0&&!(r.date&&r.pantryFor===r.date);
