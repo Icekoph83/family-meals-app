@@ -133,7 +133,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1>This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-16a">
+<meta name="app-v" content="2026-11-16b">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -328,17 +328,23 @@ function ingThumb(i){var P=pantryApi(),PH=photoApi();if(!P||!PH)return null;var 
   if(!c[0])return null;var d=PH.get("pantry:"+c[0].it.id);var im=document.createElement("img");im.src=d;im.alt=c[0].it.name;im.title=c[0].it.name;im.style.cssText="width:44px;height:44px;object-fit:cover;border-radius:8px;flex:none;margin-left:8px";return im}
 function pantryApi(){return window.CookExt&&window.CookExt.pantry}
 var PSTOP={fresh:1,small:1,medium:1,large:1,whole:1,extra:1,firm:1,low:1,sodium:1,shredded:1,grated:1,sliced:1,diced:1,minced:1,chopped:1,crumbled:1,pressed:1,drained:1,rinsed:1,cubed:1,halved:1,torn:1,optional:1,plain:1,ground:1,dried:1,the:1,and:1,pantry:1,from:1,of:1,to:1,for:1,a:1,about:1,more:1,mixed:1,boneless:1,skinless:1,frozen:1,canned:1,can:1};
-function toks(t){t=String(t||"").toLowerCase().replace(/\(.*?\)/g," ").split(",")[0].split(/ or /)[0];
+function toks(t){t=String(t||"").toLowerCase().replace(/\b(no[- ]salt[- ]added|low[- ]sodium|reduced[- ]sodium|unsalted)\b/g," ").replace(/\(.*?\)/g," ").split(",")[0].split(/ or /)[0];
   return t.split(/[^a-z]+/).filter(function(w){return w.length>1&&!PSTOP[w]}).map(function(w){return w.replace(/ies$/,"y").replace(/oes$/,"o").replace(/([^s])s$/,"$1")})}
-var PDQ={powder:1,sauce:1,paste:1,extract:1,oil:1,juice:1,seasoning:1,salt:1,flake:1,soup:1,crushed:1,crumb:1,panko:1,couscou:1};
+var PDQ={powder:1,sauce:1,paste:1,extract:1,oil:1,juice:1,seasoning:1,salt:1,flake:1,soup:1,crushed:1,crumb:1,panko:1,couscou:1,tortellini:1,ravioli:1,creamer:1,pesto:1,cracker:1,chip:1,cookie:1,bar:1,dressing:1,tea:1,rub:1};
+/* Variety words: when the recipe and the pantry item name different kinds of the same thing (green vs red lentils,
+   corn vs flour tortillas, sesame vs poppy seeds), they are not a match at all. */
+var KIND={};"corn flour wheat white black green red brown yellow russet sweet baby cherry grape lemon lime chicken vegetable beef pork turkey coconut almond oat peanut soy cashew whole skim garlic onion chili cinnamon curry cocoa baking poppy sesame mustard italian poultry guacamole taco cajun wine balsamic cider apple rice basmati jasmine cannellini kidney pinto navy bell cayenne dijon celery pumpkin".split(" ").forEach(function(w){KIND[w]=1});
+var KEQ={cherry:"grape",grape:"cherry",chili:"pepper",pepper:"chili"};
+var TAILOK={pepper:1,leaf:1,leave:1,blend:1,seed:1,stick:1,bulb:1,head:1,bunch:1,pod:1,clove:1,bottle:1,jar:1,can:1,bag:1,pack:1,block:1,tub:1,carton:1,crown:1,pita:1,flake:1};
+var HARDK={wine:1,balsamic:1,cider:1,peanut:1,almond:1,cashew:1,coconut:1,oat:1,cocoa:1,chestnut:1,cayenne:1};
 var FRESHH={garlic:1,ginger:1,cilantro:1,basil:1,parsley:1,mint:1,dill:1,chive:1,scallion:1,thyme:1,rosemary:1,sage:1,lemon:1,lime:1,onion:1,spinach:1};
 var PWEAK={smoked:1,toasted:1,neutral:1,unsweetened:1,organic:1,natural:1,pure:1,sichuan:1,white:0};
 var PVAR={celery:1,sweet:1,garlic:1,onion:1,seasoned:1,cannellini:1,kidney:1,black:1,pinto:1,navy:1,green:1,red:1,brown:1,wild:1,jasmine:1,basmati:1,smoked:0};
-var PSYN={panko:["crumb","bread"],broth:["base","bouillon","stock"],stock:["base","bouillon","broth"]};
+var PSYN={panko:["crumb"],broth:["base","bouillon","stock"],stock:["base","bouillon","broth"]};
 /* Water is always assumed, so it never matches the pantry; "water plus 1 tsp chicken base" matches the base;
    "vegetable or chicken base" tries both kinds. */
 function ingClean(n){n=String(n||"");if(/^\s*(cold |hot |warm |boiling |filtered )?water\b/i.test(n)&&!/\b(plus|with|and)\b/i.test(n.split(",")[0]))return "";
-  return n.replace(/\bbouillon (paste|concentrate)\b/i,"bouillon base").replace(/^\s*(cold |hot |warm )?water\s+(plus|with|and)\s+(about\s+)?[\d\/\.\s]*(tsp|teaspoons?|tbsp|tablespoons?|cups?|oz)?\.?\s*(of\s+)?/i,"")}
+  return n.replace(/\bgarlic cloves?\b|\bcloves? (of )?garlic\b/i,"garlic").replace(/\bbouillon (paste|concentrate)\b/i,"bouillon base").replace(/^\s*(cold |hot |warm )?water\s+(plus|with|and)\s+(about\s+)?[\d\/\.\s]*(tsp|teaspoons?|tbsp|tablespoons?|cups?|oz)?\.?\s*(of\s+)?/i,"")}
 function candList(ing,items){var nm=ingClean(ing.name);if(!nm)return [];if(nm!==ing.name)ing=Object.assign({},ing,{name:nm});
   var alt=/\(or ([^)]+)\)/i.exec(String(ing.name||""));
   if(!alt){var seg=String(ing.name).split(",")[0],om=/^(.*?)\b([a-z-]+) or ([a-z-]+) ((?:[a-z-]+ )?(?:broth|stock|base|bouillon|beans|rice|pasta|tomatoes|milk|flour|vinegar|oil))\s*$/i.exec(seg);
@@ -350,7 +356,17 @@ function candList1(ing,items){var I=toks(ing.name);if(!I.length)return [];var he
   var wantFresh=!!FRESHH[head]&&!/\b(dried|dry|ground|powder|flake|freeze|jarred|minced jar)\b/i.test(String(ing.name)+" "+String(ing.amt||""));
   items.forEach(function(it){if(wantFresh&&/\b(dried|freeze.?dried|ground|powder|flakes?|leaves|juice|jar)\b/i.test(String(it.name)+" "+String(it.size||"")))return;var P=toks(it.name);var hd=P.indexOf(head)>=0||syn.some(function(w){return P.indexOf(w)>=0});var m=I.filter(function(w){return P.indexOf(w)>=0}).length+(P.indexOf(head)<0&&hd?1:0);if(!m||!hd)return;
     if(P.some(function(w){return PDQ[w]&&I.indexOf(w)<0&&syn.indexOf(w)<0&&!(PSYN[w]&&I.indexOf(w)>=0)}))return;
-    if(/\bsupplement\b/i.test(it.name))return;
+    if(/\bsupplement\b/i.test(it.name)||it.leftover||/^leftovers?\b/i.test(String(it.name)))return;
+    var raw=String(ing.name||"").toLowerCase(),rawNP=raw.replace(/\(.*?\)/g," "),RW=raw.split(/[^a-z]+/).map(function(w){return w.replace(/ies$/,"y").replace(/oes$/,"o").replace(/([^s])s$/,"$1")});
+    if(P.some(function(w){return HARDK[w]&&w!==head&&RW.indexOf(w)<0}))return;
+    var hiP=P.indexOf(head),pm=hiP>0?P[hiP-1]:"",hiI=I.indexOf(head),im=hiI>0?I[hiI-1]:"";
+    if(!im||!KIND[im]){var pw=((/\(([^)]*)\)/.exec(raw)||[])[1]||"").split(/[^a-z]+/).filter(function(w){return KIND[w]});if(pw.length&&pw.indexOf(pm)<0)im=pw[0]}
+    if(pm&&im&&pm!==im&&(!PWEAK[pm]||KIND[im])&&!PWEAK[im]&&KEQ[pm]!==im&&RW.indexOf(pm)<0&&P.indexOf(im)<0)return;
+    if(im&&HARDK[im]&&P.indexOf(im)<0)return;
+    var lastP=P[P.length-1];if(hiP>=0&&lastP!==head&&I.indexOf(lastP)<0&&!TAILOK[lastP])return;
+    var fxl=(String(it.name)+" "+String(it.size||"")).toLowerCase();
+    if(/\b(ground|dried|dry)\b/.test(rawNP)&&/\bfresh\b/.test(fxl)&&!/\bground (beef|pork|turkey|chicken|lamb|meat)/.test(rawNP))return;
+    if(/\b(diced|crushed|canned|cans?|stewed|fire.roasted)\b/.test(raw+" "+String(ing.amt||"").toLowerCase())&&/\b(grape|cherry|roma|heirloom)\b/.test(fxl)&&!/\b(grape|cherry|roma|heirloom)\b/.test(raw))return;
     var core=I.filter(function(w){return !PWEAK[w]});var cm=core.filter(function(w){return P.indexOf(w)>=0||(w===head&&hd)}).length;var cov=core.length?cm/core.length:m/I.length;
     var hi=P.indexOf(head);if(hi>0&&PVAR[P[hi-1]]&&I.indexOf(P[hi-1])<0)cov=Math.min(cov,0.5);
     var fx=String(it.name)+" "+String(it.size||""),fi=String(ing.name)+" "+String(ing.amt||"");
@@ -361,7 +377,7 @@ function contCount(amt){var a=String(amt||"");if(!/\b(cans?|blocks?|jars?|bottle
   var m=a.match(/^\s*(\d+)?\s*(?:(\d+)\/(\d+))?/);var v=0;if(m){if(m[1])v+=+m[1];if(m[2]&&m[3])v+=(+m[2])/(+m[3])}return Math.max(1,Math.ceil(v||1))}
 function buildPU(r){var P=pantryApi();var items=P?P.items():[];
   var mem=(P&&P.memory&&P.memory())||{};
-  var rows=(r.ingredients||[]).filter(function(i){return ingClean(i.name)!==""}).map(function(i){var c=candList(i,items);var best=(c[0]&&c[0].cov>=1)?c[0].it:null;var cc=contCount(i.amt);var mid=mem[pkey(i)];var rem=false;
+  var rows=(r.ingredients||[]).filter(function(i){var c=ingClean(i.name);return c!==""&&!/^\s*(kosher |sea |black |table )?(salt|pepper)(,? (and|plus) (black )?pepper)?\b(,.*)?$/i.test(c)}).map(function(i){var c=candList(i,items);var best=(c[0]&&c[0].cov>=1)?c[0].it:null;var cc=contCount(i.amt);var mid=mem[pkey(i)];var rem=false;
     if(mid&&items.some(function(x){return x.id===mid})){best={id:mid};rem=true}
     var cand=c.map(function(x){return x.it.id});if(rem&&cand.indexOf(mid)<0)cand.unshift(mid);
     var small=/\b(tsp|teaspoons?|tbsp|tablespoons?|pinch|dash|sprinkle|to taste|cloves?|splash|drizzle)\b/i.test(String(i.amt||"")+" "+String(i.name||""));
@@ -451,7 +467,7 @@ function prepCard(r,im,interactive){
   return c}
 
 var SAFE_T=[[/\b(chicken|turkey|duck|poultry)\b/i,"Poultry (any cut, ground too)","165°F"],[/\bground (beef|pork|lamb|veal)|\b(sausage|meatballs?|burgers?)\b/i,"Ground meat and sausage","160°F"],[/\b(pork|beef|lamb|veal|steak|tenderloin|chops?|roast)\b/i,"Whole cuts of pork, beef, lamb","145°F + 3 min rest"],[/\b(salmon|cod|tilapia|tuna|halibut|fish|trout)\b/i,"Fish","145°F or opaque and flakes"],[/\b(shrimp|scallops?|crab|lobster)\b/i,"Shrimp, crab, scallops","Pearly and opaque"],[/\beggs?\b/i,"Egg dishes","160°F; yolk and white firm for the baby"],[/\brice\b/i,"Rice","Cool within 1 hour; reheat once, steaming hot"]];
-function safeTemps(r){var txt=(r.ingredients||[]).map(function(i){return i.name}).join(" | ").replace(/\b(chicken|turkey|beef|pork|vegetable|veggie|fish)\s+(base|broth|stock|bouillon|paste)\b/gi,"").replace(/\b(bouillon|chicken-flavou?red|vegan chicken|plant-based|beyond|impossible)\b[^|]*/gi,"");var out=[];SAFE_T.forEach(function(t){if(t[0].test(txt))out.push(t)});
+function safeTemps(r){var txt=(r.ingredients||[]).map(function(i){return i.name}).join(" | ").replace(/\b(chicken|turkey|beef|pork|vegetable|veggie|fish)\s+(base|broth|stock|bouillon|paste)\b/gi,"").replace(/\b(bouillon|chicken-flavou?red|vegan chicken|plant-based|beyond|impossible)\b[^|]*/gi,"").replace(/\b(fish sauce|rice (vinegar|wine|paper)|egg (noodles|roll wrappers))\b/gi,"");var out=[];SAFE_T.forEach(function(t){if(t[0].test(txt))out.push(t)});
   var has=function(lbl){return out.some(function(t){return t[1]===lbl})};
   if(has("Poultry (any cut, ground too)")&&!/ground (beef|pork|lamb|veal)|sausage/i.test(txt))out=out.filter(function(t){return t[1]!=="Ground meat and sausage"});
   if(out.filter(function(t){return t[1]!=="Rice"}).length>1)out=out.filter(function(t){return t[1]!=="Egg dishes"});return out}
@@ -589,7 +605,9 @@ function mine(id){return S.me&&id===S.me}
 function setTab(t){S.tab=t;S.ckFresh=true;S.rm=null;S.edit=null;S.dl={};S.hold=false;document.querySelectorAll(".tab").forEach(function(b){b.setAttribute("aria-selected",String(b.dataset.t===t))});render()}
 document.querySelectorAll(".tab").forEach(function(b){b.onclick=function(){setTab(b.dataset.t)}});
 
-function qm(t){var q=(S.q[S.tab]||"").trim().toLowerCase();if(!q)return true;return String(t).toLowerCase().indexOf(q)>=0}
+function qm(t){var q=(S.q[S.tab]||"").trim().toLowerCase();if(!q)return true;var tx=" "+String(t).toLowerCase().replace(/[^a-z0-9]+/g," ");
+  /* every word typed has to start a word in the item, so "oil" doesn't find "boiling" and "ham" doesn't find "graham" */
+  return q.split(/[^a-z0-9]+/).filter(Boolean).every(function(w){return tx.indexOf(" "+w)>=0})}
 function openEdit(key){S.edit=key;S.hold=false;render();holdAny()}
 function closeEdit(){S.edit=null;holdAny();render()}
 function editForm(fields,save){
