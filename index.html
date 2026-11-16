@@ -322,10 +322,10 @@ function coverage(rec,sources){var have=[],miss=[];(rec.ingredients||[]).forEach
     var txt=(x.it.name+" "+(x.it.size||"")).toLowerCase();if(wantCan&&!/\bcans?\b|canned|\bfl\b|carton|tetra/.test(txt))return false;if(wantJar&&!/\bjar/.test(txt))return false;return true});if(c[0])have.push(i.name.split(",")[0].replace(/\(.*?\)/g,"").trim()+" → "+c[0].it.name);else miss.push(i.name.split(",")[0].replace(/\(.*?\)/g,"").trim())});return {have:have,miss:miss}}
 function pkey(ing){return toks(ing.name).join("-")}
 function photoApi(){return window.CookExt&&window.CookExt.photo}
-function pimg(rid,h){var P=photoApi(),d=P&&P.get(rid);if(!d)return null;var i=document.createElement("img");i.src=d;i.alt="Meal photo, tap to see all of it";i.style.cssText="display:block;width:100%;height:"+h+"px;object-fit:cover;object-position:"+(P.pos?P.pos(rid):"50% 50%")+";border-radius:10px;margin:0 0 8px;cursor:zoom-in";if(P.view)i.onclick=function(e){e.stopPropagation();P.view(rid)};return i}
+function pimg(rid,h){var P=photoApi(),d=P&&P.get(rid);if(!d)return null;var i=document.createElement("img");i.onerror=function(){var e=this;if(e.parentNode)e.parentNode.removeChild(e)};i.src=d;i.alt="Meal photo, tap to see all of it";i.style.cssText="display:block;width:100%;height:"+h+"px;object-fit:cover;object-position:"+(P.pos?P.pos(rid):"50% 50%")+";border-radius:10px;margin:0 0 8px;cursor:zoom-in";if(P.view)i.onclick=function(e){e.stopPropagation();P.view(rid)};return i}
 function ingThumb(i){var P=pantryApi(),PH=photoApi();if(!P||!PH)return null;var items=P.items();var t=toks(i.name);if(!t.length)return null;
   var c=candList(i,items).filter(function(x){if(!PH.get("pantry:"+x.it.id))return false;var Q=toks(x.it.name).concat(toks(x.it.size));return t.filter(function(w){return Q.indexOf(w)>=0}).length/t.length>=0.5});
-  if(!c[0])return null;var d=PH.get("pantry:"+c[0].it.id);var im=document.createElement("img");im.src=d;im.alt=c[0].it.name;im.title=c[0].it.name;im.style.cssText="width:44px;height:44px;object-fit:cover;border-radius:8px;flex:none;margin-left:8px";return im}
+  if(!c[0])return null;var d=PH.get("pantry:"+c[0].it.id);var im=document.createElement("img");im.onerror=function(){var e=this;if(e.parentNode)e.parentNode.removeChild(e)};im.src=d;im.alt=c[0].it.name;im.title=c[0].it.name;im.style.cssText="width:44px;height:44px;object-fit:cover;border-radius:8px;flex:none;margin-left:8px";return im}
 function pantryApi(){return window.CookExt&&window.CookExt.pantry}
 var PSTOP={traditional:1,style:1,original:1,classic:1,premium:1,gourmet:1,fresh:1,small:1,medium:1,large:1,whole:1,extra:1,firm:1,low:1,sodium:1,shredded:1,grated:1,sliced:1,diced:1,minced:1,chopped:1,crumbled:1,pressed:1,drained:1,rinsed:1,cubed:1,halved:1,torn:1,optional:1,plain:1,ground:1,dried:1,the:1,and:1,pantry:1,from:1,of:1,to:1,for:1,a:1,about:1,more:1,mixed:1,boneless:1,skinless:1,frozen:1,canned:1,can:1};
 function toks(t){t=String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\bwith added [a-z]+|\bfortified\b/g," ").replace(/\b(no[- ]salt[- ]added|low[- ]sodium|reduced[- ]sodium|unsalted)\b/g," ").replace(/\(.*?\)/g," ").split(",")[0].split(/ or /)[0];
@@ -745,7 +745,7 @@ function mealCard(m){
   if(m.cuisine)mt.appendChild(el("span","chip",m.cuisine));
   if(m.veg)mt.appendChild(el("span","chip ok","Meatless"));
   var rcv=(window.CookTab&&m.date)?window.CookTab.forDate(m.date):null;
-  if(rcv&&S.ph&&S.ph[rcv.id]){var mi=document.createElement("img");mi.src=S.ph[rcv.id];mi.alt="";mi.style.cssText="display:block;width:100%;height:150px;object-fit:cover;object-position:"+phPos(rcv.id)+";border-radius:10px;margin:0 0 8px;cursor:zoom-in";mi.alt="Meal photo, tap to see all of it";(function(id){mi.onclick=function(){photoView(id)}})(rcv.id);c.insertBefore(mi,c.firstChild)}
+  if(rcv&&S.ph&&S.ph[rcv.id]){var mi=document.createElement("img");mi.onerror=function(){var e=this;if(e.parentNode)e.parentNode.removeChild(e)};mi.src=S.ph[rcv.id];mi.alt="";mi.style.cssText="display:block;width:100%;height:150px;object-fit:cover;object-position:"+phPos(rcv.id)+";border-radius:10px;margin:0 0 8px;cursor:zoom-in";mi.alt="Meal photo, tap to see all of it";(function(id){mi.onclick=function(){photoView(id)}})(rcv.id);c.insertBefore(mi,c.firstChild)}
   if(rcv&&rcv.verdict)mt.appendChild(el("span","chip"+(rcv.verdict==="never"?" bad":rcv.verdict==="again"?" ok":" warn"),rcv.verdict==="again"?"Make again":rcv.verdict==="changes"?"Needs changes":"Retired"));
   var exs=(window.CookTab&&window.CookTab.expiring&&m.date&&m.date>=localIso())?window.CookTab.expiring(m.date):[];
   exs.forEach(function(x){mt.appendChild(el("span","chip warn","Uses up "+x.name.replace(/\s*\(.*\)/,"")+" (expires "+x.exp.slice(5).replace("-","/")+")"))});
@@ -1482,14 +1482,14 @@ function renderPantry(v){
     items.forEach(function(x){
       var dl=soonest(x);var r=el("div","prow");var top=el("div","top");
       var pkey2="pantry:"+x.id;var pimgd=(S.ph||{})[pkey2];
-      if(pimgd){var th=document.createElement("img");th.src=pimgd;th.alt="";th.style.cssText="width:56px;height:56px;object-fit:cover;border-radius:8px;margin-right:10px;cursor:pointer;flex:none";th.onclick=function(){S.pz=S.pz===x.id?null:x.id;render()};top.style.alignItems="center";top.appendChild(th)}
+      if(pimgd){var th=document.createElement("img");th.onerror=function(){var e=this;if(e.parentNode)e.parentNode.removeChild(e)};th.src=pimgd;th.alt="";th.style.cssText="width:56px;height:56px;object-fit:cover;border-radius:8px;margin-right:10px;cursor:pointer;flex:none";th.onclick=function(){S.pz=S.pz===x.id?null:x.id;render()};top.style.alignItems="center";top.appendChild(th)}
       var t=el("div");t.style.flex="1";t.appendChild(el("div","nm",x.name));
       var lots=lotsOf(x);var dated=lots.filter(function(l){return l.exp});
       var parts=[countText(x)];if(x.low)parts.push("running low");if(dl!==null)parts.push("soonest "+whenText(dl).replace("expires","expires").replace("expired","expired"));else parts.push("no date yet");
       if(x.note)parts.push(x.note);t.appendChild(el("div","note",parts.join(" · ")));top.appendChild(t);
       if(dl!==null&&dl<0)top.appendChild(el("span","chip bad","Expired"));else if(dl!==null&&dl<=7)top.appendChild(el("span","chip warn","Use soon"));
       r.appendChild(top);
-      if(pimgd&&S.pz===x.id){var big=document.createElement("img");big.src=pimgd;big.alt="";big.style.cssText="display:block;width:100%;max-height:360px;object-fit:contain;border-radius:10px;margin:8px 0";big.onclick=function(){S.pz=null;render()};r.appendChild(big)}
+      if(pimgd&&S.pz===x.id){var big=document.createElement("img");big.onerror=function(){var e=this;if(e.parentNode)e.parentNode.removeChild(e)};big.src=pimgd;big.alt="";big.style.cssText="display:block;width:100%;max-height:360px;object-fit:contain;border-radius:10px;margin:8px 0";big.onclick=function(){S.pz=null;render()};r.appendChild(big)}
       var drafting=!!draftOf(x);var sbar=el("div","ctl");
       var svb=el("button","b p","Save changes");var cxb=el("button","b","Cancel");
       function showBar(){svb.style.display="";cxb.style.display=""}
@@ -1712,7 +1712,7 @@ function phPos(rid){var x=(S.phx||{})[rid];return (x&&x.pos)||"50% 50%"}
 function photoView(rid){var src=(S.ph||{})[rid];if(!src)return;var old=document.getElementById("phview");if(old)old.remove();var can=!!(S.db&&S.canWrite&&(S.phx||{})[rid]);var adj=false;
   var ov=document.createElement("div");ov.id="phview";ov.setAttribute("role","dialog");ov.setAttribute("aria-modal","true");ov.setAttribute("aria-label","Photo");
   ov.style.cssText="position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:12px";
-  var wrap=document.createElement("div");wrap.style.cssText="position:relative;max-width:100%;max-height:70vh";var im=document.createElement("img");im.src=src;im.alt="Meal photo";im.style.cssText="display:block;max-width:100%;max-height:70vh;border-radius:10px";wrap.appendChild(im);
+  var wrap=document.createElement("div");wrap.style.cssText="position:relative;max-width:100%;max-height:70vh";var im=document.createElement("img");im.onerror=function(){var e=this;if(e.parentNode)e.parentNode.removeChild(e)};im.src=src;im.alt="Meal photo";im.style.cssText="display:block;max-width:100%;max-height:70vh;border-radius:10px";wrap.appendChild(im);
   var dot=document.createElement("div");dot.style.cssText="position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 2px rgba(0,0,0,.5);pointer-events:none;display:none";wrap.appendChild(dot);
   var p0=phPos(rid).split(" ");var setDot=function(x,y){dot.style.left=x;dot.style.top=y;dot.style.display="block"};
   var msg=document.createElement("div");msg.style.cssText="color:#fff;text-align:center;font-size:15px;max-width:420px";msg.textContent="This is the whole photo. The cards show a cropped strip of it.";
