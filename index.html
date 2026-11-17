@@ -133,7 +133,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1 id="ttl">This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-16e">
+<meta name="app-v" content="2026-11-16f">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -462,7 +462,7 @@ function prepCard(r,im,interactive){
     if(interactive){var cb=el("input");cb.type="checkbox";cb.checked=!!S.pdone[i];cb.onchange=function(){S.pdone[i]=cb.checked;save();render()};row.appendChild(cb)}
     var sp=el("span");sp.appendChild(el("b",null,(interactive?"":(i+1)+". ")+(t.title||"")));
     if(t.text)sp.appendChild(el("div",null,t.text));
-    if((t.uses||[]).length){var w=el("div");(t.uses).forEach(function(id){var ig=im[id];if(ig)w.appendChild(el("span","chip",(ig.amt?ig.amt+" ":"")+ig.name))});sp.appendChild(w)}
+    if((t.uses||[]).length){var w=el("div");var am=t.amts||{};(t.uses).forEach(function(id){var ig=im[id];if(ig){var at=am[id]!=null?am[id]:ig.amt;w.appendChild(el("span","chip",(at?at+" ":"")+ig.name.replace(/,\s*divided\b/i,"")))}});sp.appendChild(w)}
     row.appendChild(sp);c.appendChild(row)});
   return c}
 
@@ -550,7 +550,7 @@ function renderRecipe(){
     var g=el("button",null,"Go to step");g.onclick=function(){S.step=k;save();render();window.scrollTo(0,0)};bx.appendChild(g);
     var x=el("button",null,t.fired?"Dismiss":"Cancel");x.onclick=function(){delete S.tms[k];saveTm();render()};bx.appendChild(x);app.appendChild(bx)});
   var c=el("div","card");c.appendChild(el("h2",null,s.title||""));c.appendChild(el("div","big",s.text||""));
-  if((s.uses||[]).length){c.appendChild(el("div","mut","Using now"));var w=el("div");s.uses.forEach(function(id){var i=im[id];if(i)w.appendChild(el("span","chip",(i.amt?i.amt+" ":"")+i.name))});c.appendChild(w)}
+  if((s.uses||[]).length){c.appendChild(el("div","mut","Using now"));var w=el("div");var am=s.amts||{};s.uses.forEach(function(id){var i=im[id];if(i){var at=am[id]!=null?am[id]:i.amt;w.appendChild(el("span","chip",(at?at+" ":"")+i.name.replace(/,\s*divided\b/i,"")))}});c.appendChild(w)}
   if(s.timer){var tr=el("div","row");var t=S.tms[S.step]||null;
     var tv=el("span","tm",t?(t.fired?"Time's up!":fmt(Math.max(0,Math.round((t.end-Date.now())/1000)))):fmt(s.timer));tv.id="tmv";tr.appendChild(tv);
     var tb=el("button",null,t?"Restart timer":"Start timer");tb.onclick=function(){S.tms[S.step]={end:Date.now()+s.timer*1000,fired:false};saveTm();render()};tr.appendChild(tb);c.appendChild(tr)}
