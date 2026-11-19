@@ -133,7 +133,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1 id="ttl">This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-19b">
+<meta name="app-v" content="2026-11-19c">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -1769,7 +1769,7 @@ window.CookExt={people:function(){return (S.people||[]).map(function(p){return {
   items:function(){return (S.pantry||[]).filter(function(x){return x.state!=="used"&&!allExpired(x)}).map(function(x){var ex=(lotsOf(x)||[]).map(function(l){return l.exp}).filter(Boolean).sort()[0]||"";return {id:x.id,name:x.name,size:sizeOf(x),total:totalOf(x),exp:ex}})},
   short:function(r){if(!r||!r.date||!S.shop)return [];var wk=satOf(r.date),dn=["sun","mon","tue","wed","thu","fri","sat"][new Date(r.date+"T12:00:00").getDay()];
     return S.shop.filter(function(x){return x.short&&(x.week||"")===wk&&new RegExp("\\b"+dn,"i").test(x.covers||"")}).map(function(x){return {name:x.name,got:x.got||0,of:shopCount(x)}})},
-  leftover:function(r,loc){if(!S.db)return Promise.resolve("Couldn't save: not signed in.");var day=(r.date&&r.date<localIso())?r.date:localIso(),eat=addDays(day,loc==="Freezer"?90:3);
+  leftover:function(r,loc){if(!S.db)return Promise.resolve("Couldn't save: not signed in.");var day=(r.date&&r.date<localIso())?r.date:localIso(),LD=(r.leftovers||{}).eatDays,eat=addDays(day,loc==="Freezer"?90:(LD!=null?+LD:3));
     var L=r.leftovers||{};var nm="Leftovers: "+String(r.title||"dinner").replace(/\s+with\s.*$/i,"");
     var rice=/\brice\b/i.test((r.ingredients||[]).map(function(i){return i.name}).join(" "));var lo={rid:r.id,cooked:day};if(rice&&loc!=="Freezer"&&kids().length)lo.kidBy=addDays(day,1);
     return S.db.collection("pantry").add({name:nm,size:"container",lots:[{n:1,exp:eat}],loc:loc,state:"have",leftover:lo,
