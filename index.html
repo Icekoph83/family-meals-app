@@ -133,7 +133,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1 id="ttl">This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-16f">
+<meta name="app-v" content="2026-11-19a">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -171,14 +171,14 @@ function save(){if(S.cur)ls("cook:"+S.cur.id,{step:S.step,done:S.done,prep:S.pdo
 function saveTm(){var o={},now=Date.now();Object.keys(S.tmAll).forEach(function(rid){var m=S.tmAll[rid]||{},k2={};Object.keys(m).forEach(function(k){var t=m[k];if(t&&now-t.end<3600e3)k2[k]=t});if(Object.keys(k2).length)o[rid]=k2});Object.keys(S.tmAll).forEach(function(rid){if(!o[rid])delete S.tmAll[rid]});ls("cook:timers",o)}
 function tmFor(rid){return S.tmAll[rid]||(S.tmAll[rid]={})}
 (function(){var o=ls("cook:timers");if(o&&typeof o==="object")S.tmAll=o})();
-function otherTimers(){var out=[];Object.keys(S.tmAll).forEach(function(rid){if(S.cur&&rid===S.cur.id)return;var m=S.tmAll[rid]||{};Object.keys(m).forEach(function(k){if(m[k])out.push({rid:rid,k:+k,t:m[k]})})});return out.sort(function(a,b){return a.t.end-b.t.end})}
+function otherTimers(){var out=[];Object.keys(S.tmAll).forEach(function(rid){if(S.cur&&rid===S.cur.id)return;var m=S.tmAll[rid]||{};Object.keys(m).forEach(function(k){if(m[k])out.push({rid:rid,k:/^p/.test(k)?k:+k,t:m[k]})})});return out.sort(function(a,b){return a.t.end-b.t.end})}
 function otherTimersBox(){var L=otherTimers();if(!L.length)return null;var w=el("div");
-  L.forEach(function(o){var r=byId(o.rid),st=r&&(r.steps||[])[o.k]||{};var bx=el("div","warnbox");bx.style.cssText="display:flex;align-items:center;gap:8px;flex-wrap:wrap";
-    var lb=el("span",null,(r?r.title:"Another recipe")+" · step "+(o.k+1)+(st.title?" ("+st.title+")":"")+": ");lb.style.flex="1";
+  L.forEach(function(o){var r=byId(o.rid),isP=typeof o.k==="string",st=r&&(isP?(r.prep||[])[+o.k.slice(1)]:(r.steps||[])[o.k])||{};var bx=el("div","warnbox");bx.style.cssText="display:flex;align-items:center;gap:8px;flex-wrap:wrap";
+    var lb=el("span",null,(r?r.title:"Another recipe")+(isP?" · prep":" · step "+(o.k+1))+(st.title?" ("+st.title+")":"")+": ");lb.style.flex="1";
     var tv=el("b",null,o.t.fired?"Time's up!":fmt(Math.max(0,Math.round((o.t.end-Date.now())/1000))));tv.id="tmo"+o.rid+"_"+o.k;lb.appendChild(tv);bx.appendChild(lb);
     if(r){var g=el("button","pri","Back to it");g.onclick=function(){openAt(r,o.k)};bx.appendChild(g)}
     var x=el("button",null,o.t.fired?"Dismiss":"Cancel");x.onclick=function(){delete tmFor(o.rid)[o.k];saveTm();render()};bx.appendChild(x);w.appendChild(bx)});return w}
-function openAt(r,k){open(r);S.mode="cook";S.step=k;save();render();window.scrollTo(0,0)}
+function openAt(r,k){open(r);if(typeof k==="string"){S.mode="prep"}else{S.mode="cook";S.step=k}save();render();window.scrollTo(0,0)}
 function open(r){S.cur=r;var p=ls("cook:"+r.id)||{};S.step=p.step||0;S.done=p.done||{};S.pdone=p.prep||{};S.eat=p.eat||eatDefault();S.mode=(hasPrep(r)&&!(p.step>0)&&!Object.keys(S.tms).length)?"prep":"cook";render();window.scrollTo(0,0)}
 
 /* Who's eating: scale amounts for the people at the table. Recipes are written for the whole household
@@ -452,6 +452,9 @@ function renderList(){
       var F=fbx();if(F&&F.can()){var rb=el("button",null,"Restore");rb.onclick=function(){F.restore(r).then(function(){S.toast="Restored: "+r.title;render()})};row.appendChild(rb)}ar.appendChild(row)});
     app.appendChild(ar)}}
 
+/* Prep items get a timer when they set one (timer, seconds) or say how long something cooks ("pressure cook 10 minutes"). */
+function prepSecs(t){if(t.timer)return +t.timer;var m=/\b(cook|pressure|simmer|boil|bake|roast|soak|marinate|rest|release|microwave|toast|press|drain|thaw|chill|steep|sear|brown|saute|sauté|fry)\w*\b[^.]*?\b(\d+)(?:\s*(?:to|-)\s*(\d+))?\s*(minutes?|mins?|hours?)\b/i.exec(String(t.text||""));
+  if(!m)return 0;var n=+(m[3]||m[2]);return /^h/i.test(m[4])?n*3600:n*60}
 function prepCard(r,im,interactive){
   var list=r.prep||[];var c=el("div","card");c.appendChild(el("h2",null,"Prep"));
   var n=list.filter(function(t,i){return S.pdone[i]}).length;
@@ -462,12 +465,18 @@ function prepCard(r,im,interactive){
     if(interactive){var cb=el("input");cb.type="checkbox";cb.checked=!!S.pdone[i];cb.onchange=function(){S.pdone[i]=cb.checked;save();render()};row.appendChild(cb)}
     var sp=el("span");sp.appendChild(el("b",null,(interactive?"":(i+1)+". ")+(t.title||"")));
     if(t.text)sp.appendChild(el("div",null,t.text));
+    var psec=prepSecs(t);if(interactive&&psec){var key="p"+i,tt=S.tms[key]||null,tr=el("div","row");tr.style.marginTop="6px";
+      var tv=el("span","tm",tt?(tt.fired?"Time's up!":fmt(Math.max(0,Math.round((tt.end-Date.now())/1000)))):fmt(psec));tv.id="tmb"+key;tr.appendChild(tv);
+      var tb=el("button",null,tt?"Restart timer":"Start timer");tb.onclick=function(e){e.preventDefault();e.stopPropagation();S.tms[key]={end:Date.now()+psec*1000,fired:false};saveTm();render()};tr.appendChild(tb);
+      if(tt){var tx=el("button",null,tt.fired?"Dismiss":"Cancel");tx.onclick=function(e){e.preventDefault();e.stopPropagation();delete S.tms[key];saveTm();render()};tr.appendChild(tx)}
+      sp.appendChild(tr)}
     if((t.uses||[]).length){var w=el("div");var am=t.amts||{};(t.uses).forEach(function(id){var ig=im[id];if(ig){var at=am[id]!=null?am[id]:ig.amt;w.appendChild(el("span","chip",(at?at+" ":"")+ig.name.replace(/,\s*divided\b/i,"")))}});sp.appendChild(w)}
     row.appendChild(sp);c.appendChild(row)});
   return c}
 
 var SAFE_T=[[/\b(chicken|turkey|duck|poultry)\b/i,"Poultry (any cut, ground too)","165°F"],[/\bground (beef|pork|lamb|veal)|\b(sausage|meatballs?|burgers?)\b/i,"Ground meat and sausage","160°F"],[/\b(pork|beef|lamb|veal|steak|tenderloin|chops?|roast)\b/i,"Whole cuts of pork, beef, lamb","145°F + 3 min rest"],[/\b(salmon|cod|tilapia|tuna|halibut|fish|trout)\b/i,"Fish","145°F or opaque and flakes"],[/\b(shrimp|scallops?|crab|lobster)\b/i,"Shrimp, crab, scallops","Pearly and opaque"],[/\beggs?\b/i,"Egg dishes","160°F; yolk and white firm for the baby"],[/\brice\b/i,"Rice","Cool within 1 hour; reheat once, steaming hot"]];
-function safeTemps(r){var txt=(r.ingredients||[]).map(function(i){return i.name}).join(" | ").replace(/\b(chicken|turkey|beef|pork|vegetable|veggie|fish)\s+(base|broth|stock|bouillon|paste)\b/gi,"").replace(/\b(bouillon|chicken-flavou?red|vegan chicken|plant-based|beyond|impossible)\b[^|]*/gi,"").replace(/\b(fish sauce|rice (vinegar|wine|paper)|egg (noodles|roll wrappers))\b/gi,"");var out=[];SAFE_T.forEach(function(t){if(t[0].test(txt))out.push(t)});
+var PRECOOK=/\b(cooked|leftover|rotisserie|from (sun|mon|tues?|wed|thur?s?|fri|sat)\w*|last night)\b/i;
+function safeTemps(r){var pre=(r.ingredients||[]).filter(function(i){return PRECOOK.test(i.name)}).map(function(i){return i.name}).join(" | ");var txt=(r.ingredients||[]).filter(function(i){return !PRECOOK.test(i.name)}).map(function(i){return i.name}).join(" | ").replace(/\b(chicken|turkey|beef|pork|vegetable|veggie|fish)\s+(base|broth|stock|bouillon|paste)\b/gi,"").replace(/\b(bouillon|chicken-flavou?red|vegan chicken|plant-based|beyond|impossible)\b[^|]*/gi,"").replace(/\b(fish sauce|rice (vinegar|wine|paper)|egg (noodles|roll wrappers))\b/gi,"");var out=[];SAFE_T.forEach(function(t){if(t[0].test(txt))out.push(t)});if(/\b(chicken|turkey|pork|beef|lamb|meat|sausage|meatballs?)\b/i.test(pre))out.push([null,"Already-cooked meat, reheated","165°F"]);
   var has=function(lbl){return out.some(function(t){return t[1]===lbl})};
   if(has("Poultry (any cut, ground too)")&&!/ground (beef|pork|lamb|veal)|sausage/i.test(txt))out=out.filter(function(t){return t[1]!=="Ground meat and sausage"});
   if(out.filter(function(t){return t[1]!=="Rice"}).length>1)out=out.filter(function(t){return t[1]!=="Egg dishes"});return out}
@@ -476,9 +485,11 @@ function RICE_NOTE(){return "Rice: cool it within 1 hour, reheat only what you'l
 function safetyCard(r){var tl=safeTemps(r),notes=r.safety||[];if(!tl.length&&!notes.length)return null;var c=el("div","card");c.appendChild(el("h2",null,"Food safety"));
   if(tl.length){var t=el("div");tl.forEach(function(x){t.appendChild(el("span","chip",x[1]+": "+x[2]))});c.appendChild(t)}
   notes.forEach(function(n){var d=el("div",null,"• "+n);d.style.padding="3px 0";c.appendChild(d)});
-  var meat=tl.some(function(x){return !/^(Egg dishes|Rice)$/.test(x[1])}),egg=tl.some(function(x){return x[1]==="Egg dishes"});
+  var reh=tl.some(function(x){return x[1]==="Already-cooked meat, reheated"});
+  var meat=tl.some(function(x){return !/^(Egg dishes|Rice|Already-cooked meat, reheated)$/.test(x[1])}),egg=tl.some(function(x){return x[1]==="Egg dishes"});
   var tip=meat?"Check temperatures in the thickest part with the meat thermometer. Keep raw meat"+(egg?", poultry and eggs":" and poultry")+" away from ready-to-eat food, and wash hands, boards and knives after touching them."
     :egg?"Cook eggs until the whites are set (yolks firm for "+(kidName()||"little ones")+"). Wash your hands after cracking raw eggs.":"";
+  if(reh&&!/\b(middle|center|steaming)\b/i.test(notes.join(" ")))tip=(tip?tip+" ":"")+"The cooked meat is being reheated, so check the dish itself: the middle of the pan or casserole (it heats last) should read 165°F, or be steaming hot all the way through.";
   if(tip)c.appendChild(el("div","mut",tip));return c}
 function leftCard(r,act){var L=r.leftovers||LEFT_GEN;var c=el("div","card");c.appendChild(el("h2",null,"Leftovers"));
   if(!r.leftovers&&/\brice\b/i.test((r.ingredients||[]).map(function(i){return i.name}).join(" ")))L=Object.assign({},L,{reheat:L.reheat+" "+RICE_NOTE()});
@@ -544,7 +555,12 @@ function renderRecipe(){
   var s=steps[S.step];if(!s){app.appendChild(el("p",null,"No steps."));return}
   var bar=el("div","bar"),fill=el("i");fill.style.width=((S.step+1)/steps.length*100)+"%";bar.appendChild(fill);app.appendChild(bar);
   app.appendChild(el("div","mut","Step "+(S.step+1)+" of "+steps.length));
-  Object.keys(S.tms).map(Number).filter(function(k){return k!==S.step&&S.tms[k]}).sort(function(a,b){return a-b}).forEach(function(k){var t=S.tms[k],st=steps[k]||{};
+  Object.keys(S.tms).filter(function(k){return /^p\d+$/.test(k)&&S.tms[k]}).forEach(function(k){var t=S.tms[k],pi=(r.prep||[])[+k.slice(1)]||{};
+    var bx=el("div","warnbox");bx.style.cssText="display:flex;align-items:center;gap:8px;flex-wrap:wrap";
+    var lb=el("span",null,"Prep"+(pi.title?" · "+pi.title:"")+": ");lb.style.flex="1";var tv2=el("b",null,t.fired?"Time's up!":fmt(Math.max(0,Math.round((t.end-Date.now())/1000))));tv2.id="tmb"+k;lb.appendChild(tv2);bx.appendChild(lb);
+    var g=el("button",null,"Go to prep");g.onclick=function(){S.mode="prep";render();window.scrollTo(0,0)};bx.appendChild(g);
+    var x=el("button",null,t.fired?"Dismiss":"Cancel");x.onclick=function(){delete S.tms[k];saveTm();render()};bx.appendChild(x);app.appendChild(bx)});
+  Object.keys(S.tms).filter(function(k){return /^\d+$/.test(k)}).map(Number).filter(function(k){return k!==S.step&&S.tms[k]}).sort(function(a,b){return a-b}).forEach(function(k){var t=S.tms[k],st=steps[k]||{};
     var bx=el("div","warnbox");bx.style.cssText="display:flex;align-items:center;gap:8px;flex-wrap:wrap";
     var lb=el("span",null,"Step "+(k+1)+(st.title?" · "+st.title:"")+": ");lb.style.flex="1";var tv2=el("b",null,t.fired?"Time's up!":fmt(Math.max(0,Math.round((t.end-Date.now())/1000))));tv2.id="tmb"+k;lb.appendChild(tv2);bx.appendChild(lb);
     var g=el("button",null,"Go to step");g.onclick=function(){S.step=k;save();render();window.scrollTo(0,0)};bx.appendChild(g);
