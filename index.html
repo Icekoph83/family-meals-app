@@ -133,7 +133,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1 id="ttl">This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-19a">
+<meta name="app-v" content="2026-11-19b">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -455,6 +455,11 @@ function renderList(){
 /* Prep items get a timer when they set one (timer, seconds) or say how long something cooks ("pressure cook 10 minutes"). */
 function prepSecs(t){if(t.timer)return +t.timer;var m=/\b(cook|pressure|simmer|boil|bake|roast|soak|marinate|rest|release|microwave|toast|press|drain|thaw|chill|steep|sear|brown|saute|sauté|fry)\w*\b[^.]*?\b(\d+)(?:\s*(?:to|-)\s*(\d+))?\s*(minutes?|mins?|hours?)\b/i.exec(String(t.text||""));
   if(!m)return 0;var n=+(m[3]||m[2]);return /^h/i.test(m[4])?n*3600:n*60}
+/* Where the kid's portion is pulled out: an explicit babyAt ("prep:2" / "steps:1"), or the first step that says to set it aside. */
+function babyAt(r){if(!r.baby)return null;if(r.babyAt){var a=String(r.babyAt).split(":");return {part:a[0],i:+a[1]}}
+  var kn=(kidName()||"").toLowerCase(),re=new RegExp("\\b(set aside|scoop|pull out|pull|reserve|save|mash)\\b[^.]*\\b("+(kn?kn.replace(/[^a-z]/g,"")+"|":"")+"baby|toddler)\\b|\\b("+(kn?kn.replace(/[^a-z]/g,"")+"|":"")+"baby)('s)? (portion|plate|share)\\b","i");
+  var parts=["prep","steps"];for(var p=0;p<2;p++){var L=r[parts[p]]||[];for(var i=0;i<L.length;i++){var hit=String(L[i].text||"").split(/(?<=[.!?])\s+/).some(function(se){return re.test(se)&&!/^\s*(plan|keep|remember|if)\b/i.test(se)});if(hit)return {part:parts[p],i:i}}}return null}
+function babyBox(r){return el("div","baby",(kidName()||"Baby")+": "+r.baby)}
 function prepCard(r,im,interactive){
   var list=r.prep||[];var c=el("div","card");c.appendChild(el("h2",null,"Prep"));
   var n=list.filter(function(t,i){return S.pdone[i]}).length;
@@ -465,6 +470,7 @@ function prepCard(r,im,interactive){
     if(interactive){var cb=el("input");cb.type="checkbox";cb.checked=!!S.pdone[i];cb.onchange=function(){S.pdone[i]=cb.checked;save();render()};row.appendChild(cb)}
     var sp=el("span");sp.appendChild(el("b",null,(interactive?"":(i+1)+". ")+(t.title||"")));
     if(t.text)sp.appendChild(el("div",null,t.text));
+    var ba=babyAt(r);if(ba&&ba.part==="prep"&&ba.i===i)sp.appendChild(babyBox(r));
     var psec=prepSecs(t);if(interactive&&psec){var key="p"+i,tt=S.tms[key]||null,tr=el("div","row");tr.style.marginTop="6px";
       var tv=el("span","tm",tt?(tt.fired?"Time's up!":fmt(Math.max(0,Math.round((tt.end-Date.now())/1000)))):fmt(psec));tv.id="tmb"+key;tr.appendChild(tv);
       var tb=el("button",null,tt?"Restart timer":"Start timer");tb.onclick=function(e){e.preventDefault();e.stopPropagation();S.tms[key]={end:Date.now()+psec*1000,fired:false};saveTm();render()};tr.appendChild(tb);
@@ -539,15 +545,16 @@ function renderRecipe(){
     app.appendChild(equipCard(r,allIngCard(r)));
     if((r.prep||[]).length)app.appendChild(prepCard(r,im,true));
     var go=el("button","pri","Start cooking →");go.style.cssText="width:100%;padding:14px;margin:6px 0";go.onclick=function(){S.mode="cook";save();render();window.scrollTo(0,0)};app.appendChild(go);
-    if(r.baby){app.appendChild(el("div","baby","Baby: "+r.baby))}
+    if(r.baby&&!babyAt(r))app.appendChild(babyBox(r));
     return}
   if(S.mode==="whole"){
     app.appendChild(equipCard(r,allIngCard(r)));
     if((r.prep||[]).length)app.appendChild(prepCard(r,im,false));
     var d=el("div","card");d.appendChild(el("h2",null,"Steps"));
     steps.forEach(function(s,n){var st=el("div","step"+(n===S.step?" cur":""));st.appendChild(el("b",null,(n+1)+". "+(s.title||"")));st.appendChild(el("div",null,s.text||""));if(s.check){var sk=el("div","safe");sk.appendChild(el("b",null,"Safety check: "));sk.appendChild(document.createTextNode(s.check));st.appendChild(sk)}
+      var bw=babyAt(r);if(bw&&bw.part==="steps"&&bw.i===n)st.appendChild(babyBox(r));
       st.onclick=function(){S.step=n;S.mode="cook";save();render()};d.appendChild(st)});app.appendChild(d);
-    if(r.baby){var bb=el("div","baby","Baby: "+r.baby);app.appendChild(bb)}
+    if(r.baby&&!babyAt(r))app.appendChild(babyBox(r));
     app.appendChild(leftCard(r,false));
     var rs=el("button",null,"Reset progress");rs.onclick=function(){S.step=0;S.done={};S.pdone={};save();render()};app.appendChild(rs);
     var fbb=el("button",null,"How did it go?");fbb.style.marginLeft="8px";fbb.onclick=function(){S.fb=newFb(false);S.mode="fb";render();window.scrollTo(0,0)};app.appendChild(fbb);
@@ -571,7 +578,7 @@ function renderRecipe(){
     var tv=el("span","tm",t?(t.fired?"Time's up!":fmt(Math.max(0,Math.round((t.end-Date.now())/1000)))):fmt(s.timer));tv.id="tmv";tr.appendChild(tv);
     var tb=el("button",null,t?"Restart timer":"Start timer");tb.onclick=function(){S.tms[S.step]={end:Date.now()+s.timer*1000,fired:false};saveTm();render()};tr.appendChild(tb);c.appendChild(tr)}
   if(s.check){var sk=el("div","safe");sk.appendChild(el("b",null,"🌡 Safety check: "));sk.appendChild(document.createTextNode(s.check));c.appendChild(sk)}
-  if(r.baby&&S.step===steps.length-1){c.appendChild(el("div","baby","Baby: "+r.baby))}
+  var bs=babyAt(r);if(r.baby&&((bs&&bs.part==="steps"&&bs.i===S.step)||(!bs&&S.step===steps.length-1)))c.appendChild(babyBox(r));
   app.appendChild(c);
   if(S.step===steps.length-1)app.appendChild(leftCard(r,false));
   var nav=el("div","nav"),in2=el("div");
