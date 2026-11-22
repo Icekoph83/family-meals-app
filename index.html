@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head>
-<meta name="app-v" content="2026-11-22j"><meta charset="utf-8">
+<meta name="app-v" content="2026-11-22k"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#b4491f">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -122,6 +122,8 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 #ck .ck-tag.ck-ok{background:var(--okbg);color:var(--ok)}
 #ck .ck-tag.ck-no{background:var(--ckaccbg);color:var(--accent);border:1px solid var(--accent)}
 #ck .ck-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+</style>
+<style>#totop{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:40;padding:11px 16px;border-radius:999px;border:0;background:var(--accent);color:#fff;font:inherit;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.25);display:none;cursor:pointer}
 </style>
 </head><body>
 <script>
@@ -1857,5 +1859,11 @@ window.addEventListener("load",function(){setTimeout(chk,3000)});document.addEve
 (function(){function go(){if(!window.FM||!FM.info)return;FM.info().then(function(i){var d=document.createElement("div");d.style.cssText="margin:28px auto 90px;max-width:640px;padding:0 16px;font:13px system-ui,sans-serif;color:var(--mute,#6f665a);text-align:center";
   d.textContent=i.household+" \u00b7 "+i.email+" \u00b7 Invite code: "+i.code+" \u00b7 ";var b=document.createElement("button");b.textContent="Sign out";b.style.cssText="font:inherit;background:none;border:0;color:var(--accent,#b4491f);text-decoration:underline;cursor:pointer;padding:0";b.onclick=function(){FM.signOut()};d.appendChild(b);document.body.appendChild(d)}).catch(function(){})}
 if(document.readyState==="complete")go();else addEventListener("load",go)})();
+</script>
+<button id="totop" type="button" aria-label="Go to the top">↑ Top</button>
+<script>
+/* Floating "Top" button for long lists (Pantry especially). Shows after scrolling down; hidden on the Cook tab, which has its own bottom bar. */
+(function(){var b=document.getElementById("totop");function upd(){var t=document.querySelector('[data-t][aria-selected="true"]');var tab=t?t.getAttribute("data-t"):"";b.style.display=(window.scrollY>600&&tab!=="cook")?"block":"none"}
+  b.onclick=function(){window.scrollTo({top:0,behavior:"smooth"})};window.addEventListener("scroll",upd,{passive:true});document.addEventListener("click",function(){setTimeout(upd,50)})})();
 </script>
 </body></html>
