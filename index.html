@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head>
-<meta name="app-v" content="2026-11-22g"><meta charset="utf-8">
+<meta name="app-v" content="2026-11-22h"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#b4491f">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -822,9 +822,13 @@ function onHandSources(){var o=[];(S.pantry||[]).forEach(function(x){if(x.state!
 function quickPanel(m){var a=el("div","alts");S.qmax=S.qmax||20;
   var cr=el("div","row");[15,20].forEach(function(n){var b=el("button","b"+(S.qmax===n?" p":""),"Up to "+n+" min");b.onclick=function(){S.qmax=n;render()};cr.appendChild(b)});a.appendChild(cr);
   var src=onHandSources();var cvf=(window.CookTab&&window.CookTab.coverage)||function(){return {have:[],miss:[]}};
-  var all=(S.quick||[]).filter(function(q){return (q.mins||99)<=S.qmax}).map(function(q){return {q:q,cv:cvf(q,src)}}).sort(function(x,y){return x.cv.miss.length-y.cv.miss.length||(x.q.mins||0)-(y.q.mins||0)||x.q.title.localeCompare(y.q.title)});
+  var nt=function(t){return String(t||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()};var wk=wkOf(m);var used={},usedQ={};(S.meals||[]).forEach(function(o){if(o.id===m.id||o.kind==="takeout"||wkOf(o)!==wk)return;used[nt(o.title)]=1;var r=o.quickSwap&&o.quickSwap.rid;if(r)usedQ[r]=1});
+  var dupOf=function(q){if(used[nt(q.title)])return true;return Object.keys(usedQ).some(function(r){return r.indexOf("qk-"+q.id+"-")===0})};
+  var qall=(S.quick||[]).filter(function(q){return (q.mins||99)<=S.qmax});var ndup=qall.filter(dupOf).length;
+  var all=qall.filter(function(q){return !dupOf(q)}).map(function(q){return {q:q,cv:cvf(q,src)}}).sort(function(x,y){return x.cv.miss.length-y.cv.miss.length||(x.q.mins||0)-(y.q.mins||0)||x.q.title.localeCompare(y.q.title)});
   var only=S.qhave!==false;var ql=only?all.filter(function(x){return x.cv.miss.length===0}):all;
   var tg=el("label","note");var tc=el("input");tc.type="checkbox";tc.checked=only;tc.onchange=function(){S.qhave=tc.checked;render()};tg.appendChild(tc);tg.appendChild(document.createTextNode(" Only meals I can make with what we have (pantry, plus groceries for dinners not cooked yet)"));tg.style.display="block";tg.style.margin="8px 0";a.appendChild(tg);
+  if(ndup)a.appendChild(el("div","note",ndup===1?"1 quick meal is hidden because it's already on another night this week.":ndup+" quick meals are hidden because they're already on other nights this week."));
   if(!ql.length)a.appendChild(el("div","note",only?"Nothing in the quick library is fully covered by what we have right now. Untick the box to see what each one is missing, or ask Claude below.":"No quick meals saved at that length yet. Ask Claude below."));
   ql.forEach(function(it){var q=it.q,cv=it.cv;var row=el("div","alt");var l=el("div");l.appendChild(el("div",null,q.title));l.appendChild(el("div","note",[q.time,q.veg?"Meatless":""].filter(Boolean).join(" · ")));
     var cc=el("span","chip "+(cv.miss.length?"warn":"ok"),cv.miss.length?"Missing: "+cv.miss.join(", "):"Have everything");cc.style.marginTop="4px";l.appendChild(cc);var dt=el("details");dt.className="note";dt.appendChild(el("summary",null,"What it matched"));cv.have.forEach(function(h){dt.appendChild(el("div",null,h))});l.appendChild(dt);row.appendChild(l);
