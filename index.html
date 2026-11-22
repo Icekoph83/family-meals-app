@@ -133,7 +133,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1 id="ttl">This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-22b">
+<meta name="app-v" content="2026-11-22c">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -973,11 +973,13 @@ function ask(){
 var EQG=["Appliances","Prep tools","Cookware","Baby & batch","Other"];
 var HEAT=["Oven","Air fryer","Grill","Slow cooker","Instant Pot / pressure cooker","Toaster oven"];
 function eqNorm(t){return String(t||"").toLowerCase().replace(/\(.*?\)/g," ").replace(/&/g," and ").replace(/[^a-z0-9 ]+/g," ").replace(/\s+/g," ").trim()}
-function eqStatus(name){var f=(S.equip||[]).filter(function(x){return eqNorm(x.name)===eqNorm(name)})[0];if(!f)return "unset";return f.have==="yes"?"yes":f.have==="no"?"no":"unset"}
+/* Equipment can go by more than one name ("Ninja Foodi" is the air fryer, "Souper Cubes" are the silicone freezer molds): an item's aka list counts too. */
+function eqIs(x,name){var n=eqNorm(name);return eqNorm(x.name)===n||(x.aka||[]).some(function(a){return eqNorm(a)===n})}
+function eqStatus(name){var f=(S.equip||[]).filter(function(x){return eqIs(x,name)})[0];if(!f)return "unset";return f.have==="yes"?"yes":f.have==="no"?"no":"unset"}
 function eqGroup(n){n=String(n||"").toLowerCase();return /instant pot|pressure|slow cooker|air fr|oven|blender|processor|microwave|mixer|toaster|rice cooker|kettle|grill|waffle/.test(n)?"Appliances":/pan|skillet|pot\b|dutch|wok|sheet|tray|dish|griddle|casserole|roasting/.test(n)?"Cookware":/knife|board|thermometer|grater|zester|peeler|whisk|spatula|tongs|colander|strainer|bowl|measuring|spoon|ladle|masher|press|scale|thermometer/.test(n)?"Prep tools":/souper|cube|baby|freezer|storage|container/.test(n)?"Baby & batch":"Other"}
-function eqSet(name,have){var ex=(S.equip||[]).filter(function(x){return eqNorm(x.name)===eqNorm(name)})[0];var nm=String(name).trim();
+function eqSet(name,have){var ex=(S.equip||[]).filter(function(x){return eqIs(x,name)})[0];var nm=String(name).trim();
   return ex?putEquip(ex,{have:have}):S.db.collection("equipment").add({name:nm.charAt(0).toUpperCase()+nm.slice(1),group:eqGroup(nm),have:have,note:""})}
-function putEquip(x,patch){var d={name:x.name,group:x.group||"Other",have:x.have||"",note:x.note||""};for(var k in patch)d[k]=patch[k];return S.db.doc("equipment/"+x.id).set(d)}
+function putEquip(x,patch){var d={name:x.name,group:x.group||"Other",have:x.have||"",note:x.note||""};if(x.aka)d.aka=x.aka;for(var k in patch)d[k]=patch[k];return S.db.doc("equipment/"+x.id).set(d)}
 
 function weekEquip(v,list){
   var ms=(list||planMeals()).filter(function(m){return (m.equip||[]).length});
@@ -1023,7 +1025,7 @@ function applyEqOps(ops){
     if(o.action!=="set")return;var have=o.have==="no"?"no":"yes";var note=String(o.note||"").trim();
     var f=o.id?(S.equip||[]).filter(function(x){return x.id===o.id})[0]:null;
     if(f&&!seen[f.id]){seen[f.id]=1;var patch={have:have};if(note)patch.note=note;jobs.push(putEquip(f,patch))}
-    else if(!f&&o.name){var nm=String(o.name).trim();var ex=(S.equip||[]).filter(function(x){return eqNorm(x.name)===eqNorm(nm)})[0];
+    else if(!f&&o.name){var nm=String(o.name).trim();var ex=(S.equip||[]).filter(function(x){return eqIs(x,nm)})[0];
       if(ex){if(!seen[ex.id]){seen[ex.id]=1;var pt={have:have};if(note)pt.note=note;jobs.push(putEquip(ex,pt))}}
       else jobs.push(S.db.collection("equipment").add({name:nm,group:EQG.indexOf(o.group)>=0?o.group:"Other",have:have,note:note}))}});
   return Promise.all(jobs)}
@@ -1100,7 +1102,7 @@ function renderKitchen(v){
     var n=el("input");n.placeholder="e.g. Waffle maker";n.value=S.eqf.name;n.oninput=function(){S.eqf.name=n.value};row.appendChild(n);
     var gs=el("select");EQG.forEach(function(g){var o=el("option",null,g);o.value=g;if(S.eqf.group===g)o.selected=true;gs.appendChild(o)});gs.onchange=function(){S.eqf.group=gs.value};row.appendChild(gs);
     var ab=el("button","b p","Add");ab.disabled=S.busy;
-    ab.onclick=function(){var nm=S.eqf.name.trim();if(!nm)return;var ex=S.equip.filter(function(x){return eqNorm(x.name)===eqNorm(nm)})[0];var job=ex?putEquip(ex,{have:"yes"}):S.db.collection("equipment").add({name:nm,group:S.eqf.group,have:"yes",note:""});S.eqf.name="";write(job)};
+    ab.onclick=function(){var nm=S.eqf.name.trim();if(!nm)return;var ex=S.equip.filter(function(x){return eqIs(x,nm)})[0];var job=ex?putEquip(ex,{have:"yes"}):S.db.collection("equipment").add({name:nm,group:S.eqf.group,have:"yes",note:""});S.eqf.name="";write(job)};
     row.appendChild(ab);a.appendChild(row);v.appendChild(a)}
 }
 
