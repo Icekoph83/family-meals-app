@@ -1691,7 +1691,7 @@ function shopRow(x,label,isPast){
       /* One thing to look for at home: either we have it, or it moves onto the buy list (with the size to buy). */
       if(x.have){var hb=el("button","b","Have it ✓ (undo)");hb.disabled=S.busy;hb.onclick=function(){write(putShop(x,{have:false}))};ctl.appendChild(hb)}
       else{var wb=el("button","b p","We have it");wb.disabled=S.busy;wb.onclick=function(){write(putShop(x,{have:true}))};ctl.appendChild(wb);
-        if(x.ifNeed){var nb=el("button","b","Need to buy");nb.disabled=S.busy;nb.onclick=function(){write(putShop(x,{kind:"recipe",have:false,checked:true,buy:x.ifNeed||x.name||x.buy,est:typeof x.ifEst==="number"?x.ifEst:undefined}))};ctl.appendChild(nb)}}}
+        if(x.ifNeed){var nb=el("button","b","Need to buy");nb.disabled=S.busy;nb.onclick=function(){write(putShop(x,{kind:"recipe",have:false,checked:true,buy:x.ifNeed||x.name||x.buy,est:typeof x.ifEst==="number"?x.ifEst:undefined}))};ctl.appendChild(nb)}else{var nh=el("button","b","Don't have it");nh.disabled=S.busy;nh.onclick=function(){write(putShop(x,{have:true,notHere:true}))};ctl.appendChild(nh)}}}
     else{var b=el("button","b",label);b.disabled=S.busy;b.onclick=function(){write(putShop(x,{have:!x.have}))};ctl.appendChild(b)}
     if(isPast){var sn=el("button","b","Still need it");sn.disabled=S.busy;sn.onclick=function(){write(putShop(x,{covers:String(x.covers||"").replace(/\b(sun|mon|tue|wed|thu|fri|sat)\w*\s*/ig,"").replace(/^[\s,]+|[\s,]+$/g,"")||"still needed"}))};ctl.appendChild(sn)}
     var eb=el("button","b","Edit");eb.onclick=function(){openEdit("shop:"+x.id)};ctl.appendChild(eb);row.appendChild(ctl);
