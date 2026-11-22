@@ -133,7 +133,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1 id="ttl">This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-22c">
+<meta name="app-v" content="2026-11-22e">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -1564,12 +1564,15 @@ function renderPantry(v){
 }
 
 
-var GSECS=["Produce","Meat & Seafood","Dairy","Pantry","Bakery","Other"];
-function putShop(x,patch){var d={};["name","buy","need","covers","leftover","section","kind","order","est","week","store","priced","bought","got","short","sub","checked","found","skySent"].forEach(function(k){if(x[k]!==undefined)d[k]=x[k]});d.have=!!x.have;for(var k in patch)d[k]=patch[k];return S.db.doc("shoplist/"+x.id).set(d)}
+var GSECS=["Produce","Meat & Seafood","Dairy","Pantry","Frozen","Bakery","Drinks","Household","Other"];
+/* Every grocery line shows up somewhere: older names map to a section, and anything unknown lands in Other. */
+var GSEC_ALIAS={"meat":"Meat & Seafood","canned":"Pantry","canned & dry":"Pantry","dry goods":"Pantry","grains":"Pantry","spices":"Pantry","deli":"Meat & Seafood","beverages":"Drinks","frozen foods":"Frozen","snacks":"Pantry","personal care":"Household"};
+function secOf(x){var s0=String(x.section||"").trim();if(GSECS.indexOf(s0)>=0)return s0;return GSEC_ALIAS[s0.toLowerCase()]||"Other"}
+function putShop(x,patch){var d={};["name","buy","need","covers","leftover","section","kind","order","est","week","store","priced","bought","got","short","sub","checked","found","skySent","ifNeed","ifEst"].forEach(function(k){if(x[k]!==undefined)d[k]=x[k]});d.have=!!x.have;for(var k in patch)d[k]=patch[k];return S.db.doc("shoplist/"+x.id).set(d)}
 function shopText(items,mode){
   var out=[];
   if(mode==="instacart"){items.forEach(function(x){out.push(x.buy)});return out.join("\n")}
-  GSECS.forEach(function(s){var g=items.filter(function(x){return x.section===s});if(!g.length)return;out.push(s.toUpperCase());g.forEach(function(x){out.push("- "+x.buy+(x.need?" ("+x.need+" needed)":""))});out.push("")});
+  GSECS.forEach(function(s){var g=items.filter(function(x){return secOf(x)===s});if(!g.length)return;out.push(s.toUpperCase());g.forEach(function(x){out.push("- "+x.buy+(x.need?" ("+x.need+" needed)":""))});out.push("")});
   return out.join("\n").trim();
 }
 function renderShop(v){
@@ -1624,7 +1627,7 @@ function renderShop(v){
   var cr=el("div","row");var cp=el("button","b","Copy");cp.onclick=function(){ta.select();try{navigator.clipboard.writeText(ta.value).then(function(){cp.textContent="Copied"}).catch(function(){cp.textContent="Press and hold the text to copy"})}catch(e){cp.textContent="Press and hold the text to copy"}};cr.appendChild(cp);cb.appendChild(cr);v.appendChild(cb)}
   var sm2=function(x){return qm([x.buy,x.name,x.need,x.covers,x.section].join(" "))};
   GSECS.forEach(function(s){
-    var g=buy.filter(function(x){return x.section===s&&sm2(x)});if(!g.length)return;
+    var g=buy.filter(function(x){return secOf(x)===s&&sm2(x)});if(!g.length)return;
     v.appendChild(el("div","grp",s));var c=el("div","card");
     g.forEach(function(x){c.appendChild(shopRow(x,"I have this"))});v.appendChild(c)});
   var chk2=chk.filter(sm2);if(chk2.length){v.appendChild(el("div","grp","Check what we have first"));var c2=el("div","card");chk2.forEach(function(x){c2.appendChild(shopRow(x,"We have it"))});v.appendChild(c2)}
@@ -1684,12 +1687,17 @@ function shopRow(x,label,isPast){
   row.appendChild(top);
   if(S.canWrite&&S.db){var ctl=el("div","ctl");if(!x.have&&x.kind!=="check"&&S.pantry){var bb=el("button","b p","Bought it");bb.disabled=S.busy;bb.onclick=function(){boughtIt(x)};ctl.appendChild(bb);
       var gl=el("button","b"+(S.less===x.id?" p":""),"Got less");gl.disabled=S.busy;gl.onclick=function(){S.less=S.less===x.id?null:x.id;render()};ctl.appendChild(gl)}
-    var b=el("button","b",label);b.disabled=S.busy;b.onclick=function(){write(putShop(x,{have:!x.have}))};ctl.appendChild(b);
+    if(x.kind==="check"){
+      /* One thing to look for at home: either we have it, or it moves onto the buy list (with the size to buy). */
+      if(x.have){var hb=el("button","b","Have it ✓ (undo)");hb.disabled=S.busy;hb.onclick=function(){write(putShop(x,{have:false}))};ctl.appendChild(hb)}
+      else{var wb=el("button","b p","We have it");wb.disabled=S.busy;wb.onclick=function(){write(putShop(x,{have:true}))};ctl.appendChild(wb);
+        if(x.ifNeed){var nb=el("button","b","Need to buy");nb.disabled=S.busy;nb.onclick=function(){write(putShop(x,{kind:"recipe",have:false,checked:true,buy:x.ifNeed||x.name||x.buy,est:typeof x.ifEst==="number"?x.ifEst:undefined}))};ctl.appendChild(nb)}}}
+    else{var b=el("button","b",label);b.disabled=S.busy;b.onclick=function(){write(putShop(x,{have:!x.have}))};ctl.appendChild(b)}
     if(isPast){var sn=el("button","b","Still need it");sn.disabled=S.busy;sn.onclick=function(){write(putShop(x,{covers:String(x.covers||"").replace(/\b(sun|mon|tue|wed|thu|fri|sat)\w*\s*/ig,"").replace(/^[\s,]+|[\s,]+$/g,"")||"still needed"}))};ctl.appendChild(sn)}
     var eb=el("button","b","Edit");eb.onclick=function(){openEdit("shop:"+x.id)};ctl.appendChild(eb);row.appendChild(ctl);
     if(S.less===x.id&&!x.have){var lr=el("div","ctl");var cn=shopCount(x);lr.appendChild(el("span","note","How many arrived"+(cn>1?" (asked for "+cn+")":"")+"?"));
       for(var q=0;q<cn;q++)(function(q){var b=el("button","b",q===0?"None":String(q));b.disabled=S.busy;b.onclick=function(){S.less=null;boughtIt(x,q)};lr.appendChild(b)})(q);row.appendChild(lr)}
-    if(S.edit==="shop:"+x.id)row.appendChild(editForm([{k:"buy",label:"What to buy",val:x.buy},{k:"need",label:"Amount needed",val:x.need||""},{k:"section",label:"Section",val:x.section||"Other",opts:GSECS}],function(o){write(putShop(x,{buy:o.buy.trim()||x.buy,need:o.need.trim(),section:o.section}))}))}
+    if(S.edit==="shop:"+x.id)row.appendChild(editForm([{k:"buy",label:"What to buy",val:x.buy},{k:"need",label:"Amount needed",val:x.need||""},{k:"section",label:"Section",val:secOf(x),opts:GSECS}],function(o){write(putShop(x,{buy:o.buy.trim()||x.buy,need:o.need.trim(),section:o.section}))}))}
   return row;
 }
 
