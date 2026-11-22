@@ -1,5 +1,6 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8">
+<html lang="en"><head>
+<meta name="app-v" content="2026-11-22g"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#b4491f">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -128,12 +129,11 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
    household sign-in on Supabase. ?backend=gh or ?backend=sb switches (remembered on this device). */
 (function(){var b="sb";try{b=localStorage.getItem("fm:backend")||(localStorage.getItem("fm:token")?"gh":"sb")}catch(e){}
   var m=/[?&]backend=(gh|sb)\b/.exec(location.search);if(m)b=m[1];try{localStorage.setItem("fm:backend",b)}catch(e){}
-  window.FM_BACKEND=b;document.write('<script src="'+(b==="gh"?"fm-db.js":"fm-sb.js")+'"><\/script>')})();
+  window.FM_BACKEND=b;var av=(document.querySelector('meta[name="app-v"]')||{}).content||"";document.write('<script src="'+(b==="gh"?"fm-db.js":"fm-sb.js")+(av?"?v="+av:"")+'"><\/script>')})();
 </script>
 <div class="wrap">
 <h1 id="ttl">This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-22f">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -1606,10 +1606,10 @@ function renderShop(v){
   [["store","In store (Skylight list)"],["instacart","Instacart order"]].forEach(function(m){var b=el("button","b"+(mode===m[0]?" p":""),m[1]);b.disabled=S.busy||!S.canWrite||!S.db;b.onclick=function(){write(S.db.doc("settings/shopping").set({mode:m[0]}))};r.appendChild(b)});
   h.appendChild(r);
   var q2=el("div","row");
-  var unchk=buy.filter(function(x){return !x.checked});
+  var unchk=buy.filter(function(x){return !x.checked}).concat(chk);
   [["skylight-list","Send list to Skylight","Send this week's list to Skylight"],["instacart-cart","Build Instacart cart","Build the Instacart cart"]].forEach(function(m){
     var pend=(S.reqs||[]).some(function(x){return x.type===m[0]&&x.status==="pending"});
-    var b=el("button","b",pend?"Already asked, waiting":unchk.length?m[1]+" (check the pantry first)":m[1]);b.disabled=S.busy||!S.canWrite||!S.db||pend||unchk.length>0;
+    var b=el("button","b",pend?"Already asked, waiting":unchk.length?m[1]+" (finish the pantry check: "+unchk.length+" left)":m[1]);b.disabled=S.busy||!S.canWrite||!S.db||pend||unchk.length>0;
     b.onclick=function(){write(sendReq(m[0],m[2],{week:cw}))};q2.appendChild(b)});
   h.appendChild(q2);
   h.appendChild(el("div","note",mode==="store"?"The list is organized by store section. Send list to Skylight puts it on the Skylight grocery list.":"The list is just the products and sizes to search for, one per line. Copy it into Instacart, or ask Claude to build the cart if the Instacart connection is on."));
@@ -1623,13 +1623,14 @@ function renderShop(v){
   v.appendChild(h);
   if(S.canWrite&&S.db)v.appendChild(receiptCard(cw,mode));
   var rq=reqCard(["skylight-list","instacart-cart","shortage","receipt"]);if(rq)v.appendChild(rq);
-  if(buy.length&&S.canWrite&&S.db){var pc=el("div","card");var uc=buy.filter(function(x){return !x.checked});
-    if(uc.length){pc.style.borderColor="var(--acc, #c77d2e)";pc.appendChild(el("div","day","Pantry check before you buy"));
-      pc.appendChild(el("div","note","Look in the pantry, fridge and freezer for each of these. Things you already have come off the list (and go into the pantry if they weren't entered). "+(buy.length-uc.length)+" of "+buy.length+" checked."));
+  var pcOpen=false;if((buy.length||chk.length)&&S.canWrite&&S.db){var pc=el("div","card");var uc=buy.filter(function(x){return !x.checked});
+    if(uc.length||chk.length){pcOpen=true;pc.style.borderColor="var(--acc, #c77d2e)";pc.appendChild(el("div","day","Pantry check before you buy"));
+      pc.appendChild(el("div","note","Look in the pantry, fridge and freezer for each of these. Things you already have come off the list (and go into the pantry if they weren't entered). "+(buy.length-uc.length)+" of "+(buy.length+chk.length)+" checked."));
+      if(chk.length){pc.appendChild(el("div","grp","Look for these at home"));chk.forEach(function(x){pc.appendChild(shopRow(x,"We have it"))});if(uc.length)pc.appendChild(el("div","grp","On the list to buy"))}
       uc.forEach(function(x){var r=el("div","prow");var t=el("div","top");var l=el("div");l.appendChild(el("b",null,x.buy));if(x.covers)l.appendChild(el("div","note",x.covers));t.appendChild(l);r.appendChild(t);
         var ctl=el("div","ctl");var hv=el("button","b","We have it");hv.disabled=S.busy;hv.onclick=function(){write(foundJob(x))};ctl.appendChild(hv);
         var nd=el("button","b p","Need to buy");nd.disabled=S.busy;nd.onclick=function(){write(putShop(x,{checked:true}))};ctl.appendChild(nd);r.appendChild(ctl);pc.appendChild(r)});
-      var sk=el("button","b","Skip the check: buy everything listed");sk.style.marginTop="8px";sk.disabled=S.busy;sk.onclick=function(){write(Promise.all(uc.map(function(x){return putShop(x,{checked:true})})))};pc.appendChild(sk)}
+      var sk=el("button","b","Skip the check: buy everything listed");sk.style.display=uc.length?"":"none";sk.style.marginTop="8px";sk.disabled=S.busy;sk.onclick=function(){write(Promise.all(uc.map(function(x){return putShop(x,{checked:true})})))};pc.appendChild(sk)}
     else{pc.appendChild(el("div","note","Pantry checked: "+buy.length+" item"+(buy.length===1?"":"s")+" to buy."))}
     v.appendChild(pc)}
   if(buy.length){var cb=el("div","card");cb.appendChild(el("div","day","Copy this list"));
@@ -1640,7 +1641,7 @@ function renderShop(v){
     var g=buy.filter(function(x){return secOf(x)===s&&sm2(x)});if(!g.length)return;
     v.appendChild(el("div","grp",s));var c=el("div","card");
     g.forEach(function(x){c.appendChild(shopRow(x,"I have this"))});v.appendChild(c)});
-  var chk2=chk.filter(sm2);if(chk2.length){v.appendChild(el("div","grp","Check what we have first"));var c2=el("div","card");chk2.forEach(function(x){c2.appendChild(shopRow(x,"We have it"))});v.appendChild(c2)}
+  var chk2=pcOpen?[]:chk.filter(sm2);if(chk2.length){v.appendChild(el("div","grp","Check what we have first"));var c2=el("div","card");chk2.forEach(function(x){c2.appendChild(shopRow(x,"We have it"))});v.appendChild(c2)}
   var past2=past.filter(sm2);if(past2.length){v.appendChild(el("div","grp","For dinners already cooked"));var c4=el("div","card");c4.appendChild(el("div","note","These were for nights that have passed, so they are left out of the list and the total. Tap Still need it if one is still worth buying."));past2.forEach(function(x){c4.appendChild(shopRow(x,"I have this",true))});v.appendChild(c4)}
   var have2=haveIt.filter(sm2);if(have2.length){v.appendChild(el("div","grp","Already have"));var c3=el("div","card");have2.forEach(function(x){c3.appendChild(shopRow(x,"Still need it"))});v.appendChild(c3)}
   var est=S.meals?planMeals().filter(function(m){return m.kind==="dinner"&&m.cost}).map(function(m){var t=m.title.length>44?m.title.slice(0,42).replace(/\s+\S*$/,"")+"…":m.title;return (DAYS[m.day]||m.day||"").slice(0,3)+" · "+t+": "+m.cost}):[];

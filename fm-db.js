@@ -60,14 +60,20 @@
   }
 
   // Serialized read-modify-write with retry on conflict.
+  // Changes made while a save is waiting join that save, so tapping through a list is one commit, not twenty.
   function mutate(c, fn) {
+    var opt0 = clone(c.data); try { fn(opt0); c.data = opt0; emit(c) } catch (e) {}
+    if (c.batch) { c.batch.fns.push(fn); return c.batch.p }
+    var batch = { fns: [fn] }; c.batch = batch;
     var run = function () {
+      if (c.batch === batch) c.batch = null;
+      var fns = batch.fns;
       var attempt = 0;
       var go = function () {
         attempt++;
         return pull(c, true).then(function () {
           var before = JSON.stringify(c.data);
-          var next = clone(c.data); fn(next);
+          var next = clone(c.data); fns.forEach(function (f) { f(next) });
           if (JSON.stringify(next) === before) return;
           var body = { message: "app: update " + c.name, content: b64e(JSON.stringify(next, null, 1)), branch: "main" };
           if (c.sha && c.sha !== "-") body.sha = c.sha;
@@ -85,11 +91,10 @@
       };
       return go();
     };
-    // optimistic local apply so the UI responds at once
-    var opt = clone(c.data); try { fn(opt); c.data = opt; emit(c) } catch (e) {}
     var p = c.queue.then(run);
     c.queue = p.catch(function () {});
-    return p.then(function () { emit(c) }, function (e) { return pull(c, true).catch(function () {}).then(function () { emit(c); throw e }) });
+    batch.p = p.then(function () { emit(c) }, function (e) { return pull(c, true).catch(function () {}).then(function () { emit(c); throw e }) });
+    return batch.p;
   }
 
   // ---- polling
