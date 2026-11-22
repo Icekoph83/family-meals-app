@@ -133,7 +133,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1 id="ttl">This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-19c">
+<meta name="app-v" content="2026-11-22a">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -365,6 +365,7 @@ function candList1(ing,items){var I=toks(ing.name);if(!I.length)return [];var he
     if(im&&HARDK[im]&&P.indexOf(im)<0)return;
     var lastP=P[P.length-1];if(hiP>=0&&lastP!==head&&I.indexOf(lastP)<0&&!TAILOK[lastP]&&syn.indexOf(lastP)<0)return;
     var fxl=(String(it.name)+" "+String(it.size||"")).toLowerCase();
+    if(/\bground\b/.test(rawNP)&&/\b(sticks?|whole)\b/.test(fxl)&&!/\bground (beef|pork|turkey|chicken|lamb|meat)/.test(rawNP))return;
     if(/\b(ground|dried|dry)\b/.test(rawNP)&&/\bfresh\b/.test(fxl)&&!/\bground (beef|pork|turkey|chicken|lamb|meat)/.test(rawNP))return;
     if(/\b(diced|crushed|canned|cans?|stewed|fire.roasted)\b/.test(rawNP.split(",")[0]+" "+String(ing.amt||"").toLowerCase())&&/\b(grape|cherry|roma|heirloom)\b/.test(fxl)&&!/\b(grape|cherry|roma|heirloom)\b/.test(raw))return;
     var core=I.filter(function(w){return !PWEAK[w]});var cm=core.filter(function(w){return P.indexOf(w)>=0||(w===head&&hd)}).length;var cov=core.length?cm/core.length:m/I.length;
@@ -482,7 +483,7 @@ function prepCard(r,im,interactive){
 
 var SAFE_T=[[/\b(chicken|turkey|duck|poultry)\b/i,"Poultry (any cut, ground too)","165°F"],[/\bground (beef|pork|lamb|veal)|\b(sausage|meatballs?|burgers?)\b/i,"Ground meat and sausage","160°F"],[/\b(pork|beef|lamb|veal|steak|tenderloin|chops?|roast)\b/i,"Whole cuts of pork, beef, lamb","145°F + 3 min rest"],[/\b(salmon|cod|tilapia|tuna|halibut|fish|trout)\b/i,"Fish","145°F or opaque and flakes"],[/\b(shrimp|scallops?|crab|lobster)\b/i,"Shrimp, crab, scallops","Pearly and opaque"],[/\beggs?\b/i,"Egg dishes","160°F; yolk and white firm for the baby"],[/\brice\b/i,"Rice","Cool within 1 hour; reheat once, steaming hot"]];
 var PRECOOK=/\b(cooked|leftover|rotisserie|from (sun|mon|tues?|wed|thur?s?|fri|sat)\w*|last night)\b/i;
-function safeTemps(r){var pre=(r.ingredients||[]).filter(function(i){return PRECOOK.test(i.name)}).map(function(i){return i.name}).join(" | ");var txt=(r.ingredients||[]).filter(function(i){return !PRECOOK.test(i.name)}).map(function(i){return i.name}).join(" | ").replace(/\b(chicken|turkey|beef|pork|vegetable|veggie|fish)\s+(base|broth|stock|bouillon|paste)\b/gi,"").replace(/\b(bouillon|chicken-flavou?red|vegan chicken|plant-based|beyond|impossible)\b[^|]*/gi,"").replace(/\b(fish sauce|rice (vinegar|wine|paper)|egg (noodles|roll wrappers))\b/gi,"");var out=[];SAFE_T.forEach(function(t){if(t[0].test(txt))out.push(t)});if(/\b(chicken|turkey|pork|beef|lamb|meat|sausage|meatballs?)\b/i.test(pre))out.push([null,"Already-cooked meat, reheated","165°F"]);
+function safeTemps(r){var pre=(r.ingredients||[]).filter(function(i){return PRECOOK.test(i.name)}).map(function(i){return i.name}).join(" | ");var txt=(r.ingredients||[]).filter(function(i){return !PRECOOK.test(i.name)}).map(function(i){return i.name}).join(" | ").replace(/\b(chicken|turkey|beef|pork|vegetable|veggie|fish)\s+(base|broth|stock|bouillon|paste)\b/gi,"").replace(/\b(bouillon|chicken-flavou?red|vegan chicken|plant-based|beyond|impossible)\b[^|]*/gi,"").replace(/\b(fish sauce|rice (vinegar|wine|paper)|egg (noodles|roll wrappers))\b/gi,"");var out=[];SAFE_T.forEach(function(t){if(t[0].test(txt))out.push(t)});if(/\b(chicken|turkey|pork|beef|lamb|meat|sausage|meatballs?)\b/i.test(pre))out.push([null,"Already-cooked meat, reheated","165°F"]);SAFE_T.forEach(function(t){if(t[1]==="Rice"&&t[0].test(pre)&&out.indexOf(t)<0)out.push(t)});
   var has=function(lbl){return out.some(function(t){return t[1]===lbl})};
   if(has("Poultry (any cut, ground too)")&&!/ground (beef|pork|lamb|veal)|sausage/i.test(txt))out=out.filter(function(t){return t[1]!=="Ground meat and sausage"});
   if(out.filter(function(t){return t[1]!=="Rice"}).length>1)out=out.filter(function(t){return t[1]!=="Egg dishes"});return out}
@@ -1575,7 +1576,9 @@ function renderShop(v){
   if(!sh.length){var e=el("div","card empty");e.appendChild(el("b",null,"No grocery list yet"));e.appendChild(document.createTextNode("The week's list appears once the dinners are approved."));v.appendChild(e);return}
   var mode=S.mode||"store";
   var DAYN=["sun","mon","tue","wed","thu","fri","sat"],t0=localIso();
-  var pastOf=function(x){var ds=(String(x.covers||"").toLowerCase().match(/\b(sun|mon|tue|wed|thu|fri|sat)/g)||[]);if(!ds.length)return false;var w0=new Date(cw+"T12:00:00").getDay();return ds.every(function(d){return addDays(cw,(DAYN.indexOf(d)-w0+7)%7)<t0})};
+  /* A day name in "covers" means that day's dinner in this week's plan (a week can run Sun to Sat), so use the meal's own date when there is one. */
+  var dayDate={};mealsIn(cw).forEach(function(m){var dn=String(m.day||"").slice(0,3).toLowerCase();if(m.date&&dn&&(!dayDate[dn]||m.date>dayDate[dn]))dayDate[dn]=m.date});
+  var pastOf=function(x){var ds=(String(x.covers||"").toLowerCase().match(/\b(sun|mon|tue|wed|thu|fri|sat)/g)||[]);if(!ds.length)return false;var w0=new Date(cw+"T12:00:00").getDay();return ds.every(function(d){return (dayDate[d]||addDays(cw,(DAYN.indexOf(d)-w0+7)%7))<t0})};
   var stores=[];sh.forEach(function(x){if(x.store&&!x.have&&stores.indexOf(x.store)<0)stores.push(x.store)});stores.sort();
   if(S.shopStore&&stores.indexOf(S.shopStore)<0)S.shopStore="";
   var inStore=function(x){return !S.shopStore||x.store===S.shopStore};
