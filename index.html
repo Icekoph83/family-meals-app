@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head>
-<meta name="app-v" content="2026-11-22h"><meta charset="utf-8">
+<meta name="app-v" content="2026-11-22i"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#b4491f">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1582,17 +1582,32 @@ var GSECS=["Produce","Meat & Seafood","Dairy","Pantry","Frozen","Bakery","Drinks
 /* Every grocery line shows up somewhere: older names map to a section, and anything unknown lands in Other. */
 var GSEC_ALIAS={"meat":"Meat & Seafood","canned":"Pantry","canned & dry":"Pantry","dry goods":"Pantry","grains":"Pantry","spices":"Pantry","deli":"Meat & Seafood","beverages":"Drinks","frozen foods":"Frozen","snacks":"Pantry","personal care":"Household"};
 function secOf(x){var s0=String(x.section||"").trim();if(GSECS.indexOf(s0)>=0)return s0;return GSEC_ALIAS[s0.toLowerCase()]||"Other"}
-function putShop(x,patch){var d={};["name","buy","need","covers","leftover","section","kind","order","est","week","store","priced","bought","got","short","sub","checked","found","skySent","ifNeed","ifEst"].forEach(function(k){if(x[k]!==undefined)d[k]=x[k]});d.have=!!x.have;for(var k in patch)d[k]=patch[k];return S.db.doc("shoplist/"+x.id).set(d)}
+function putShop(x,patch){var d={};["name","buy","need","covers","leftover","section","kind","order","est","week","store","priced","bought","got","short","sub","checked","found","skySent","ifNeed","ifEst","by","added"].forEach(function(k){if(x[k]!==undefined)d[k]=x[k]});d.have=!!x.have;for(var k in patch)d[k]=patch[k];return S.db.doc("shoplist/"+x.id).set(d)}
 function shopText(items,mode){
   var out=[];
   if(mode==="instacart"){items.forEach(function(x){out.push(x.buy)});return out.join("\n")}
   GSECS.forEach(function(s){var g=items.filter(function(x){return secOf(x)===s});if(!g.length)return;out.push(s.toUpperCase());g.forEach(function(x){out.push("- "+x.buy+(x.need?" ("+x.need+" needed)":""))});out.push("")});
   return out.join("\n").trim();
 }
+function skyOn(){return window.FM_BACKEND!=="sb"||!!(S.sky&&S.sky.enabled)}
+function guessSec(t){t=" "+String(t||"").toLowerCase()+" ";var M=[["Frozen",/frozen|ice cream|popsicle|waffles/],["Household",/paper towel|toilet|tissue|napkin|soap|detergent|dish|trash|garbage|\bbags?\b|foil|plastic wrap|ziploc|sponge|diaper|wipes|filters?\b|shampoo|conditioner|toothpaste|cleaner|bleach|batter(y|ies)|light ?bulb|motrin|tylenol|medicine|vitamin|lotion/],["Pantry",/peanut butter|almond butter|sauce|pasta|noodle|\brice\b|beans|cereal|cheerios|oats|oatmeal|flour|sugar|\boil\b|vinegar|spice|seasoning|canned|\bcans?\b|soup|broth|stock|crackers|chips|snack|granola|honey|syrup|jam|jelly|nuts|pouches|coffee beans/],["Produce",/apple|banana|berr|lettuce|spinach|onion|garlic|potato|tomato|pepper|carrot|celery|lemon|lime|avocado|fruit|salad|herb|cilantro|parsley|basil|kale|cucumber|grape|orange|pear|peach|broccoli|zucchini|squash|mushroom|scallion|ginger|melon|cabbage/],["Meat & Seafood",/chicken|beef|pork|turkey|sausage|bacon|steak|salmon|fish|shrimp|\bham\b|ground meat/],["Dairy",/milk|cheese|yogurt|butter|cream|\beggs?\b|lactaid|creamer/],["Bakery",/bread|bagel|\bbuns?\b|rolls?\b|tortilla|pita|muffin|croissant|cake|cookies/],["Drinks",/juice|soda|water|coffee|\btea\b|seltzer|spindrift|arizona|beer|wine|kombucha|gatorade|lemonade/]];
+  for(var i=0;i<M.length;i++)if(M[i][1].test(t))return M[i][0];return "Other"}
+/* Extra items: anything someone wants on this week's list that isn't for a planned dinner. */
+function extraCard(cw){var E=S.xadd||(S.xadd={text:"",sec:"",err:""});var c=el("div","card");c.appendChild(el("div","day","Add something else to the list"));
+  c.appendChild(el("div","note","For anything not tied to a dinner: snacks, drinks, household things. One item per line, with an amount if you like (\"2 gallons whole milk\")."));
+  var ta=el("textarea");ta.rows=2;ta.placeholder="e.g. 1 box Cheerios\npaper towels";ta.value=E.text;ta.oninput=function(){E.text=ta.value};c.appendChild(ta);
+  var r=el("div","row");r.style.marginTop="6px";var sl=el("select");[["","Section: guess for me"]].concat(GSECS.map(function(g){return [g,g]})).forEach(function(o){var op=el("option",null,o[1]);op.value=o[0];if(E.sec===o[0])op.selected=true;sl.appendChild(op)});sl.onchange=function(){E.sec=sl.value};sl.style.cssText="padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit";r.appendChild(sl);
+  var ab=el("button","b p","Add to the list");ab.disabled=S.busy;ab.onclick=function(){var lines=E.text.split(/\n+/).map(function(t){return t.replace(/^[\s•\-*]+/,"").trim()}).filter(Boolean).slice(0,30);if(!lines.length){E.err="Type at least one item.";render();return}
+    var base=(S.shop||[]).filter(function(x){return x.kind==="extra"}).length;var now=Date.now();
+    var jobs=lines.map(function(t,i){var t1=t.slice(0,120);return S.db.collection("shoplist").add({name:t1.replace(/^\s*\d+(\s*[\/.]\d+)?\s+/,""),buy:t1,need:"",covers:"",leftover:"",section:E.sec||guessSec(t1),kind:"extra",order:900+base+i,week:cw,have:false,checked:true,by:S.me||"",added:now})});
+    S.xadd={text:"",sec:E.sec,err:""};write(Promise.all(jobs))};r.appendChild(ab);c.appendChild(r);
+  if(E.err)c.appendChild(el("div","status",E.err));
+  c.appendChild(el("div","note",skyOn()?"Extras go onto the Skylight grocery list at the next sync (about every 2 hours, while Jake's computer is on). They also show below, by section.":"They show below by store section. In the store, tap Bought it as you go."));
+  return c}
 function renderShop(v){
   if(S.shop===null){v.appendChild(el("div","empty","Loading the list…"));return}
   var cw=curWk()||"2026-10-09";var sh=S.shop.filter(function(x){return (x.week||"2026-10-09")===cw});
-  if(!sh.length){var e=el("div","card empty");e.appendChild(el("b",null,"No grocery list yet"));e.appendChild(document.createTextNode("The week's list appears once the dinners are approved."));v.appendChild(e);return}
+  if(!sh.length){var e=el("div","card empty");e.appendChild(el("b",null,"No grocery list yet"));e.appendChild(document.createTextNode("The week's list appears once the dinners are approved. You can still add your own items now."));v.appendChild(e);if(S.canWrite&&S.db)v.appendChild(extraCard(curWk()||satOf(localIso())));return}
   var mode=S.mode||"store";
   var DAYN=["sun","mon","tue","wed","thu","fri","sat"],t0=localIso();
   /* A day name in "covers" means that day's dinner in this week's plan (a week can run Sun to Sat), so use the meal's own date when there is one. */
@@ -1607,16 +1622,16 @@ function renderShop(v){
   var haveIt=sh.filter(function(x){return x.have});
   var h=el("div","card");h.appendChild(el("div","day","How are we shopping this week?"));
   var r=el("div","row");
-  [["store","In store (Skylight list)"],["instacart","Instacart order"]].forEach(function(m){var b=el("button","b"+(mode===m[0]?" p":""),m[1]);b.disabled=S.busy||!S.canWrite||!S.db;b.onclick=function(){write(S.db.doc("settings/shopping").set({mode:m[0]}))};r.appendChild(b)});
+  [["store",skyOn()?"In store (Skylight list)":"In store"],["instacart","Instacart order"]].forEach(function(m){var b=el("button","b"+(mode===m[0]?" p":""),m[1]);b.disabled=S.busy||!S.canWrite||!S.db;b.onclick=function(){write(S.db.doc("settings/shopping").set({mode:m[0]}))};r.appendChild(b)});
   h.appendChild(r);
   var q2=el("div","row");
   var unchk=buy.filter(function(x){return !x.checked}).concat(chk);
-  [["skylight-list","Send list to Skylight","Send this week's list to Skylight"],["instacart-cart","Build Instacart cart","Build the Instacart cart"]].forEach(function(m){
+  [["skylight-list","Send list to Skylight","Send this week's list to Skylight"],["instacart-cart","Build Instacart cart","Build the Instacart cart"]].filter(function(m){return m[0]!=="skylight-list"||skyOn()}).forEach(function(m){
     var pend=(S.reqs||[]).some(function(x){return x.type===m[0]&&x.status==="pending"});
     var b=el("button","b",pend?"Already asked, waiting":unchk.length?m[1]+" (finish the pantry check: "+unchk.length+" left)":m[1]);b.disabled=S.busy||!S.canWrite||!S.db||pend||unchk.length>0;
     b.onclick=function(){write(sendReq(m[0],m[2],{week:cw}))};q2.appendChild(b)});
   h.appendChild(q2);
-  h.appendChild(el("div","note",mode==="store"?"The list is organized by store section. Send list to Skylight puts it on the Skylight grocery list.":"The list is just the products and sizes to search for, one per line. Copy it into Instacart, or ask Claude to build the cart if the Instacart connection is on."));
+  h.appendChild(el("div","note",mode==="store"?(skyOn()?"The list is organized by store section. Send list to Skylight puts it on the Skylight grocery list.":"The list is organized by store section. Take it with you and tap Bought it as you go, or copy it below."):"The list is just the products and sizes to search for, one per line. Copy it into Instacart, or ask Claude to build the cart if the Instacart connection is on."));
   var sm=el("div","sum");sm.appendChild(el("span","chip",buy.length+" items to buy"));sm.appendChild(el("span","chip",chk.length+" to check at home"));var tot=0,np=0;buy.forEach(function(x){if(typeof x.est==="number")tot+=x.est;else np++});if(tot>0)sm.appendChild(el("span","chip","About $"+tot.toFixed(2)+" estimated"+(np?" ("+np+" unpriced)":"")));h.appendChild(sm);
   if(stores.length>1){var sr=el("div","row");sr.style.marginTop="10px";var allB=sh.filter(function(x){return x.kind!=="check"&&!x.have&&!pastOf(x)});
     [""].concat(stores).forEach(function(st){var its=allB.filter(function(x){return !st||x.store===st});var tt=its.reduce(function(a,x){return a+(typeof x.est==="number"?x.est:0)},0);
@@ -1625,6 +1640,7 @@ function renderShop(v){
     allb.onclick=function(){if(!confirm("Mark all "+buy.length+" items as bought and add them to the pantry? Use Got less first on anything that came up short."))return;write(buy.reduce(function(pr,x){return pr.then(function(){return boughtJob(x)})},Promise.resolve()))};h.appendChild(allb);
     h.appendChild(el("div","note","After an order: tap Got less on anything the shopper shorted or skipped, then this button for the rest."))}
   v.appendChild(h);
+  if(S.canWrite&&S.db)v.appendChild(extraCard(cw));
   if(S.canWrite&&S.db)v.appendChild(receiptCard(cw,mode));
   var rq=reqCard(["skylight-list","instacart-cart","shortage","receipt"]);if(rq)v.appendChild(rq);
   var pcOpen=false;if((buy.length||chk.length)&&S.canWrite&&S.db){var pc=el("div","card");var uc=buy.filter(function(x){return !x.checked});
@@ -1691,6 +1707,7 @@ function shopRow(x,label,isPast){
   var row=el("div","prow");var top=el("div","top");
   var l=el("div");l.appendChild(el("b",null,x.buy));
   var det=[];if(x.need)det.push("need "+x.need);if(x.covers)det.push(x.covers);
+  if(x.kind==="extra")det.push("Added to the list"+(x.skySent?" · on Skylight":""));
   if(det.length)l.appendChild(el("div","note",det.join(" · ")));
   if(x.leftover)l.appendChild(el("div","note","Left over: "+x.leftover));
   top.appendChild(l);
@@ -1700,7 +1717,7 @@ function shopRow(x,label,isPast){
   else if(x.have&&x.bought)l.appendChild(el("div","note","Bought "+fmtDate(x.bought)+", added to the pantry"));
   if(typeof x.est==="number")top.appendChild(el("span","chip","$"+x.est.toFixed(2)));
   row.appendChild(top);
-  if(S.canWrite&&S.db){var ctl=el("div","ctl");if(!x.have&&x.kind!=="check"&&S.pantry){var bb=el("button","b p","Bought it");bb.disabled=S.busy;bb.onclick=function(){boughtIt(x)};ctl.appendChild(bb);
+  if(S.canWrite&&S.db){var ctl=el("div","ctl");if(!x.have&&x.kind!=="check"&&S.pantry){var bb=el("button","b p","Bought it");bb.disabled=S.busy;bb.onclick=function(){if(x.kind==="extra"&&secOf(x)==="Household")write(putShop(x,{have:true,bought:localIso(),got:shopCount(x)}));else boughtIt(x)};ctl.appendChild(bb);
       var gl=el("button","b"+(S.less===x.id?" p":""),"Got less");gl.disabled=S.busy;gl.onclick=function(){S.less=S.less===x.id?null:x.id;render()};ctl.appendChild(gl)}
     if(x.kind==="check"){
       /* One thing to look for at home: either we have it, or it moves onto the buy list (with the size to buy). */
@@ -1709,7 +1726,9 @@ function shopRow(x,label,isPast){
         if(x.ifNeed){var nb=el("button","b","Need to buy");nb.disabled=S.busy;nb.onclick=function(){write(putShop(x,{kind:"recipe",have:false,checked:true,buy:x.ifNeed||x.name||x.buy,est:typeof x.ifEst==="number"?x.ifEst:undefined}))};ctl.appendChild(nb)}else{var nh=el("button","b","Don't have it");nh.disabled=S.busy;nh.onclick=function(){write(putShop(x,{have:true,notHere:true}))};ctl.appendChild(nh)}}}
     else{var b=el("button","b",label);b.disabled=S.busy;b.onclick=function(){write(putShop(x,{have:!x.have}))};ctl.appendChild(b)}
     if(isPast){var sn=el("button","b","Still need it");sn.disabled=S.busy;sn.onclick=function(){write(putShop(x,{covers:String(x.covers||"").replace(/\b(sun|mon|tue|wed|thu|fri|sat)\w*\s*/ig,"").replace(/^[\s,]+|[\s,]+$/g,"")||"still needed"}))};ctl.appendChild(sn)}
-    var eb=el("button","b","Edit");eb.onclick=function(){openEdit("shop:"+x.id)};ctl.appendChild(eb);row.appendChild(ctl);
+    var eb=el("button","b","Edit");eb.onclick=function(){openEdit("shop:"+x.id)};ctl.appendChild(eb);
+    if(x.kind==="extra"){var rm=el("button","b","Remove");rm.disabled=S.busy;rm.onclick=function(){if(x.skySent&&!confirm("Remove it here? It's already on the Skylight list, so delete it there too."))return;write(S.db.doc("shoplist/"+x.id).delete())};ctl.appendChild(rm)}
+    row.appendChild(ctl);
     if(S.less===x.id&&!x.have){var lr=el("div","ctl");var cn=shopCount(x);lr.appendChild(el("span","note","How many arrived"+(cn>1?" (asked for "+cn+")":"")+"?"));
       for(var q=0;q<cn;q++)(function(q){var b=el("button","b",q===0?"None":String(q));b.disabled=S.busy;b.onclick=function(){S.less=null;boughtIt(x,q)};lr.appendChild(b)})(q);row.appendChild(lr)}
     if(S.edit==="shop:"+x.id)row.appendChild(editForm([{k:"buy",label:"What to buy",val:x.buy},{k:"need",label:"Amount needed",val:x.need||""},{k:"section",label:"Section",val:secOf(x),opts:GSECS}],function(o){write(putShop(x,{buy:o.buy.trim()||x.buy,need:o.need.trim(),section:o.section}))}))}
