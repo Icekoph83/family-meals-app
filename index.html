@@ -133,7 +133,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1 id="ttl">This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-22e">
+<meta name="app-v" content="2026-11-22f">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -1346,7 +1346,7 @@ function fr(n){n=q4(n);var w=Math.floor(n),f=n-w;var g=f===0.25?"¼":f===0.5?"½
 window.fmFr=fr;
 function totalOf(x){return q4(lotsOf(x).reduce(function(s,l){return s+l.n},0))}
 function soonest(x){var best=null;lotsOf(x).forEach(function(l){if(l.n>0&&l.exp){var d=dleft(l.exp);if(best===null||d<best)best=d}});return best}
-function putPantry(x,patch){var d={name:x.name,size:sizeOf(x),lots:cleanLots(lotsOf(x)),loc:x.loc||"Pantry",note:x.note||"",state:x.state||"have",restock:x.restock||""};if(x.leftover)d.leftover=x.leftover;if(x.low)d.low=x.low;for(var k in patch)d[k]=patch[k];if(d.low===false||d.state==="used")delete d.low;if(d.lots&&d.state!=="used"&&!d.lots.length&&!("state" in patch))d.state="used";return S.db.doc("pantry/"+x.id).set(d)}
+function putPantry(x,patch){var d={name:x.name,size:sizeOf(x),lots:cleanLots(lotsOf(x)),loc:x.loc||"Pantry",note:x.note||"",state:x.state||"have",restock:x.restock||""};if(x.leftover)d.leftover=x.leftover;if(x.low)d.low=x.low;if(x.seen)d.seen=x.seen;if(x.photo)d.photo=x.photo;for(var k in patch)d[k]=patch[k];if(d.low===false||d.state==="used")delete d.low;if(d.lots&&d.state!=="used"&&!d.lots.length&&!("state" in patch))d.state="used";return S.db.doc("pantry/"+x.id).set(d)}
 function useOne(lots,k){lots=cleanLots(lots);k=q4(k);while(k>0&&lots.length){var t=Math.min(k,lots[0].n);lots[0].n=q4(lots[0].n-t);k=q4(k-t);if(lots[0].n<=0)lots.shift()}return lots}
 function spanTxt(d){if(d<60)return d+" day"+(d===1?"":"s");if(d<730)return "about "+Math.round(d/30.4)+" months";var y=Math.round(d/365*2)/2;return "about "+(y%1?Math.floor(y)+" ½":y)+" years"}
 function whenText(dl){if(dl===null)return "no date yet";if(dl<0)return "expired "+spanTxt(-dl)+" ago";if(dl===0)return "expires today";return "expires in "+spanTxt(dl)}
@@ -1493,6 +1493,16 @@ function renderPantry(v){
   if(nodate)sm.appendChild(el("span","chip",nodate+" without a date"));
   var wq=walkQueue();if(wq.length&&S.canWrite&&S.db){var wb=el("button","b p","Photo walk ("+wq.length+" items without a photo)");wb.style.cssText="width:100%;margin-top:10px";wb.onclick=function(){S.walk={ids:walkQueue().map(function(x){return x.id}),i:0,added:0,skipped:0,err:"",busy:false};render();window.scrollTo(0,0)};sm.appendChild(wb)}
   intro.appendChild(sm);v.appendChild(intro)}
+  /* Fridge check: fresh things drift out of date without anyone entering it. Anything in the fridge not confirmed in the last 5 days gets a one-tap Still here / Gone. */
+  var fq=searching?[]:have.filter(function(x){return (x.loc||"")==="Fridge"&&!allExpired(x)&&(!x.seen||dleft(x.seen)<-5)}).sort(function(a,b){return String(a.name).localeCompare(String(b.name))});
+  if(fq.length&&S.canWrite&&S.db){var fc=el("div","card");fc.appendChild(el("h2",null,"Fridge check ("+fq.length+")"));
+    fc.appendChild(el("div","note","Is each of these still in the fridge and still good? Gone takes it out of the pantry, so the planner and grocery list stop counting on it."));
+    fq.forEach(function(x){var row=el("div","prow");var top=el("div","top");var t=el("div");t.style.flex="1";t.appendChild(el("div","nm",x.name+(lotsOf(x).length&&totalOf(x)!==1?" · "+(Math.round(totalOf(x)*100)/100):"")));
+      var bm=/Bought ([A-Z][a-z]{2} \d+)/.exec(x.note||"");if(bm)t.appendChild(el("div","note","Bought "+bm[1]));else if(x.leftover&&x.leftover.cooked)t.appendChild(el("div","note","Cooked "+fmtDate(x.leftover.cooked)));top.appendChild(t);
+      var sb=el("button","b","Still here");sb.disabled=dis;sb.onclick=function(){write(putPantry(x,{seen:localIso()}))};top.appendChild(sb);
+      var gb=el("button","b p","Gone");gb.disabled=dis;gb.onclick=function(){write(putPantry(x,{lots:[],state:"used"}))};top.appendChild(gb);row.appendChild(top);fc.appendChild(row)});
+    var all=el("button","b","All of these are still here");all.style.cssText="width:100%;margin-top:10px";all.disabled=dis;all.onclick=function(){write(Promise.all(fq.map(function(x){return putPantry(x,{seen:localIso()})})))};fc.appendChild(all);
+    v.appendChild(fc)}
   var toss=searching?[]:have.filter(allExpired).sort(function(a,b){return soonest(a)-soonest(b)});
   if(toss.length){var tc=el("div","card");tc.appendChild(el("h2",null,"Toss these ("+toss.length+")"));tc.appendChild(el("div","note","Everything here is past its date. The planner ignores these. Tap Tossed once an item is in the trash, or edit the date below if it is still good."));
     toss.forEach(function(x){var row=el("div","prow");var top=el("div","top");var t=el("div");t.style.flex="1";t.appendChild(el("div","nm",x.name));t.appendChild(el("div","note",(x.loc||"Pantry")+" · "+whenText(soonest(x))));top.appendChild(t);
