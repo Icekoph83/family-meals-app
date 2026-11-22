@@ -133,7 +133,7 @@ select{font:inherit;font-size:13.5px;padding:8px;border-radius:10px;border:1px s
 <div class="wrap">
 <h1 id="ttl">This week's dinners</h1>
 <p class="sub" id="sub">Planned from your favorites. Approve a night or ask for a swap.</p>
-<meta name="app-v" content="2026-11-22a">
+<meta name="app-v" content="2026-11-22b">
 <div id="upd"></div>
 <div id="pend"></div>
 <div id="ahead"></div>
@@ -1563,7 +1563,7 @@ function renderPantry(v){
 
 
 var GSECS=["Produce","Meat & Seafood","Dairy","Pantry","Bakery","Other"];
-function putShop(x,patch){var d={};["name","buy","need","covers","leftover","section","kind","order","est","week","store","priced","bought","got","short","sub"].forEach(function(k){if(x[k]!==undefined)d[k]=x[k]});d.have=!!x.have;for(var k in patch)d[k]=patch[k];return S.db.doc("shoplist/"+x.id).set(d)}
+function putShop(x,patch){var d={};["name","buy","need","covers","leftover","section","kind","order","est","week","store","priced","bought","got","short","sub","checked","found","skySent"].forEach(function(k){if(x[k]!==undefined)d[k]=x[k]});d.have=!!x.have;for(var k in patch)d[k]=patch[k];return S.db.doc("shoplist/"+x.id).set(d)}
 function shopText(items,mode){
   var out=[];
   if(mode==="instacart"){items.forEach(function(x){out.push(x.buy)});return out.join("\n")}
@@ -1591,9 +1591,10 @@ function renderShop(v){
   [["store","In store (Skylight list)"],["instacart","Instacart order"]].forEach(function(m){var b=el("button","b"+(mode===m[0]?" p":""),m[1]);b.disabled=S.busy||!S.canWrite||!S.db;b.onclick=function(){write(S.db.doc("settings/shopping").set({mode:m[0]}))};r.appendChild(b)});
   h.appendChild(r);
   var q2=el("div","row");
+  var unchk=buy.filter(function(x){return !x.checked});
   [["skylight-list","Send list to Skylight","Send this week's list to Skylight"],["instacart-cart","Build Instacart cart","Build the Instacart cart"]].forEach(function(m){
     var pend=(S.reqs||[]).some(function(x){return x.type===m[0]&&x.status==="pending"});
-    var b=el("button","b",pend?"Already asked, waiting":m[1]);b.disabled=S.busy||!S.canWrite||!S.db||pend;
+    var b=el("button","b",pend?"Already asked, waiting":unchk.length?m[1]+" (check the pantry first)":m[1]);b.disabled=S.busy||!S.canWrite||!S.db||pend||unchk.length>0;
     b.onclick=function(){write(sendReq(m[0],m[2],{week:cw}))};q2.appendChild(b)});
   h.appendChild(q2);
   h.appendChild(el("div","note",mode==="store"?"The list is organized by store section. Send list to Skylight puts it on the Skylight grocery list.":"The list is just the products and sizes to search for, one per line. Copy it into Instacart, or ask Claude to build the cart if the Instacart connection is on."));
@@ -1607,6 +1608,15 @@ function renderShop(v){
   v.appendChild(h);
   if(S.canWrite&&S.db)v.appendChild(receiptCard(cw,mode));
   var rq=reqCard(["skylight-list","instacart-cart","shortage","receipt"]);if(rq)v.appendChild(rq);
+  if(buy.length&&S.canWrite&&S.db){var pc=el("div","card");var uc=buy.filter(function(x){return !x.checked});
+    if(uc.length){pc.style.borderColor="var(--acc, #c77d2e)";pc.appendChild(el("div","day","Pantry check before you buy"));
+      pc.appendChild(el("div","note","Look in the pantry, fridge and freezer for each of these. Things you already have come off the list (and go into the pantry if they weren't entered). "+(buy.length-uc.length)+" of "+buy.length+" checked."));
+      uc.forEach(function(x){var r=el("div","prow");var t=el("div","top");var l=el("div");l.appendChild(el("b",null,x.buy));if(x.covers)l.appendChild(el("div","note",x.covers));t.appendChild(l);r.appendChild(t);
+        var ctl=el("div","ctl");var hv=el("button","b","We have it");hv.disabled=S.busy;hv.onclick=function(){write(foundJob(x))};ctl.appendChild(hv);
+        var nd=el("button","b p","Need to buy");nd.disabled=S.busy;nd.onclick=function(){write(putShop(x,{checked:true}))};ctl.appendChild(nd);r.appendChild(ctl);pc.appendChild(r)});
+      var sk=el("button","b","Skip the check: buy everything listed");sk.style.marginTop="8px";sk.disabled=S.busy;sk.onclick=function(){write(Promise.all(uc.map(function(x){return putShop(x,{checked:true})})))};pc.appendChild(sk)}
+    else{pc.appendChild(el("div","note","Pantry checked: "+buy.length+" item"+(buy.length===1?"":"s")+" to buy."))}
+    v.appendChild(pc)}
   if(buy.length){var cb=el("div","card");cb.appendChild(el("div","day","Copy this list"));
   var ta=el("textarea");ta.readOnly=true;ta.rows=6;ta.value=shopText(buy,mode);cb.appendChild(ta);
   var cr=el("div","row");var cp=el("button","b","Copy");cp.onclick=function(){ta.select();try{navigator.clipboard.writeText(ta.value).then(function(){cp.textContent="Copied"}).catch(function(){cp.textContent="Press and hold the text to copy"})}catch(e){cp.textContent="Press and hold the text to copy"}};cr.appendChild(cp);cb.appendChild(cr);v.appendChild(cb)}
@@ -1652,6 +1662,11 @@ function boughtJob(x,k){var norm=function(t){return String(t||"").toLowerCase().
   var patch={have:k>0,bought:day,got:k};if(k<cnt){patch.short=true;jobs.push(sendReq("shortage","Short on "+nm+": got "+k+" of "+cnt,{sid:x.id,name:nm,got:k,of:cnt,covers:x.covers||"",week:x.week||""}))}else patch.short=false;
   jobs.push(putShop(x,patch));return Promise.all(jobs)}
 function boughtIt(x,k){return write(boughtJob(x,k))}
+/* Pantry check: "We have it" marks the line as on hand and, if the pantry doesn't list it, adds it so the pantry stays honest. */
+function foundJob(x){var norm=function(t){return String(t||"").toLowerCase().replace(/\s+/g," ").trim()};var nm=String(x.name||x.buy||"").trim();var jobs=[];
+  var ex=(S.pantry||[]).filter(function(p){return norm(p.name)===norm(nm)&&p.state!=="used"})[0];
+  if(!ex)jobs.push(S.db.collection("pantry").add({name:nm.charAt(0).toUpperCase()+nm.slice(1),size:"",lots:[{n:1,exp:""}],loc:/^(Produce|Dairy|Meat|Frozen)/.test(x.section||"")?(/^Frozen/.test(x.section||"")?"Freezer":"Fridge"):"Pantry",note:"Found at home during the pantry check "+fmtDate(localIso()),state:"have",restock:""}));
+  jobs.push(putShop(x,{have:true,checked:true,found:true}));return Promise.all(jobs)}
 function shopRow(x,label,isPast){
   var row=el("div","prow");var top=el("div","top");
   var l=el("div");l.appendChild(el("b",null,x.buy));
