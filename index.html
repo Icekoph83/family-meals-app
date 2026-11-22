@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head>
-<meta name="app-v" content="2026-11-22i"><meta charset="utf-8">
+<meta name="app-v" content="2026-11-22j"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#b4491f">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1731,7 +1731,11 @@ function shopRow(x,label,isPast){
     row.appendChild(ctl);
     if(S.less===x.id&&!x.have){var lr=el("div","ctl");var cn=shopCount(x);lr.appendChild(el("span","note","How many arrived"+(cn>1?" (asked for "+cn+")":"")+"?"));
       for(var q=0;q<cn;q++)(function(q){var b=el("button","b",q===0?"None":String(q));b.disabled=S.busy;b.onclick=function(){S.less=null;boughtIt(x,q)};lr.appendChild(b)})(q);row.appendChild(lr)}
-    if(S.edit==="shop:"+x.id)row.appendChild(editForm([{k:"buy",label:"What to buy",val:x.buy},{k:"need",label:"Amount needed",val:x.need||""},{k:"section",label:"Section",val:secOf(x),opts:GSECS}],function(o){write(putShop(x,{buy:o.buy.trim()||x.buy,need:o.need.trim(),section:o.section}))}))}
+    if(S.edit==="shop:"+x.id)row.appendChild(editForm([{k:"buy",label:"What to buy",val:x.buy},{k:"need",label:"Amount needed",val:x.need||""},{k:"section",label:"Section",val:secOf(x),opts:GSECS}],function(o){var nb=o.buy.trim()||x.buy;var pt={buy:nb,need:o.need.trim(),section:o.section};
+      /* If the item itself changed (farfalle -> cavatappi), rename it too so "Bought it" files the right thing in the pantry. */
+      var nn=nb.replace(/^\s*[\d\/.½¼¾-]+\s*(lb|lbs|oz|ct|g|kg|bags?|boxe?s?|cans?|jars?|bunch(es)?|heads?|packs?|containers?|tubs?|bottles?|cartons?|blocks?|pouches)?\.?\s*(of\s+)?/i,"").replace(/\([^)]*\)/g," ").replace(/\s+/g," ").trim();
+      if(nb!==x.buy&&nn&&x.name&&nn.toLowerCase().indexOf(String(x.name).toLowerCase())<0){pt.name=nn;if(!x.sub)pt.sub=nn+" (instead of "+x.name+")"}
+      write(putShop(x,pt))}))}
   return row;
 }
 
