@@ -1,0 +1,8 @@
+# Never commit secrets. Keys belong in Supabase function secrets or on the device, not here.
+.env
+.env.*
+*.pem
+*.key
+secrets/
+*.secret*
+.DS_Store
