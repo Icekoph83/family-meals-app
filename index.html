@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head>
-<meta name="app-v" content="2026-11-24a"><meta charset="utf-8">
+<meta name="app-v" content="2026-11-24b"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#b4491f">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -538,6 +538,8 @@ function renderRecipe(){
   var hp=pimg(r.id,180);if(hp)app.appendChild(hp);
   app.appendChild(el("h1",null,r.title));
   app.appendChild(el("div","mut",[r.day,r.time,r.servings,r.cost].filter(Boolean).join(" · ")));
+  if(r.source){var sd=el("div","mut");sd.style.marginTop="2px";var su=/https:\/\/\S+/.exec(r.source);var stx=r.source.replace(/\s*https:\/\/\S+/,"").trim();
+    if(su){var sa=el("a",null,stx||"Recipe source");sa.href=su[0];sa.target="_blank";sa.rel="noopener";sd.appendChild(sa)}else sd.textContent=stx;app.appendChild(sd)}
   var shs=(pantryApi()&&pantryApi().short)?pantryApi().short(r):[];
   if(r.adapt&&r.adapt.date===r.date&&r.adapt.text){var ab=el("div","warnbox");ab.appendChild(el("b",null,"Adjusted for what arrived"));ab.appendChild(el("div",null,r.adapt.text));app.appendChild(ab)}
   else if(shs.length){var sb=el("div","warnbox");sb.appendChild(el("b",null,"Short on ingredients"));sb.appendChild(el("div",null,shs.map(function(x){return x.name+" (got "+x.got+" of "+x.of+")"}).join(", ")+". Claude adjusts the recipe within the hour. Check back here before you cook."));app.appendChild(sb)}
