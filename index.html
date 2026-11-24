@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head>
-<meta name="app-v" content="2026-11-24b"><meta charset="utf-8">
+<meta name="app-v" content="2026-11-24c"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#b4491f">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1610,7 +1610,7 @@ function skyAdd(lines){lines=(lines||[]).filter(function(x){return x&&x.id&&(x.b
     if(!j||!j.ok||!j.items)return 0;var by={};lines.forEach(function(x){by[x.id]=x});var jobs=[];
     j.items.forEach(function(it){var x=by[it.key];if(x&&it.id)jobs.push(putShop(x,{skySent:true,skyItem:it.id}))});
     return Promise.all(jobs).then(function(){return jobs.length})})}
-function skyCard(){var N=S.skyNeed;if(!N||!skyLive())return null;var E=S.skyIn||(S.skyIn={code:"",msg:"",busy:false});var c=el("div","card");
+function skyLiveCard(){var N=S.skyNeed;if(!N||!skyLive())return null;var E=S.skyIn||(S.skyIn={code:"",msg:"",busy:false});var c=el("div","card");
   c.appendChild(el("div","day","Skylight needs a quick sign-in"));
   c.appendChild(el("div","note",(N.needCode?"Skylight emailed a 6-digit code to the Skylight account's email address"+(S.me&&S.me!=="jake"?" (Jake's email; ask him for it)":"")+". Type it here to reconnect live updates (only needed once in a while).":"The live Skylight connection is signed out. Start a sign-in and Skylight will email a 6-digit code"+(S.me&&S.me!=="jake"?" to Jake's email":"")+".")+" Until then, changes wait here and the scheduled sync sends them."));
   var r=el("div","row");
@@ -1691,7 +1691,7 @@ function renderShop(v){
     allb.onclick=function(){if(!confirm("Mark all "+buy.length+" items as bought and add them to the pantry? Use Got less first on anything that came up short."))return;write(buy.reduce(function(pr,x){return pr.then(function(){return boughtJob(x)})},Promise.resolve()))};h.appendChild(allb);
     h.appendChild(el("div","note","After an order: tap Got less on anything the shopper shorted or skipped, then this button for the rest."))}
   v.appendChild(h);
-  var skc=skyCard();if(skc)v.insertBefore(skc,h);
+  var skc=skyLiveCard();if(skc)v.insertBefore(skc,h);
   if(S.canWrite&&S.db)v.appendChild(extraCard(cw));
   if(S.canWrite&&S.db)v.appendChild(receiptCard(cw,mode));
   var rq=reqCard(["skylight-list","instacart-cart","shortage","receipt"]);if(rq)v.appendChild(rq);
