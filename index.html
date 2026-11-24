@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head>
-<meta name="app-v" content="2026-11-23b"><meta charset="utf-8">
+<meta name="app-v" content="2026-11-24a"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#b4491f">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -198,6 +198,8 @@ var QN="(?:\\d+\\s+\\d\\/\\d|\\d+\\/\\d|\\d+(?:\\.\\d+)?)";
 var QU="(cups?|tbsp|tsp|tablespoons?|teaspoons?|lbs?|pounds?|oz|ounces?|cloves?|cubes?|pitas?|eggs?|tortillas?)";
 var QRE=new RegExp("(\\()?("+QN+")(?:(\\s*(?:-|to)\\s*)("+QN+"))?(\\s+(?:(?:frozen|fresh|large|small|medium|whole|ripe|rice|garlic)\\s+){0,2})"+QU+"\\b","gi");
 function qParse(t){t=t.trim();var m=/^(\d+)\s+(\d)\/(\d)$/.exec(t);if(m)return +m[1]+(+m[2])/(+m[3]);m=/^(\d+)\/(\d+)$/.exec(t);if(m)return (+m[1])/(+m[2]);return parseFloat(t)}
+/* "can" -> "cans" for counts other than 1; never doubles an s ("cans navy beans" stays as is). */
+function plu(w,n){w=String(w||"");if(!w)return "";if(n!==1&&/(x|ch|sh)$/i.test(w))return w+"es";if(n===1||/s$/i.test(w)||/\boz\b|\blb\b|\(|\d/.test(w.split(" ").pop()))return w;return w+"s"}
 function qFmt(v,unit){var u=String(unit).toLowerCase(),st;
   if(/^(cloves?|pitas?|eggs?|tortillas?)$/.test(u))st=1;else if(/^cubes?$/.test(u))st=0.5;else if(/^(tsp|teaspoons?)$/.test(u))st=v<1?0.125:0.25;else if(/^(tbsp|tablespoons?)$/.test(u))st=0.25;else if(/^(oz|ounces?)$/.test(u))st=v>=4?1:0.5;else st=0.25;
   var r=Math.max(st,Math.round(v/st)*st),w=Math.floor(r+1e-9),f=r-w,fs="";
@@ -388,7 +390,7 @@ function buildPU(r){var P=pantryApi();var items=P?P.items():[];
     var conc=best&&/\b(base|bouillon|concentrate|paste)\b/i.test((items.filter(function(x){return x.id===best.id})[0]||{}).name||"")&&!/\b(base|bouillon|concentrate|paste)\b/i.test(String(i.name).replace(/\(.*?\)/g,""));
     var k=cc?cc:(small||conc||(c[0]&&c[0].alt))?0:(cq!==null&&cq<=0.5)?0.25:0.5;return {ing:i,id:best?best.id:"",use:!!best,k:best?k:0,low:false,small:small&&!cc,cand:cand,rem:rem}});
   S.pu={rows:rows,items:items,err:"",busy:false}}
-function onHand(it,k){if(!it)return "Not from the pantry, nothing to update.";var F=window.fmFr||String;var left=Math.max(0,it.total-(+k||0));return "Have "+F(it.total)+" × "+(it.size||"container")+(it.total===1?"":"s")+". After: "+F(left)+"."}
+function onHand(it,k){if(!it)return "Not from the pantry, nothing to update.";var F=window.fmFr||String;var left=Math.max(0,it.total-(+k||0));return "Have "+F(it.total)+(it.size?" × "+plu(it.size,it.total):"")+". After: "+F(left)+"."}
 function renderPantryConfirm(r){
   var PU=S.pu||(buildPU(r),S.pu),P=pantryApi();app.textContent="";
   var pf1=!!(S.fb&&S.fb.pfirst);
@@ -1357,7 +1359,7 @@ function useOne(lots,k){lots=cleanLots(lots);k=q4(k);while(k>0&&lots.length){var
 function spanTxt(d){if(d<60)return d+" day"+(d===1?"":"s");if(d<730)return "about "+Math.round(d/30.4)+" months";var y=Math.round(d/365*2)/2;return "about "+(y%1?Math.floor(y)+" ½":y)+" years"}
 function whenText(dl){if(dl===null)return "no date yet";if(dl<0)return "expired "+spanTxt(-dl)+" ago";if(dl===0)return "expires today";return "expires in "+spanTxt(dl)}
 function fmtDate(s){if(!s)return "";var d=new Date(s+"T12:00:00");return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})}
-function countText(x){var t=totalOf(x),s=sizeOf(x);return fr(t)+" × "+(s||"container"+(t===1?"":"s"))}
+function countText(x){var t=totalOf(x),s=sizeOf(x);return s?fr(t)+" × "+plu(s,t):fr(t)}
 
 function pantryJson(){return JSON.stringify(S.pantry.filter(function(x){return x.state!=="used"}).map(function(x){return {id:x.id,name:x.name,size:sizeOf(x),loc:x.loc||"Pantry",lots:cleanLots(lotsOf(x)),note:x.note||""}}))}
 function askPantry(){
@@ -1621,6 +1623,15 @@ function skyCard(){var N=S.skyNeed;if(!N||!skyLive())return null;var E=S.skyIn||
     if(j.ok&&j.signedIn){S.skyNeed=null;S.skyIn=null;S.skyMsg="Skylight is reconnected."}else if(j.ok&&j.needCode){S.skyNeed={needCode:true};E.msg="Code sent. Check your email."}
     else if(j.error==="not_configured"){S.skyNeed=null;E.msg=""}else E.msg="Couldn't reach Skylight. Try again in a minute.";render()})};r.appendChild(nb);
   c.appendChild(r);if(E.msg)c.appendChild(el("div","status",E.msg));return c}
+/* "can" -> "cans" for counts other than 1; never doubles an s ("cans navy beans" stays as is). */
+function plu(w,n){w=String(w||"");if(!w)return "";if(n!==1&&/(x|ch|sh)$/i.test(w))return w+"es";if(n===1||/s$/i.test(w)||/\boz\b|\blb\b|\(|\d/.test(w.split(" ").pop()))return w;return w+"s"}
+/* A pantry size from a grocery line: "3 cans navy beans" -> "can", "2 bags (12 oz) frozen broccoli" -> "12 oz bag",
+   "1 box (16 oz) orzo" -> "16 oz box", "4 to 6 bananas" -> "" (a plain count). */
+function sizeFromBuy(b){b=String(b||"").trim();var r=b.replace(/^\s*(\d+(\s+\d\/\d|\/\d+|\.\d+)?)(\s*(to|-|–)\s*\d+)?\s*/,"");
+  var CW="bag|box|can|jar|bottle|carton|pack|package|tub|container|bunch|head|block|canister|pouch|loaf|dozen|gallon|tin|shaker|stick|bar";
+  var m=new RegExp("^(?:"+CW+")(?:e?s)?\\b","i").exec(r);var oz=/((?:\d+\s+)?\d+(?:\/\d+|\.\d+)?\s?(?:fl oz|oz|lb|lbs|ct|count|g|ml|l))\b/i.exec(b);
+  if(m){var u=m[0].toLowerCase().replace(/(box)es$/,"$1").replace(/(pouch)es$/,"$1").replace(/s$/,"");return (oz?oz[1].toLowerCase()+" ":"")+u}
+  return oz?oz[1].toLowerCase():""}
 function skyOn(){return window.FM_BACKEND!=="sb"||!!(S.sky&&S.sky.enabled)}
 function guessSec(t){t=" "+String(t||"").toLowerCase()+" ";var M=[["Frozen",/frozen|ice cream|popsicle|waffles/],["Household",/paper towel|toilet|tissue|napkin|soap|detergent|dish|trash|garbage|\bbags?\b|foil|plastic wrap|ziploc|sponge|diaper|wipes|filters?\b|shampoo|conditioner|toothpaste|cleaner|bleach|batter(y|ies)|light ?bulb|motrin|tylenol|medicine|vitamin|lotion/],["Pantry",/peanut butter|almond butter|sauce|pasta|noodle|\brice\b|beans|cereal|cheerios|oats|oatmeal|flour|sugar|\boil\b|vinegar|spice|seasoning|canned|\bcans?\b|soup|broth|stock|crackers|chips|snack|granola|honey|syrup|jam|jelly|nuts|pouches|coffee beans/],["Produce",/apple|banana|berr|lettuce|spinach|onion|garlic|potato|tomato|pepper|carrot|celery|lemon|lime|avocado|fruit|salad|herb|cilantro|parsley|basil|kale|cucumber|grape|orange|pear|peach|broccoli|zucchini|squash|mushroom|scallion|ginger|melon|cabbage/],["Meat & Seafood",/chicken|beef|pork|turkey|sausage|bacon|steak|salmon|fish|shrimp|\bham\b|ground meat/],["Dairy",/milk|cheese|yogurt|butter|cream|\beggs?\b|lactaid|creamer/],["Bakery",/bread|bagel|\bbuns?\b|rolls?\b|tortilla|pita|muffin|croissant|cake|cookies/],["Drinks",/juice|soda|water|coffee|\btea\b|seltzer|spindrift|arizona|beer|wine|kombucha|gatorade|lemonade/]];
   for(var i=0;i<M.length;i++)if(M[i][1].test(t))return M[i][0];return "Other"}
@@ -1733,7 +1744,7 @@ function boughtJob(x,k){var norm=function(t){return String(t||"").toLowerCase().
   var cnt=shopCount(x);if(k===undefined)k=cnt;var day=localIso();var jobs=[];
   if(k>0){var lot={n:k,exp:""};var ex=(S.pantry||[]).filter(function(p){return norm(p.name)===norm(nm)})[0];
     if(ex)jobs.push(putPantry(ex,{lots:cleanLots((ex.state==="used"?[]:lotsOf(ex)).concat([lot])),state:"have",low:false,note:"Bought "+fmtDate(day)}));
-    else jobs.push(S.db.collection("pantry").add({name:nm.charAt(0).toUpperCase()+nm.slice(1),size:((/(\d+(?:\.\d+)?\s?(?:oz|lb|ct|count)\b)/i.exec(String(x.buy||""))||[])[1]||String(x.buy||"").replace(/^\s*\d+\s+/,"").replace(/\s*[\(,].*$/,"").trim()),lots:[lot],loc:/^(Produce|Dairy|Meat)/.test(x.section||"")?"Fridge":"Pantry",note:"Bought "+fmtDate(day),state:"have",restock:""}))}
+    else jobs.push(S.db.collection("pantry").add({name:nm.charAt(0).toUpperCase()+nm.slice(1),size:sizeFromBuy(x.buy),lots:[lot],loc:/^(Produce|Dairy|Meat)/.test(x.section||"")?"Fridge":"Pantry",note:"Bought "+fmtDate(day),state:"have",restock:""}))}
   var patch={have:k>0,bought:day,got:k};if(k<cnt){patch.short=true;jobs.push(sendReq("shortage","Short on "+nm+": got "+k+" of "+cnt,{sid:x.id,name:nm,got:k,of:cnt,covers:x.covers||"",week:x.week||""}))}else patch.short=false;
   jobs.push(putShop(x,patch));if(k>0&&x.skyItem&&skyLive())jobs.push(skyCall({action:"update",id:x.skyItem,status:"completed"}));return Promise.all(jobs)}
 function boughtIt(x,k){return write(boughtJob(x,k))}
