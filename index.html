@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head>
-<meta name="app-v" content="2026-11-24c"><meta charset="utf-8">
+<meta name="app-v" content="2026-11-24d"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#b4491f">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1269,6 +1269,52 @@ function skyCard(){var k=S.sky||{},dis=!S.canWrite||!S.db||S.busy,c=el("div","ca
   var sm=el("div","sum");sm.appendChild(el("span","chip ok","On"));sm.appendChild(el("span","chip","Frame: "+(k.frameName||"?")));if(k.last)sm.appendChild(el("span","chip","Last sync "+new Date(k.last).toLocaleString([],{weekday:"short",hour:"numeric",minute:"2-digit"})));c.appendChild(sm);
   if(k.status)c.appendChild(el("div",k.error?"status":"note",k.status));
   var off=el("button","b","Turn off");off.disabled=dis;off.onclick=function(){write(S.db.doc("settings/skylight").update({enabled:false,status:"Turned off. Remove Jake's Skylight account from your frame too if you're done testing."}))};var r2=el("div","row");r2.style.marginTop="8px";r2.appendChild(off);c.appendChild(r2);return c}
+/* ---- Where you shop: ZIP, nearby stores (OpenStreetMap), preferred stores and a main store ----
+   Only a ZIP and rounded coordinates are stored, never a street address. The main store is what price estimates,
+   the grocery list and Instacart carts use. */
+function mainStore(){var L=(S.stores&&S.stores.list)||[];return L.filter(function(x){return x.main})[0]||L[0]||null}
+function storeLabel(x){return x?(x.name+(x.addr||x.city?" ("+[x.addr,x.city].filter(Boolean).join(", ")+")":"")):""}
+function milesBetween(a,b,c,d){var R=3958.8,r=Math.PI/180,dl=(c-a)*r,dn=(d-b)*r,h=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a*r)*Math.cos(c*r)*Math.sin(dn/2)*Math.sin(dn/2);return 2*R*Math.asin(Math.sqrt(h))}
+function nomi(url){var ac=new AbortController();var t=setTimeout(function(){ac.abort()},15000);return fetch(url,{signal:ac.signal,headers:{Accept:"application/json"}}).then(function(r){clearTimeout(t);if(!r.ok)throw new Error("http "+r.status);return r.json()})}
+function findStores(zip,miles){var Z=String(zip||"").trim();if(!/^\d{5}$/.test(Z))return Promise.reject(new Error("zip"));
+  var wait=function(ms){return new Promise(function(r){setTimeout(r,ms)})};
+  return nomi("https://nominatim.openstreetmap.org/search?postalcode="+Z+"&country=us&format=jsonv2&limit=1&addressdetails=1").then(function(g){
+    if(!g||!g[0])throw new Error("nozip");var lat=+g[0].lat,lon=+g[0].lon,ad=g[0].address||{};
+    var place=[ad.city||ad.town||ad.village||ad.hamlet||ad.county||"",ad.state||""].filter(Boolean).join(", ");
+    var d=miles/55,vb=[lon-d*1.3,lat+d,lon+d*1.3,lat-d].join(","),seen={},out=[];
+    var terms=["supermarket","wholesale","Costco","Target","Walmart"];
+    return terms.reduce(function(pr,term,i){return pr.then(function(){return (i?wait(1100):Promise.resolve()).then(function(){
+      return nomi("https://nominatim.openstreetmap.org/search?q="+encodeURIComponent(term)+"&format=jsonv2&limit=50&bounded=1&viewbox="+vb+"&addressdetails=1").catch(function(){return []})}).then(function(rs){
+      (rs||[]).forEach(function(x){var k=x.osm_type+x.osm_id;if(seen[k]||!x.name)return;if(!/supermarket|wholesale|department_store|greengrocer|convenience|general|mall|retail/.test(x.type||"")&&term==="supermarket")return;
+        var mi=milesBetween(lat,lon,+x.lat,+x.lon);if(mi>miles)return;seen[k]=1;var a=x.address||{};
+        out.push({key:k,name:x.name,addr:[a.house_number,a.road].filter(Boolean).join(" "),city:a.city||a.town||a.village||a.hamlet||"",mi:Math.round(mi*10)/10})})})})},Promise.resolve())
+      .then(function(){out.sort(function(a,b){return a.mi-b.mi});return {zip:Z,place:place,lat:Math.round(lat*100)/100,lon:Math.round(lon*100)/100,found:out}})})}
+function saveStores(patch){var cur=S.stores||{};return S.db.doc("settings/stores").set(Object.assign({zip:cur.zip||"",place:cur.place||"",lat:cur.lat||null,lon:cur.lon||null,radius:cur.radius||10,list:cur.list||[]},patch))}
+function storesCard(dis){var c=el("div","card");c.appendChild(el("div","day","Where you shop"));var F=S.stf||(S.stf={zip:(S.stores&&S.stores.zip)||"",radius:(S.stores&&S.stores.radius)||10,found:null,busy:false,msg:"",cname:"",ccity:""});
+  var L=((S.stores&&S.stores.list)||[]).slice();
+  c.appendChild(el("div","note","Pick the stores you actually shop at. Your main store sets the prices Claude estimates with, labels the grocery list, and is the store an Instacart cart is built for. Only your ZIP code is saved, not your address."));
+  if(L.length){var ul=el("div");L.forEach(function(x,i){var row=el("div","row");row.style.cssText="align-items:center;margin:6px 0";
+      var lab=el("div",null,(x.main?"★ ":"")+storeLabel(x)+(x.mi!=null?" · "+x.mi+" mi":""));lab.style.flex="1";if(x.main)lab.style.fontWeight="600";row.appendChild(lab);
+      if(!x.main){var mb=el("button","b","Make main");mb.disabled=dis;mb.onclick=function(){write(saveStores({list:L.map(function(y,j){return Object.assign({},y,{main:j===i})})}))};row.appendChild(mb)}
+      var rb=el("button","b","Remove");rb.disabled=dis;rb.onclick=function(){var nl=L.filter(function(_,j){return j!==i});if(x.main&&nl.length)nl[0]=Object.assign({},nl[0],{main:true});write(saveStores({list:nl}))};row.appendChild(rb);ul.appendChild(row)});c.appendChild(ul)}
+  else c.appendChild(el("div","status","No stores picked yet. Look up stores near you below."));
+  if(!S.canWrite||!S.db)return c;
+  var r=el("div","row");r.style.marginTop="10px";var zi=el("input");zi.placeholder="ZIP code";zi.inputMode="numeric";zi.maxLength=5;zi.value=F.zip;zi.oninput=function(){F.zip=zi.value.replace(/\D/g,"")};zi.style.width="7em";r.appendChild(zi);
+  var rs=el("select");[5,10,15,25].forEach(function(m){var o=el("option",null,"within "+m+" mi");o.value=m;if(+F.radius===m)o.selected=true;rs.appendChild(o)});rs.onchange=function(){F.radius=+rs.value};r.appendChild(rs);
+  var fb=el("button","b p",F.busy?"Looking…":"Find stores near me");fb.disabled=dis||F.busy;fb.onclick=function(){F.busy=true;F.msg="";render();
+    findStores(F.zip,+F.radius).then(function(res){F.busy=false;F.found=res;F.msg=res.found.length?"":"No grocery stores found within "+F.radius+" miles. Try a wider distance, or add yours below.";
+      write(saveStores({zip:res.zip,place:res.place,lat:res.lat,lon:res.lon,radius:+F.radius}))})
+    .catch(function(e){F.busy=false;F.msg=e&&e.message==="zip"?"Type a 5-digit ZIP code.":e&&e.message==="nozip"?"Couldn't find that ZIP code.":"The store lookup didn't answer. Try again in a minute.";render()})};r.appendChild(fb);c.appendChild(r);
+  if(F.msg)c.appendChild(el("div","status",F.msg));
+  if(F.found&&F.found.found.length){var have={};L.forEach(function(x){have[x.key||x.name]=1});var box=el("div");box.style.cssText="margin-top:8px;max-height:340px;overflow:auto;border-top:1px solid var(--line)";
+    box.appendChild(el("div","note","Near "+(F.found.place||F.found.zip)+". Tap Add for each store you use."));
+    F.found.found.forEach(function(x){var row=el("div","row");row.style.cssText="align-items:center;margin:4px 0";var lab=el("div",null,storeLabel(x)+" · "+x.mi+" mi");lab.style.flex="1";row.appendChild(lab);
+      var ab=el("button","b",have[x.key]?"Added":"Add");ab.disabled=dis||!!have[x.key]||L.length>=8;ab.onclick=function(){write(saveStores({list:L.concat([Object.assign({},x,{main:!L.length})])}))};row.appendChild(ab);box.appendChild(row)});
+    c.appendChild(box);var at=el("div","note","Store locations © OpenStreetMap contributors.");at.style.fontSize="11px";c.appendChild(at)}
+  var cr=el("div","row");cr.style.marginTop="8px";var cn=el("input");cn.placeholder="Store not listed? Name";cn.value=F.cname;cn.oninput=function(){F.cname=cn.value};cr.appendChild(cn);
+  var cc=el("input");cc.placeholder="Town";cc.value=F.ccity;cc.oninput=function(){F.ccity=cc.value};cc.style.width="8em";cr.appendChild(cc);
+  var cb=el("button","b","Add");cb.disabled=dis||L.length>=8;cb.onclick=function(){var n=F.cname.trim().slice(0,60);if(!n)return;var x={key:"custom:"+n.toLowerCase(),name:n,addr:"",city:F.ccity.trim().slice(0,40),mi:null,main:!L.length};F.cname="";F.ccity="";write(saveStores({list:L.concat([x])}))};cr.appendChild(cb);c.appendChild(cr);
+  return c}
 function renderHouse(v){
   if(S.people===null){v.appendChild(el("div","empty","Loading the household…"));return}
   var dis=!S.canWrite||!S.db||S.busy;
@@ -1277,6 +1323,7 @@ function renderHouse(v){
   var sm=el("div","sum");sm.appendChild(el("span","chip",(S.people.length)+" people"));var nr=allRules().length;sm.appendChild(el("span","chip",nr+" rules"));intro.appendChild(sm);
   intro.appendChild(el("div","note","For true allergies, always check labels yourself too. Hidden ingredients and cross-contact can slip past any app."));
   v.appendChild(intro);
+  v.appendChild(storesCard(dis));
   renderTellHouse(v,dis);
   if(!S.people.length)v.appendChild(el("div","empty","No one added yet. Describe your household above, or add a person below."));
   S.people.forEach(function(p){v.appendChild(personCard(p,dis))});
@@ -1679,8 +1726,10 @@ function renderShop(v){
     if(m[0]==="skylight-list"&&skyLive()){var uns=sh.filter(function(x){return x.kind!=="check"&&!x.have&&!x.skySent&&!pastOf(x)});
       b.textContent=unchk.length?b.textContent:(uns.length?"Send to Skylight now ("+uns.length+")":"Skylight list is up to date");if(!unchk.length)b.disabled=S.busy||!uns.length;
       b.onclick=function(){write(skyAdd(uns).then(function(n){S.skyMsg=n?("Sent "+n+" item"+(n===1?"":"s")+" to Skylight."):(S.skyNeed?"":"Couldn't reach Skylight just now; the scheduled sync will send them.");if(!n&&!S.skyNeed)return sendReq(m[0],m[2],{week:cw})}))}}
-    else b.onclick=function(){write(sendReq(m[0],m[2],{week:cw}))};q2.appendChild(b)});
+    else b.onclick=function(){var st=mainStore();write(sendReq(m[0],m[2]+(m[0]==="instacart-cart"&&st?" at "+st.name:""),{week:cw,store:st?{name:st.name,addr:st.addr||"",city:st.city||""}:null,zip:(S.stores&&S.stores.zip)||""}))};
+    if(m[0]==="instacart-cart"&&mainStore()&&!pend&&!unchk.length)b.textContent="Build Instacart cart ("+mainStore().name+")";q2.appendChild(b)});
   h.appendChild(q2);
+  var ms=mainStore();h.appendChild(el("div","note",ms?"Shopping at "+storeLabel(ms)+". Change it on the Household tab.":"Tip: pick your stores on the Household tab so prices and Instacart use the right one."));
   if(S.skyMsg)h.appendChild(el("div","status",S.skyMsg));
   h.appendChild(el("div","note",mode==="store"?(skyOn()?"The list is organized by store section. Send list to Skylight puts it on the Skylight grocery list.":"The list is organized by store section. Take it with you and tap Bought it as you go, or copy it below."):"The list is just the products and sizes to search for, one per line. Copy it into Instacart, or ask Claude to build the cart if the Instacart connection is on."));
   var sm=el("div","sum");sm.appendChild(el("span","chip",buy.length+" items to buy"));sm.appendChild(el("span","chip",chk.length+" to check at home"));var tot=0,np=0;buy.forEach(function(x){if(typeof x.est==="number")tot+=x.est;else np++});if(tot>0)sm.appendChild(el("span","chip","About $"+tot.toFixed(2)+" estimated"+(np?" ("+np+" unpriced)":"")));h.appendChild(sm);
@@ -1821,6 +1870,7 @@ function init(){
     S.db.doc("settings/household").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.hh={notes:(x&&x.notes)||""};render()},function(){});
     S.db.doc("settings/reminder").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.scUrl=(x&&x.url)||"";render()},function(){});
     S.db.doc("settings/skylight").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.sky=x||null;render()},function(){});
+    S.db.doc("settings/stores").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.stores=x||null;render()},function(){});
     S.db.doc("settings/syncreport").onSnapshot(function(d){var x=null;try{x=d.data()}catch(e){}S.sync=x||null;render()},function(){});
     S.db.collection("quick").onSnapshot(function(s){S.quick=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});render()},function(){S.quick=[]});
     S.phx={};S.phf={};S.db.collection("phx").onSnapshot(function(s){S.phx={};s.docs.forEach(function(d){var x=d.data();if(x&&x.f)S.phx[d.id]=x});phLoad()},function(){});
